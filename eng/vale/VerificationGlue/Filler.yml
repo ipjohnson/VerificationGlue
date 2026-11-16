@@ -1,0 +1,9 @@
+extends: existence
+message: "Remove '%s'. It adds emphasis, not meaning. See docs/STYLE.md."
+level: error
+ignorecase: true
+tokens:
+  - seamless(?:ly)?
+  - simply
+  - effortless(?:ly)?
+  - magic(?:al|ally)?

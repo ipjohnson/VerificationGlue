@@ -193,12 +193,7 @@ The rule behind this: **documentation is built from the product, not written bes
 
 ### Examples come from compiled samples
 
-Every code block in the user docs is pulled from a project under `samples/` by region markers, with a tool such as MarkdownSnippets. The markdown holds a reference. A CI step expands it, so a code block in the docs is always the current text of a sample that builds.
-
-```markdown
-<!-- snippet: mocks-returns-basic -->
-<!-- endSnippet -->
-```
+Every code block in the user docs is pulled from a project under `samples/` by region markers, with MarkdownSnippets. The markdown holds a reference, such as an HTML comment `snippet: mocks-returns-basic` on its own line. A CI step expands it, so a code block in the docs is always the current text of a sample that builds. `docs/writing-docs.md` shows how to add one.
 
 The samples are real test projects. They build in CI, their tests run, and they publish with Native AOT where the page claims AOT support. A sample that only shows syntax is still compiled.
 
