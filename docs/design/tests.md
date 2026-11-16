@@ -4,8 +4,8 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/design-re
 
 ## What the user gets
 
-- A test project installs one package, `VerificationGlue.Tests`, and adds one line to `global.json`. `dotnet test`, `dotnet run`, Visual Studio, Rider and VS Code then discover and run its tests.
-- A method marked `[VerifyTest]` is a test. Its `Verify` calls report every sub-expression's value.
+- A test project installs one package, `VerificationGlue.Tests`, and adds one line to `global.json`. `dotnet test` and `dotnet run` run its tests; support for discovery, navigation and debugging in Visual Studio, Rider and VS Code is gated on the pinned phase 0 results below.
+- A method marked `[VerifyTest]` is a test. Eligible methods in a `partial` type chain get captured sub-expression values when tier 3 rewriting is enabled; otherwise they get tier 2 messages.
 - Test parameters come from a DI container built for that test, with `[Mock]` parameters registered in the same container. The container is disposed as soon as the test ends, and disposal is awaited.
 - Each data row gets its own container and its own result.
 - Test IDs are stable across renames of display names, so retries, filters and IDE history keep working.
@@ -35,6 +35,8 @@ public partial class OrderTests
 }
 ```
 
+The example uses a `partial` class so it is eligible for tier 3. Rewriting remains opt-in until the phase 0 gates in `verification-glue.md` pass; eligibility alone does not enable it. The [host and call-site capability matrix](verification-glue.md#host-and-call-site-capabilities) covers reflected tests, helpers and unsupported or disabled rewriting. Every advertised IDE must pass breakpoint binding and stepping, and the user must approve a total added cold-build budget at 100,000 calls that the benchmark then meets; the matched-baseline ratio is reported too. Missing budget approval is not a pass. Hot Reload limitations may be documented without blocking this gate.
+
 ## Package
 
 `VerificationGlue.Tests` depends on `VerificationGlue`, `VerificationGlue.Mocks`, `Microsoft.Testing.Platform`, `Microsoft.Testing.Platform.MSBuild` and `Microsoft.Testing.Extensions.TrxReport.Abstractions`. `Microsoft.Testing.Platform` has no dependencies of its own and is marked AOT compatible.
@@ -51,7 +53,7 @@ public partial class OrderTests
 
 | Attribute | Placement | Meaning |
 |---|---|---|
-| `[VerifyTest]` | Method | A test. Carries `[VerifyRewrite]`, so `VerificationGlue` rewrites the body. |
+| `[VerifyTest]` | Method | A test. Carries `[VerifyRewrite]`, making eligible bodies candidates for rewriting when tier 3 is enabled. |
 | `[Row(params object?[])]` | Method, many | One data row. Types are checked at compile time. |
 | `[RowSource(nameof(Member))]` | Method | A static member returning rows. The call is generated and typed. |
 | `[Container<T>] where T : ITestContainerBootstrap` | Assembly, class, method | The container for these tests. `Scope = Test` (default) or `Class`. |
@@ -77,17 +79,17 @@ The generator emits one file per test class. Registration runs from a module ini
 ```csharp
 file static class OrderTests_Tests
 {
-    static readonly Attribute[] s_attrs = [new SutModuleAttribute()];
+    static Attribute[] CreateAttributes() => [new SutModuleAttribute()];
     static readonly TestParameter[] s_params = [ /* name, type, position, attributes */ ];
 
     [ModuleInitializer]
     internal static void Register()
     {
         TestRegistry.Add(new TestDescriptor(
-            Uid: "MyApp.OrderTests.Totals(int,int,IClock,OrderService)#0",
+            Uid: "MyApp.OrderTests.Totals(System.Int32,System.Int32,MyApp.IClock,MyApp.OrderService)#row(System.Int32:2,System.Int32:10)",
             Class: typeof(OrderTests),
             FilePath: "OrderTests.cs", Line: 9,
-            Attributes: s_attrs, Parameters: s_params,
+            CreateAttributes: static () => CreateAttributes(), Parameters: s_params,
             Group: ScheduleGroups.Default,
             DisplayName: static ctx => DefaultNameFormatter.Format(ctx),
             BuildContainer: static ctx => ModuleBootstrap.BuildAsync(ctx),
@@ -100,7 +102,7 @@ file static class OrderTests_Tests
                 var instance = ctx.Resolve<OrderTests>() ?? new OrderTests();
                 await instance.Totals__Verified(2, 10, clock, ctx.Resolve<OrderService>(s_params[3]));
             }));
-        // ... the second row registers with #1
+        // ... the second row registers with #row(System.Int32:3,System.Int32:5)
     }
 }
 ```
@@ -108,9 +110,11 @@ file static class OrderTests_Tests
 Points to note:
 
 - Every attribute on the test method, its class and its assembly is materialised as a `new XAttribute(args)` expression, except attributes from `System` namespaces. The generator does not need to understand an attribute to pass it through. Extension points find the ones they care about with `OfType<T>()`, without reflection. An attribute that is not public, or whose arguments cannot be written as C#, is skipped and reported as VGT0006.
-- `Totals__Verified` is the rewritten copy from `VerificationGlue`. The generator calls it only when the shared `WillRewrite` function returns true. Otherwise it calls `Totals` and the test gets tier 2 messages. See the contract in `docs/design/verification-glue.md`.
+- `Totals__Verified` is the rewritten copy from `VerificationGlue`. The generator calls it only when tier 3 is enabled and the shared `WillRewrite` function returns true; both generators use the same setting. Otherwise it calls `Totals` and the test gets tier 2 messages. See the contract in `docs/design/verification-glue.md`.
 - `[Mock]` parameters become `Mock.Of<T>()` calls. The test generator never names a generated mock class, because it cannot see the mock generator's output.
 - Mocks are registered as overrides before the container is built, so the system under test receives the same instance as the parameter.
+
+Attribute factories in the sketch are invoked lazily inside the owning test or scope failure boundary, never during module registration; parameter attributes follow the same rule. Constructor failures produce an attributed test or scope result and do not terminate discovery for unrelated tests. UID spelling above is illustrative; the canonical identity encoding is defined by the rules below.
 
 ## The MTP adapter
 
@@ -128,6 +132,8 @@ Experimental MTP APIs marked `TPEXP`, such as `--treenode-filter` and graceful s
 
 The research spike built this adapter by hand against MTP 2.5.3. `--list-tests` and `--filter-uid` worked, and a Native AOT publish produced a 10.9 MB binary with no warnings that ran two tests in 32 ms.
 
+The MTP 2.5.3 result is historical evidence only, not validation of the shipping MTP 3 stack.
+
 ## Scopes
 
 There are three levels: assembly, class and test. Each data row and each retry attempt is its own test scope.
@@ -141,7 +147,7 @@ flowchart TD
     S2 --> S3["Enter middleware"]
     S3 --> S4["Construct the class and resolve parameters"]
     S4 --> S5["Invoke the test"]
-    S5 --> S6["Dispose the instance"]
+    S5 --> S6["Dispose runner-owned instance, if any"]
     S6 --> S7["Leave middleware"]
     S7 --> S8["Dispose the container"]
     S8 --> S9["Report Check failures and publish the result"]
@@ -151,7 +157,9 @@ Rules:
 
 - A scope is created when its first selected test starts, so a filtered-out test builds nothing.
 - A scope is disposed after its last test, in reverse creation order, with `await` inside `try/finally`.
-- A disposal failure fails the test it belongs to. A class or assembly disposal failure fails that scope's node.
+- Every instance and acquired resource has exactly one disposal owner. The container disposes instances it creates; the runner disposes only instances it creates, including a test instance constructed directly. Externally supplied overrides retain an explicit owner unless ownership is transferred; registration alone must not create a second owner.
+- Cleanup continues after any failure and awaits disposal of every successfully acquired resource in reverse ownership order, including cancellation or partial failure during setup. A failing cleanup operation must not prevent later cleanup.
+- Preserve invocation, middleware-exit, instance-disposal, container-disposal and `Check` failures together in the final result. Keep the original failure and attach subsequent failures in occurrence order rather than replacing it with the last exception. A cleanup or `Check` failure makes an otherwise successful test fail. A class or assembly disposal failure fails that scope's node.
 - Test output written at any point, including during container build, goes to that test's result. The test scope exists before the container does.
 - The test scope opens a `VerifyScope`, so `Check` failures are collected and reported when the test ends.
 
@@ -216,14 +224,16 @@ Anything else fails the test, and the message names the parameter and the provid
 
 ## Naming and identity
 
-- The UID is computed at compile time from the containing type's metadata name, the method name, the parameter types and the row index. Example: `MyApp.OrderTests.Totals(int,int,IClock,OrderService)#0`.
-- The UID never depends on the display name. A duplicate UID is build error VGT0001.
+- The method identity uses the fully qualified containing type and parameter types, including generic and overload distinctions. It never depends on the display name.
+- Literal `[Row]` identities are computed at compile time from canonical typed literal values, not source position, so inserting or reordering distinct rows preserves their UIDs. Identical duplicate literal rows use an occurrence suffix.
+- Runtime row identities are completed at discovery using stable unique source keys. An index identity is allowed only when the source explicitly guarantees deterministic replay of the same data at the same indices across discovery, execution and fresh-process retries; an unkeyed source without that contract fails discovery. Tuple-returning sources must make this replay guarantee or supply keyed rows through `ITestDataSource`.
+- A duplicate compile-time UID is build error VGT0001. Duplicate runtime keys fail discovery with the source and key identified; they must never silently overwrite a test.
 - The display name comes from `ITestNameFormatter`. The default is `Totals(qty: 2, price: 10)`.
 
 ## Data rows
 
 - `[Row(...)]` emits one descriptor per row with literal arguments. A type mismatch is build error VGT0002.
-- `[RowSource(nameof(X))]` emits a typed call to `X`, which returns `IEnumerable<(T1, T2, ...)>` or `IAsyncEnumerable<...>`. Rows are expanded at discovery, and each row gets index-based UIDs.
+- `[RowSource(nameof(X))]` emits a typed call to `X`, which returns `IEnumerable<(T1, T2, ...)>` or `IAsyncEnumerable<...>`. Rows are expanded at discovery and use the stable-key or explicit deterministic-replay identity contract above.
 - Any attribute implementing `ITestDataSource` works the same way.
 - A source that yields zero rows fails the test. It does not pass silently.
 
@@ -310,7 +320,10 @@ This package owns these pages. The rules for producing and checking them are in 
 
 When done, we know that a generated MTP framework shows tests with source navigation in Visual Studio, Rider and VS Code.
 
-- [ ] The research spike's adapter run under each IDE's MTP server mode, with discovery, run, debug and navigation recorded per IDE.
+- [ ] Run the adapter on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions; record discovery, UID-filtered execution, navigation and debugging per IDE in `docs/research/ide-report.md`, alongside the assertion debugging spike.
+- [ ] Publish and execute the same stack under Native AOT with no trim or AOT warnings.
+- [ ] Record supported limitations and fallback behavior in that report before making release promises; MTP 2.5.3 results are historical comparison only.
+- [ ] Keep tier 3 opt-in until every advertised IDE passes breakpoint binding and stepping and the separately user-approved total added cold-build budget passes at 100,000 calls, with the matched-baseline ratio reported; missing approval is not a pass and Hot Reload limitations alone do not block the gate.
 
 ### Phase 1: run tests
 
@@ -333,6 +346,7 @@ When done, tests take services and mocks as parameters from a per-test container
 - [ ] `[Mock]` parameters through `Mock.Of<T>()` and overrides.
 - [ ] Middleware, scope listeners and test output during container build.
 - [ ] `Check` failures reported per test.
+- [ ] Lifecycle acceptance cases: exactly-once disposal for container-owned and runner-owned instances; cancellation during setup; invocation plus multiple cleanup and `Check` failures with all failures retained; lazy attribute-construction failure attributed to its owner while unrelated tests run; fresh per-attempt state and cleanup on retries.
 
 ### Phase 3: data, naming and scheduling
 
@@ -342,6 +356,7 @@ When done, data-driven tests get a result and a container per row, names are plu
 - [ ] `ITestNameFormatter` and the default format.
 - [ ] Schedule groups, resources, `[RunAfter]`, VGT0003 and `ITestScheduler`.
 - [ ] `--vg-filter`.
+- [ ] Gate data-row UID filtering and fresh-process retry support on cases for inserted/reordered literal rows, reordered keyed runtime sources, duplicate runtime keys, and explicit deterministic index replay; each retry must execute the intended row and invalid sources must fail rather than select different data.
 
 ### Phase 4: DependencyModules
 
@@ -357,4 +372,4 @@ When done, a DependencyModules user moves a test from `[ModuleTest]` on xunit to
 - IDE support for a new MTP framework is untested. Phase 0 answers this.
 - Generic test methods and classes, `[RowSource]` returning `object[]`, and containers that use reflection limit what Native AOT can do. Microsoft.Extensions.DependencyInjection works under AOT but is not reflection-free.
 - F# and VB get no generator, so they cannot use `VerificationGlue.Tests`.
-- Materialising every attribute means an attribute whose constructor has side effects runs at startup. Such attributes are rare. The generator emits them as written, so the behaviour matches what a reflection-based framework does when it reads them.
+- Attribute constructors can have side effects or throw. Materialise them lazily inside their owning test or scope failure boundary and retain those failures in the result; never run user attribute constructors in module registration.
