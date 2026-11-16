@@ -7,7 +7,7 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/mocking-r
 - `var calc = Mock.Of<ICalculator>();` creates a mock in any test framework, or in no framework at all. It works under Native AOT and trimming with no warnings.
 - Setup and verification read like NSubstitute: `calc.Add(1, 2).Returns(3)`, `Arg.Any<int>()`, `calc.Received().Add(1, 2)`.
 - `calc.Add(0, Arg.Any<int>())` binds the matcher to the second argument. NSubstitute binds it to the first.
-- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance.
+- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance. This ships with `tests.md` Phase 2 and the DependencyModules adapter in `tests.md` Phase 4, not with the first mock release.
 - A mock is regenerated when its interface changes, whether the interface lives in the same project, another project or a package.
 - A type or member that cannot be mocked is a build error or warning with a location, never a run-time surprise.
 
@@ -19,7 +19,7 @@ The spike behind this design passed 28 of 28 checks in a Native AOT publish of 1
 
 - `lib/net10.0`: the runtime. `MockAdapter`, `IMock`, `Mock`, `MockRegistry`, `MockFactory<T>`, `Arg`, `Raise`, the `Returns`, `Throws`, `When`, `Received` and `DidNotReceive` extensions, and `[Mock]`.
 - `analyzers/dotnet/cs`: the generator and analyzers.
-- `build/VerificationGlue.Mocks.props`: adds `VerificationGlue.Mocks.Generated` to `InterceptorsNamespaces`. Without it, `Arg` interceptors fail with CS9137.
+- `buildTransitive/VerificationGlue.Mocks.props`: adds `VerificationGlue.Mocks.Generated` to `InterceptorsNamespaces`. Without it, `Arg` interceptors fail with CS9137. Props in `build/` do not reach a project that gets this package through `VerificationGlue.Tests`, so this file is in `buildTransitive/`.
 
 The runtime and generator ship together because generated code calls `MockAdapter` directly. Rocks, Mockolate, Imposter and TUnit.Mocks all ship a single package for the same reason.
 
@@ -57,6 +57,8 @@ The generator generates a mock for a type `T` when it finds any of these:
 3. `[assembly: GenerateMock(typeof(T))]`, for helpers where `T` is still a type parameter at the call site. A call inside a generic helper cannot be resolved at compile time. Analyzer VGM0004 reports a `Mock.Of<T>()` whose `T` is never discovered anywhere.
 
 The generator recognizes `[Mock]` by metadata name. That is how `VerificationGlue.Tests` gets mocks for `[Mock]` parameters without seeing this generator's output.
+
+It also treats every attribute metadata name listed in the `VerificationGlueMockAttribute` MSBuild item like `[Mock]`. A host with its own mock attribute adds its name there. The DependencyModules support package adds `DependencyModules.Testing.Attributes.MockAttribute` from `buildTransitive`, and the NUnit snippet adds its own attribute. The spike needed the same list, hard-coded.
 
 ### The generated class
 
@@ -105,15 +107,15 @@ internal static void Register()
 
 Each mock owns one `MockAdapter` instance. Recorded calls, responses and callbacks belong to that instance. Two mocks of one interface share nothing.
 
-Setup syntax needs to link `.Returns(3)` back to the call before it. A thread-static `MockContext` does that:
+Setup syntax needs to link `.Returns(3)` back to the call before it. A `MockContext` does that. It is an immutable value held in an `AsyncLocal` and replaced on every change, so it flows across `await` and a child task's changes do not reach its parent. The next operation that uses each part consumes it:
 
 1. The generated member calls its own `_adapter`.
-2. The adapter records the call and stores `(adapter, call record, call spec)` in `MockContext`.
-3. `Returns<T>(this T, T value)` takes that entry, removes the setup call from the recorded calls, and adds the response to that adapter.
-4. `Received()` flags the adapter. The next call on it is checked against the recorded calls instead of being recorded.
-5. `Arg.Any<T>()` and `Arg.Is<T>(...)` queue a matcher on the thread. The next mock call consumes the queue.
+2. The adapter records the call and stores `(adapter, call record, call spec)` as the last call in `MockContext`.
+3. `Returns<T>(this T, T value)` consumes the last call, removes the setup call from the recorded calls, and adds the response to that adapter.
+4. `Received()` stores a pending check for that adapter in `MockContext`. The next call on that adapter in the same flow consumes it and is checked against the recorded calls instead of being recorded. A call from another flow, such as one the system under test makes in the background, is recorded as usual.
+5. `Arg.Any<T>()` and `Arg.Is<T>(...)` add a matcher to the queue in `MockContext`. The next mock call consumes the queue.
 
-The spike ran 200 setups in parallel on one mock and every one bound to the right call.
+The spike used a thread-static context and ran 200 setups in parallel on one mock, and every one bound to the right call. None of those setups awaited. In a model of `calc.Add(1, 2).Returns(await LoadAsync())` run 200 times in parallel, the thread-static context bound 199 setups to the wrong call or none, because the continuation resumed on another thread. The async-local context bound all 200. Behaviour cases cover `Returns(await ...)`, a background caller during `Received()`, a child task that inherits the context, and an abandoned matcher.
 
 ### Matcher positions
 
@@ -121,13 +123,13 @@ NSubstitute gives a queued matcher to the first argument that holds a default va
 
 ### Typed setup surface
 
-The generator also emits a typed setup and call-count surface for each mocked type. It uses no thread-static state and no interceptors, as in Rocks, Mockolate and Imposter. Both styles drive the same `MockAdapter`, so a test can mix them.
+The generator also emits a typed setup and call-count surface for each mocked type. It uses no `MockContext` and no interceptors, as in Rocks, Mockolate and Imposter. Both styles drive the same `MockAdapter`, so a test can mix them.
 
 ```csharp
 var calc = Mock.Of<ICalculator>();
 
-calc.Setup().Add(1, Arg.Any<int>()).Returns(3);
-calc.Setup().Divide(Arg.Any<int>(), 0).Throws(new DivideByZeroException());
+calc.Setup().Add(1, Arg<int>.Any()).Returns(3);
+calc.Setup().Divide(Arg<int>.Any(), 0).Throws(new DivideByZeroException());
 calc.Setup().Mode.Returns(Mode.Scientific);
 
 Verify(calc.Calls().Add(1, 2) == 1);
@@ -137,10 +139,11 @@ Verify(calc.Calls().Reset() == 0);
 How it works:
 
 - `Setup()` and `Calls()` are generated extension methods on the mocked type, for example `ICalculator`. They return `ICalculator_Setup` and `ICalculator_Calls`, generated in the mock's file.
-- Each member on those types takes `Arg<T>` for each parameter. `Arg<T>` is a struct with an implicit conversion from `T`, so `1` becomes an exact match and `Arg.Any<int>()` becomes a wildcard. Each matcher arrives as its own argument, so its position is known with no interceptor.
+- Each member on those types takes `Arg<T>` for each parameter. `Arg<T>` is a struct with an implicit conversion from `T`, so `1` becomes an exact match and `Arg<int>.Any()` becomes a wildcard. Each matcher arrives as its own argument, so its position is known with no interceptor.
 - `Setup()` members return a typed builder, `MockSetup<int>` for `Add`, with `Returns`, `Throws` and `Does`. The value type is checked at compile time.
-- `Calls()` members return the number of matching recorded calls, so verification is a plain `Verify` with full values in the failure message.
-- `Arg.Any<T>()` has two overloads in the runtime. In the NSubstitute style it returns `T` and queues a matcher. In the typed style the argument's target type is `Arg<T>`, and overload resolution picks the overload that returns `Arg<T>` with no queue. [I] The phase 1 spike confirms the overloads resolve without ambiguity. If they do not, the typed style uses `It.Any<T>()`.
+- `Calls()` members return the number of matching recorded calls, as a type that compares with `int` through `==`, `!=`, `<`, `<=`, `>` and `>=`, so verification is a plain `Verify`. Its `ToString` lists up to 10 recorded calls to that member, so a failed `Verify` shows what the mock did receive. The failure text is checked through `samples/Messages` before the type is frozen in `PublicAPI.Shipped.txt`.
+- The typed matchers are static members of the `Arg<T>` struct: `Arg<int>.Any()` and `Arg<int>.Is(x => x > 10)`. They return `Arg<T>` and queue nothing. `Arg.Any<T>()` cannot serve both styles, because C# does not overload on return type, and two `Any<T>()` methods that differ only in return type fail with CS0111.
+- An NSubstitute-style `Arg.Any<int>()` passed to a `Setup()` or `Calls()` parameter still compiles through the implicit conversion. It becomes an exact match on `0` and leaves a matcher queued, so VGM0002 reports it as an error. The diagnostics layer has a case through `Setup()` and one through `Calls()`.
 
 The typed surface is the recommended style for new code and for libraries. The NSubstitute style stays for teams moving from NSubstitute.
 
@@ -148,7 +151,7 @@ The typed surface is the recommended style for new code and for libraries. The N
 
 An unconfigured member whose return type can be mocked returns a mock, created on the first call and returned again for the same arguments. `calc.History.Last.Returns(5)` then works without setting up `History`.
 
-- The generator generates mocks for those return types too, following interface-typed and class-typed returns of every mocked type.
+- The generator generates mocks for those return types too, following interface-typed returns of every mocked type. Class-typed returns join in phase 3 with class mocks.
 - The walk stops at a depth set by `VerificationGlueMocksRecursionDepth`, default 2, and never enters `System` namespaces. A member whose return type is beyond the depth returns `default` and reports VGM0007 as information.
 - The shape sweep measures how much code the walk adds across the BCL and popular packages, and sets the default depth from that.
 
@@ -177,9 +180,9 @@ A class mock calls the base member for every virtual member that has not been se
 | Framework | `Mock.Of<T>()` | `[Mock]` parameter |
 |---|---|---|
 | `VerificationGlue.Tests` | Works | Built in |
-| DependencyModules | Works | One `IMockSupportAttribute` whose `ProvideMock(Type)` returns `MockRegistry.Create(type)` |
+| DependencyModules | Works | One `IMockSupportAttribute` whose `ProvideMock(Type)` returns `MockRegistry.Create(type)`, and its `[Mock]` name in the `VerificationGlueMockAttribute` item |
 | xunit v3 | Works | A 12-line `DataAttribute` |
-| NUnit | Works | A 9-line `IParameterDataSource` on the parameter attribute |
+| NUnit | Works | A 9-line `IParameterDataSource` on the parameter attribute, and that attribute's name in the `VerificationGlueMockAttribute` item |
 | MSTest | Works | A 12-line `ITestDataSource` |
 | TUnit | Works | A 7-line `UntypedDataSourceGeneratorAttribute` |
 
@@ -256,7 +259,7 @@ Each case states one outcome: it passes, it reports a named diagnostic, or it is
 
 ### Comparison against NSubstitute
 
-The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix. This is untested. No file has been compiled against both yet.
+The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix. This is untested. No file has been compiled against both yet. A bounded comparison is a first-release gate: it covers argument matching, setup precedence, response sequences, async results, last-call hazards and parallel use, including `Returns(await ...)` and a background caller during `Received()`. Each difference must be fixed or recorded as an intentional decision; a known NSubstitute defect is not the required behavior. The run generates the "Known differences from NSubstitute" page before the first release. Broad issue mining and exhaustive compatibility work remain in phase 2.
 
 ### Case format
 
@@ -274,7 +277,7 @@ Each case file starts with a header:
 | ID | Severity | Reports |
 |---|---|---|
 | VGM0001 | Error | A type that cannot be mocked: sealed, struct, or with static abstract members |
-| VGM0002 | Warning | An `Arg` matcher outside a mock call, or stored in a local |
+| VGM0002 | Warning or Error | As a warning, an `Arg` matcher outside a mock call, or stored in a local. As an error, an NSubstitute-style `Arg` call passed to a `Setup()` or `Calls()` parameter |
 | VGM0003 | Warning | A member that cannot be mocked, such as one with a `ref struct` parameter |
 | VGM0004 | Warning | `Mock.Of<T>()` for a `T` that is not discovered anywhere |
 | VGM0005 | Error | `Returns` or `Throws` on an expression that is not a mock call, such as `"abc".Length.Returns(3)` |
@@ -287,58 +290,80 @@ VGM0005 catches the one hazard NSubstitute's design cannot catch at run time. Af
 
 This package owns these pages. The rules for producing and checking them are in the north star.
 
-- README and `docs/guide/getting-started-mocks.md`, showing both the NSubstitute style and the typed style.
+- README and `docs/guide/getting-started-mocks.md`, showing both the NSubstitute style and the typed style, with a section per host framework.
 - One tested snippet per host framework for `[Mock]` parameters: xunit v3, NUnit, MSTest and TUnit.
 - Guides: "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks", "Mock a class", "Mock a type from a generic helper".
-- Migration guides from NSubstitute and Moq, as paired samples that both compile.
+- Migration guides from NSubstitute and Moq, as paired samples that both compile. The NSubstitute guide ships with the first release. The Moq guide ships with Phase 3, which delivers class mocks and `Received.InOrder`, and it lists the Moq features that are still unsupported.
 - A "Known differences from NSubstitute" page generated from the comparison run, so each recorded difference has its case.
 - `docs/diagnostics/VGM0001.md` to `VGM0007.md`.
 - A generated-code page showing a mock class, its registry entry and its typed setup surface.
 
 ## Delivery
 
+Phase 1 ships as three previews and ends in the first public release, as 0.x. Phases 2 and 3 follow it. The release map for all three packages is in the north star.
+
 ### Phase 0: shape sweep
 
 When done, we know which shapes the generator gets wrong before any user does.
 
+Needs: the mock spike committed under `spikes/` and the generator driver harness, both from "Repository foundation" in the north star. The sweep runs on CSharpAuthor 2.0.0. Nothing from the other packages.
+
+- [ ] Class emitter for interfaces, built on CSharpAuthor, starting from the spike's 887-line generator. The sweep runs it, so it is built here and not in Phase 1.
 - [ ] Sweep harness that generates and compiles a mock for every public interface in the BCL and the top 100 NuGet packages.
 - [ ] Hand-written shape files from the list above.
 - [ ] Results triaged into fixed, diagnostic, or documented as unsupported.
 
 ### Phase 1: first release
 
-When done, a user in any framework writes `Mock.Of<T>()` with NSubstitute-style setup, and it runs under Native AOT.
+When done, a user in any framework writes `Mock.Of<T>()` with either the NSubstitute-style setup or the typed `Setup()` and `Calls()` surface, gets recursive mocks for unconfigured members, and it runs under Native AOT.
 
-- [ ] Runtime and generator for interfaces, built on CSharpAuthor.
-- [ ] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
-- [ ] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
-- [ ] `Arg` interceptors with ordinals.
-- [ ] The typed `Setup()` and `Calls()` surface, with the `Arg` overload spike done first.
-- [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`.
-- [ ] Analyzers VGM0001 to VGM0005 and VGM0007, each with locations.
-- [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
-- [ ] Framework hook snippets in the README, each tested in CI.
-- [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
+Needs: Phase 0. Nothing from the other packages for the release. Values for `Verify(calc.Calls()...)` in a `[VerifyTest]` need the tier 3 rewrite from `verification-glue.md` Phase 2. `tests.md` Phase 2 and Phase 4 need this phase for `[Mock]` parameters.
+
+The phase is built in this order, and each preview ships when its items are done:
+
+1. Preview A: NSubstitute-style setup.
+   - [ ] Runtime and generator for interfaces, on the Phase 0 emitter.
+   - [ ] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
+   - [ ] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
+   - [ ] The async-local `MockContext`, with its behaviour cases.
+   - [ ] `Arg` interceptors with ordinals.
+   - [ ] Analyzers VGM0001 to VGM0005, each with locations.
+   - [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
+   - [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
+2. Preview B: typed surface.
+   - [ ] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
+3. Preview C: recursive mocks.
+   - [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`, its default set from the Phase 0 sweep, and analyzer VGM0007.
+4. First release.
+   - [ ] Framework hook snippets in the README, each tested in CI.
+   - [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
+   - [ ] Pages: README, `docs/guide/getting-started-mocks.md` with a section per host framework, the guides "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks" and "Mock a type from a generic helper", the migration guide from NSubstitute, the "Known differences from NSubstitute" page, `docs/diagnostics/VGM0001.md` to `VGM0005.md` and `VGM0007.md`, and the generated-code page.
 
 ### Phase 2: comparison and mining
 
 When done, every behaviour NSubstitute users rely on is either matched or documented as a deliberate difference.
 
-- [ ] The NSubstitute comparison run.
+Needs: Phase 1. Nothing from the other packages.
+
+- [ ] Expand the first-release NSubstitute comparison toward exhaustive compatibility, keeping the generated known-differences page current.
 - [ ] Issue mining, one pass per library, queued as separate pieces of work.
 - [ ] Ported scenarios from Rocks, Mockolate and Imposter.
+- [ ] Pages: the "Known differences from NSubstitute" page regenerated from the expanded comparison.
 
 ### Phase 3: wider shapes
 
 When done, users can mock classes and use the remaining NSubstitute features.
 
+Needs: Phase 1, and the issue mining from Phase 2 for the `ref struct` decision. Nothing from the other packages.
+
 - [ ] Classes with virtual members, calling the base by default, and VGM0006.
 - [ ] `ReturnsForAnyArgs` and `Received.InOrder`.
 - [ ] The `ref struct` decision below.
+- [ ] Pages: the guide "Mock a class", the migration guide from Moq, `docs/diagnostics/VGM0006.md`, and the class mock part of the generated-code page.
 
 ## Risks and open questions
 
-- Thread-static state assumes the mock call and `Returns` run on one thread in one statement. An unused matcher stays queued until the next mock call on that thread. VGM0002 catches most cases.
+- An unused matcher stays queued until the next mock call in the same async flow. VGM0002 catches most cases. Because `MockContext` is async-local, a leftover matcher stays in the flow of the test that left it.
 - `GetInterceptableLocation` needs a newer Roslyn than the 4.10 DependencyModules references. The generator targets the Roslyn that ships with the .NET 10 SDK.
 - The `Arg` interceptor file is regenerated on each edit to a test file that uses `Arg`. The IDE cost on large files is unknown.
 - GitHub code search was denied to the research session, so mining may need a credential or plain web reads.
