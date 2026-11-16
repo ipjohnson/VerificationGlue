@@ -55,10 +55,11 @@ Verify(await repo.CountAsync() == 3);                    // await works inside V
 |---|---|
 | `Verify(bool, [CallerArgumentExpression] string? = null, ...)` | Marked `[DoesNotReturnIf(false)]`, so nullable flow analysis knows the condition after the call. Throws `VerifyException` on failure. |
 | `Verify(bool, ref VerifyMessageHandler)` | Interpolated message. `[InterpolatedStringHandlerArgument]` makes the holes run only on failure. Verified in the spike. |
+| `.Because(string)`, `.WithMessage(string)` on a `Verify` call | Add text to the failure message. They work only in methods that tier 3 rewrites, because in tiers 1 and 2 `Verify` throws before the chained call runs. VG0001 reports them anywhere else. |
 | `Check(bool, ...)` | Adds a failure to the current `VerifyScope`. With no scope it throws like `Verify`, so a failure is never lost. |
 | `Throws<T>(Action)`, `ThrowsAsync<T>(Func<Task>)` | Return the exception. A different exception type fails with that exception's type and message. |
 | `Approx(double expected, double tolerance)` | A value whose `==` uses the tolerance. The explanation reports the difference. |
-| `Eventually(Func<bool>, TimeSpan)` | Polls until true or timeout. On timeout it reports the last values. |
+| `Eventually(Func<bool>, TimeSpan)` | Polls until true or timeout. On timeout it fails with the condition's source text. Neither tier captures values inside the lambda, so it reports no values. |
 | `VerifyScope.Begin()` | Opens a scope for `Check` outside `VerificationGlue.Tests`, which opens one per test. Disposing the scope throws one `VerifyException` listing every failure. |
 
 `Verify.Throws<T>` is not offered. A type named `Verify` cannot coexist with a `using static` method named `Verify` (CS0119, seen in the spike).
@@ -70,7 +71,7 @@ The package gives the best message each call site allows. Tier 3 is opt-in until
 | Tier | Applies to | Message | Mechanism |
 |---|---|---|---|
 | 1 | Every call, generator disabled or not running | Source text of the condition | `[CallerArgumentExpression]` |
-| 2 | Every `Verify` and `Check` call in the project | Shape-specific text, for example "x can not be null", plus file and line embedded at compile time | One interceptor per call site |
+| 2 | Every `Verify` and `Check` call in the project, except inside a method whose copy the runner always calls | Shape-specific text, for example "x can not be null", plus file and line embedded at compile time | One interceptor per call site |
 | 3 | Eligible methods with `[Verify]` or a `[VerifyRewrite]` attribute, when rewriting is enabled and the copy runs | Captured values, with unavailable and skipped values identified | A rewritten copy of the method |
 
 `[VerifyTest]` from `VerificationGlue.Tests` carries `[VerifyRewrite]`, so eligible test methods can get tier 3 when rewriting is enabled. Any other library can mark its own attribute the same way.
@@ -92,11 +93,21 @@ public static void Verify_15_9(bool condition, string? expression = null)
 
 The shape-specific text covers null checks, `==` and `!=`, relational operators, `is` type and property patterns, `!`, and calls returning `bool`. Anything else uses the source text.
 
-The package `build/VerificationGlue.props` adds `VerificationGlue.Generated` to `InterceptorsNamespaces`. Without it the build fails with CS9137.
+A call inside a method gets no interceptor when tier 3 is enabled, `WillRewrite` is true for the method, and its attribute carries `[VerifyRewrite]`. The runner always calls that method's copy, so an interceptor on the original body would never run.
+
+The package's `buildTransitive/VerificationGlue.props` adds `VerificationGlue.Generated` to `InterceptorsNamespaces`. Without it the build fails with CS9137. Props in `build/` do not reach a project that gets this package through `VerificationGlue.Tests`, so this file is in `buildTransitive/`.
 
 ### Tier 3: rewritten methods
 
-When tier 3 is enabled, for each qualifying method in a `partial` type chain, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
+When tier 3 is enabled, for each qualifying method in a `partial` type chain, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text, with the call changes below, and with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
+
+Interceptors cannot reach a call inside generated code, because `InterceptsLocation` needs a location in a source file of the compilation the generators receive. The rewriter therefore handles calls in copied text itself. A direct call to a method for which `WillRewrite` is true becomes a call to its `{Name}__Verified` copy. A `Verify` or `Check` call that the rewriter cannot rewrite, such as one inside a lambda or a local function, is emitted inline in its tier 2 form. Each copy carries a generated marker attribute with the contract version, and a call into another assembly is redirected only to a copy that carries that marker.
+
+Copied text must bind the way it did in its own file:
+
+- A rewritten-method file repeats the using directives of the source file, including `using static` and aliases. This is an exception to the north star's rule that generated files carry no using directives.
+- A method in a file that declares a `file` type is not rewritten, because the copy in another file cannot see that type. VG0008 reports it as information.
+- Where a copied call omits a `[CallerMemberName]` argument, the rewriter passes the original method name, so the callee does not receive `{Name}__Verified`.
 
 The rewrite assigns each sub-expression to a typed local as it is evaluated, `(v0 = expr)`. The expression keeps its shape, so evaluation order and short-circuiting do not change.
 
@@ -121,21 +132,26 @@ Rules:
 3. Constants and literals are not captured.
 4. Preserve every semantically distinct read of a local or parameter across an intervening mutation. Captures may be shared only when no intervening operation can change the value, including through `ref`, `out` or a closure; deduplicating message labels must not reuse stale values.
 5. A sub-expression on the skipped side of `&&`, `||`, `?:` or `??` reports `<not evaluated>`.
-6. Each rewrite is an `if` statement, not a block, so `out var` declared in a `Verify` stays in scope for the following statements. Verified in the spike.
+6. Each rewrite is an `if` statement, not a block, so `out var` declared in a `Verify` stays in scope for the following statements. Verified in the spike. When the `Verify` statement is an embedded statement, as in `if (ready) Verify(x);`, the rewrite is wrapped in braces, because the capture declarations and the `if` are several statements.
 7. `await` inside the condition stays in place. Verified in the spike.
 8. Property-pattern explanations use only values captured during the original evaluation, preserving its evaluation order and count. Never re-read a getter on the failure path. If a value cannot be captured while preserving pattern semantics and variable scope, retain the original pattern and report the value as unavailable; skipped members report `<not evaluated>`.
 9. A sub-expression whose type cannot be stored in a local, such as a `ref struct` or a pointer, is not captured. The message shows its text, and analyzer VG0006 reports it as information.
 10. A mutable struct receiver is not copied into a local, because a copy would take the mutation. It is reported by text only.
+11. When the rewriter cannot name a sub-expression's type, as for an anonymous type or a member that another generator adds, the candidate is to declare its local as `var v2 = false ? <expr> : default;`. That declaration takes the expression's type without evaluating it. A sub-expression that declares a variable, such as `out var`, cannot be repeated in a declaration, so it is captured as text only. Semantic tests pin this before the rewrite relies on it.
 
 ### Contract with `VerificationGlue.Tests`
 
 Generators cannot see each other's output. The test generator emits a call to `{Name}__Verified` without seeing that method. Both generators therefore compile the same decision function from `src/Shared.Generator/VerifyRewriteRules.cs`:
 
 ```csharp
-static bool WillRewrite(IMethodSymbol method)   // in a partial type chain, has [Verify] or a [VerifyRewrite] attribute, body has no errors
+static bool WillRewrite(IMethodSymbol method)   // in a partial type chain, has [Verify] or a [VerifyRewrite] attribute, body has no syntax errors
 ```
 
-Both generators also use the same tier 3 enablement setting. When rewriting is disabled or the function returns false, the test generator calls the original method and the test gets tier 2 messages. A contract test in `test/Contract.Specs` builds a project with both generators and checks that every combination compiles.
+The function does not check the body for semantic errors. Members that another generator adds, such as `calc.Calls()` from the mock generator, do not exist in the compilation the generators see, so such a check would turn tier 3 off for every test that uses them.
+
+Both generators also use the same tier 3 enablement setting. When rewriting is disabled or the function returns false, the test generator calls the original method and the test gets tier 2 messages. A contract test in `test/Contract.Specs` builds a project with both generators and checks that every combination compiles. It includes `Verify(calc.Calls().Add(1, 2) == 1)` in a `[VerifyTest]`, with the mock generator also running.
+
+`VerificationGlue.Tests` depends on the exact version of this package, and its generator reports an error when the referenced `VerificationGlue` has a different version, because two versions of `WillRewrite` can disagree.
 
 ### Explanations by shape
 
@@ -181,15 +197,17 @@ Verify(IsSorted(prices));
 | VG0005 | Info | A `[Verify]` method in a type that is not `partial`, with a code fix that adds `partial` up the chain |
 | VG0006 | Info | A sub-expression that cannot be captured |
 | VG0007 | Warning | `Check` in a method that returns before any scope can report, such as a `static` constructor |
+| VG0008 | Info | A method that is not rewritten because its file declares a `file` type |
 
 ## Pipeline and caching
 
-The generator has two independent pipelines. Neither model holds a Roslyn object. Collections are `EquatableArray<T>`. Types are CSharpAuthor `ITypeDefinition`. See the CSharpAuthor section of the north star for the rules.
+The generator has three independent pipelines. Neither model holds a Roslyn object. Collections are `EquatableArray<T>`. Types are CSharpAuthor `ITypeDefinition`. See the CSharpAuthor section of the north star for the rules.
 
 | Pipeline | Discovered with | Model | Output |
 |---|---|---|---|
 | Call sites | `CreateSyntaxProvider` on invocations named `Verify` or `Check`, then a semantic check of the target | `VerifyCallModel`: file path, line, interceptable location data, condition shape (kind, operator, operand texts) | One file per source file holding all its interceptors |
 | Methods | `ForAttributeWithMetadataName` on `[Verify]`, plus a second provider for attributes marked `[VerifyRewrite]` | `VerifyMethodModel`: containing type chain, signature, body statements (text, line, and for `Verify` statements a capture tree of `ITypeDefinition` and texts) | One file per rewritten method |
+| Redirects | `CreateSyntaxProvider` on invocations whose name matches a rewritten method, then a semantic check of the target | The call's file path, interceptable location data, and the copy it calls | One file per source file holding all its redirects |
 
 Why it is split this way:
 
@@ -210,10 +228,9 @@ Figures from the spike, on a loaded machine with a generator that was not increm
 - 2000 `[Verify]` methods with 6000 calls: 2.5 s without the generator, 6.6 s with it. About 0.7 ms per call.
 - At 100,000 calls that is about 70 s of total build time across all assemblies.
 
-Exploratory per-call targets, not approval to enable tier 3 by default:
+Budgets, with the numbers set by the phase 0 benchmark:
 
-- Tier 2 adds no more than 0.1 ms per call to a cold build.
-- Tier 3 adds no more than 0.4 ms per call to a cold build.
+- Each cold-build budget, for tier 2 alone and for tier 3, is stated both as a ratio to the same build with the generators off, measured in the same CI job, and as total added seconds at 100,000 calls.
 - An edit to one test file regenerates only that file's outputs.
 
 The default-enablement gate requires a separately user-approved limit on total added cold-build seconds at 100,000 calls, measured against the same generator-off build in the same job. Report that total and the matched-baseline ratio for tier 2 alone and tier 3. Benchmark results inform the proposed budget, but neither a measured result nor missing approval counts as acceptance.
@@ -226,7 +243,7 @@ This package owns these pages. The rules for producing and checking them are in 
 - `docs/guide/messages.md`, generated from `samples/Messages`, one failing test per explanation shape and per tier.
 - Guides: "How tiers work and how to get values", "Soft checks with `Check`", "Write a formatter", "Write a custom verifier with `VerifyOutcome`".
 - Migration guides from xunit `Assert`, FluentAssertions and Shouldly.
-- `docs/diagnostics/VG0001.md` to `VG0007.md`.
+- `docs/diagnostics/VG0001.md` to `VG0008.md`.
 - A generated-code page showing a tier 2 interceptor and a tier 3 rewritten method.
 
 ## Delivery
@@ -237,7 +254,7 @@ When done, we know whether tier 3 can be the default.
 
 - [ ] Debugging spike on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions: breakpoints bind in the original source and hit the executing copy, and stepping stays in original source without exposing capture scaffolding, in every advertised IDE (Visual Studio, Rider and VS Code). Record Hot Reload separately; its limitations alone do not block the default.
 - [ ] Record the combined results in `docs/research/ide-report.md`, alongside the Tests discovery, UID-filtered execution, navigation/debugging and warning-free AOT run on the same pinned stack. MTP 2.5.3 evidence is historical only; record supported limitations before release promises.
-- [ ] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3, with an incremental generator built on CSharpAuthor.
+- [ ] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3 including the redirect pipeline, with an incremental generator built on CSharpAuthor.
 - [ ] Keep tier 3 opt-in unless every advertised IDE passes breakpoint binding and stepping and the separately user-approved total added cold-build budget passes at 100,000 calls; report the matched-baseline ratio too. Missing budget approval is not a pass. Record the evidence and resulting default explicitly.
 
 ### Phase 1: messages from source text and shape
@@ -246,7 +263,7 @@ When done, a user on any test framework installs `VerificationGlue` and gets fil
 
 - [ ] `VerifySyntax` with `Verify`, `Throws`, `ThrowsAsync` and the interpolated message form.
 - [ ] Tier 2 interceptors for every listed shape.
-- [ ] `build/VerificationGlue.props` sets `InterceptorsNamespaces`.
+- [ ] `buildTransitive/VerificationGlue.props` sets `InterceptorsNamespaces`.
 - [ ] Analyzers VG0002, VG0003 and VG0004.
 - [ ] A Native AOT sample in CI with no warnings.
 - [ ] Sample tests in xunit, NUnit, MSTest and TUnit in CI.
@@ -258,8 +275,9 @@ When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports o
 - [ ] Tier 3 rewrite for every rule listed above, with tests for each rule.
 - [ ] Before tier 3 ships, conformance cases prove side-effecting property getters are never re-read (including one that throws on a second read), skipped members remain unevaluated, and local/parameter reads separated by mutation retain their distinct values.
 - [ ] The shared `WillRewrite` function and the contract test.
-- [ ] Analyzers VG0001, VG0005 and VG0006, and the code fix for VG0005.
-- [ ] Duplicate compiler errors suppressed by skipping the copy when the original body has errors.
+- [ ] Analyzers VG0001, VG0005, VG0006 and VG0008, and the code fix for VG0005.
+- [ ] The copy is skipped when the original body has syntax errors, so those errors are not reported twice.
+- [ ] Rewrite conformance cases for using aliases, extension methods, file-local types and `[CallerMemberName]`.
 - [ ] The cold-build budget met in CI.
 
 ### Phase 3: soft checks and explanations
