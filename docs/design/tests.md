@@ -288,8 +288,8 @@ Every interface is public and versioned with the package. A breaking change to a
 ## Pipeline and caching
 
 - Discovery uses `ForAttributeWithMetadataName` on `[VerifyTest]`.
-- `TestClassModel` holds the class's metadata name, its partial type chain, and an `EquatableArray<TestMethodModel>`. Each method model holds the signature as CSharpAuthor `ITypeDefinition` values, the materialised attributes as equatable `AttributeInstance` snapshots (type, constructor arguments, named arguments), the rows, the computed UIDs, the schedule group, `WillRewrite`, and diagnostics as plain values.
-- Attributes are read with the CSharpAuthor Roslyn bridge, which provides those snapshots once required CSharpAuthor change 4 ships.
+- `TestClassModel` holds the class's metadata name, its partial type chain, and an `EquatableArray<TestMethodModel>`. Each method model holds the signature as CSharpAuthor `ITypeDefinition` values, the materialised attributes as our own records (type, constructor arguments, named arguments), the rows, the computed UIDs, the schedule group, `WillRewrite`, and diagnostics as plain values.
+- Attributes are read with the CSharpAuthor Roslyn bridge and copied into those records. Once required CSharpAuthor change 4 ships, its equatable `AttributeInstance` snapshot replaces the copy.
 - One output file per test class. An edit to one class regenerates only that file.
 - `KnownTypes` holds `static readonly` definitions for `TestRegistry`, `TestDescriptor`, `TestParameter`, `Mock`, `ModuleInitializerAttribute` and the rest.
 
