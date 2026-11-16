@@ -1,12 +1,17 @@
 <Project>
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
+    <IsSpecsProject>$(MSBuildProjectName.EndsWith('.Specs'))</IsSpecsProject>
+  </PropertyGroup>
+  <!-- The harness, the sample generator and the benchmarks are not test projects. -->
+  <PropertyGroup Condition="'$(IsSpecsProject)' == 'true'">
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(IsSpecsProject)' == 'true'">
     <PackageReference Include="xunit.v3" />
     <Using Include="Xunit" />
+    <AssemblyMetadata Include="VerificationGlue.ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
   </ItemGroup>
 </Project>

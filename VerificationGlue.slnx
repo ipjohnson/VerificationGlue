@@ -11,6 +11,10 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Docs.Specs/Docs.Specs.csproj" />
+    <Project Path="test/Generator.Benchmarks/Generator.Benchmarks.csproj" />
+    <Project Path="test/Generator.Harness/Generator.Harness.csproj" />
+    <Project Path="test/Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
+    <Project Path="test/Generator.Harness.Specs/Generator.Harness.Specs.csproj" />
     <Project Path="test/Shared.Generator.Specs/Shared.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Generator.Specs/VerificationGlue.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Mocks.Generator.Specs/VerificationGlue.Mocks.Generator.Specs.csproj" />
