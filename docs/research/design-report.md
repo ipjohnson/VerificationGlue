@@ -290,7 +290,7 @@ Technical risks:
 
 ## Spike locations
 
-These are temporary directories on this machine and are not committed.
+The spikes are committed under `spikes/`. See `spikes/README.md`.
 
-- Runner spike: `/var/folders/0p/ht4ftmrs7w10___nk6pwwyw80000gn/T/tmp.n8poyxuGaD/Spike`
-- Assertion spike: `/tmp/vg-spike.fOpufB` (`Gen/VerifyGenerator.cs`, `Lib/VerifyGlue.cs`, `App/Tests.cs`)
+- Runner spike: `spikes/runner`
+- Assertion spike: `spikes/assertions` (`Gen/VerifyGenerator.cs`, `Lib/VerifyGlue.cs`, `App/Tests.cs`)

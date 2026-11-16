@@ -278,7 +278,7 @@ Most code written against these packages will be written by AI agents, so the do
 Work follows the three design documents. Each one has phases, and each phase says what a user can do when it ships.
 
 1. **Repository foundation.** When done, a pull request that adds an empty generator project builds, packs, runs its specs, passes a Native AOT publish and passes the pack-and-consume check in CI.
-   - First action: commit the three research spikes under `spikes/`, without `bin/` and `obj/`, with a README that says they are not product code. They sit in temporary directories today, and three Phase 0 items start from them.
+   - First action: commit the three research spikes under `spikes/`, without `bin/` and `obj/`, with a README that says they are not product code. Three Phase 0 items start from them.
    - The solution, the projects under `src/` and `test/` from "Repository layout", and `Shared.Generator`.
    - Packaging: the runtime in `lib/net10.0`, the generator in `analyzers/dotnet/cs`, the props files of `VerificationGlue` and `VerificationGlue.Mocks` in `buildTransitive/`, one version number for the three packages, and exact-version dependencies from `VerificationGlue.Tests` on the other two.
    - CI: build, specs, and the Native AOT publish job that principle 1 requires.
