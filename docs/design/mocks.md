@@ -7,7 +7,7 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/mocking-r
 - `var calc = Mock.Of<ICalculator>();` creates a mock in any test framework, or in no framework at all. It works under Native AOT and trimming with no warnings.
 - Setup and verification read like NSubstitute: `calc.Add(1, 2).Returns(3)`, `Arg.Any<int>()`, `calc.Received().Add(1, 2)`.
 - `calc.Add(0, Arg.Any<int>())` binds the matcher to the second argument. NSubstitute binds it to the first.
-- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance.
+- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance. This ships with `tests.md` Phase 2 and the DependencyModules adapter in `tests.md` Phase 4, not with the first mock release.
 - A mock is regenerated when its interface changes, whether the interface lives in the same project, another project or a package.
 - A type or member that cannot be mocked is a build error or warning with a location, never a run-time surprise.
 
@@ -290,55 +290,76 @@ VGM0005 catches the one hazard NSubstitute's design cannot catch at run time. Af
 
 This package owns these pages. The rules for producing and checking them are in the north star.
 
-- README and `docs/guide/getting-started-mocks.md`, showing both the NSubstitute style and the typed style.
+- README and `docs/guide/getting-started-mocks.md`, showing both the NSubstitute style and the typed style, with a section per host framework.
 - One tested snippet per host framework for `[Mock]` parameters: xunit v3, NUnit, MSTest and TUnit.
 - Guides: "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks", "Mock a class", "Mock a type from a generic helper".
-- Migration guides from NSubstitute and Moq, as paired samples that both compile.
+- Migration guides from NSubstitute and Moq, as paired samples that both compile. The NSubstitute guide ships with the first release. The Moq guide ships with Phase 3, which delivers class mocks and `Received.InOrder`, and it lists the Moq features that are still unsupported.
 - A "Known differences from NSubstitute" page generated from the comparison run, so each recorded difference has its case.
 - `docs/diagnostics/VGM0001.md` to `VGM0007.md`.
 - A generated-code page showing a mock class, its registry entry and its typed setup surface.
 
 ## Delivery
 
+Phase 1 ships as three previews and ends in the first public release, as 0.x. Phases 2 and 3 follow it. The release map for all three packages is in the north star.
+
 ### Phase 0: shape sweep
 
 When done, we know which shapes the generator gets wrong before any user does.
 
+Needs: the mock spike committed under `spikes/` and the generator driver harness, both from "Repository foundation" in the north star. The sweep runs on CSharpAuthor 2.0.0. Nothing from the other packages.
+
+- [ ] Class emitter for interfaces, built on CSharpAuthor, starting from the spike's 887-line generator. The sweep runs it, so it is built here and not in Phase 1.
 - [ ] Sweep harness that generates and compiles a mock for every public interface in the BCL and the top 100 NuGet packages.
 - [ ] Hand-written shape files from the list above.
 - [ ] Results triaged into fixed, diagnostic, or documented as unsupported.
 
 ### Phase 1: first release
 
-When done, a user in any framework writes `Mock.Of<T>()` with NSubstitute-style setup, and it runs under Native AOT.
+When done, a user in any framework writes `Mock.Of<T>()` with either the NSubstitute-style setup or the typed `Setup()` and `Calls()` surface, gets recursive mocks for unconfigured members, and it runs under Native AOT.
 
-- [ ] Runtime and generator for interfaces, built on CSharpAuthor.
-- [ ] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
-- [ ] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
-- [ ] `Arg` interceptors with ordinals.
-- [ ] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
-- [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`.
-- [ ] Analyzers VGM0001 to VGM0005 and VGM0007, each with locations.
-- [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
-- [ ] Framework hook snippets in the README, each tested in CI.
-- [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
-- [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
+Needs: Phase 0. Nothing from the other packages for the release. Values for `Verify(calc.Calls()...)` in a `[VerifyTest]` need the tier 3 rewrite from `verification-glue.md` Phase 2. `tests.md` Phase 2 and Phase 4 need this phase for `[Mock]` parameters.
+
+The phase is built in this order, and each preview ships when its items are done:
+
+1. Preview A: NSubstitute-style setup.
+   - [ ] Runtime and generator for interfaces, on the Phase 0 emitter.
+   - [ ] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
+   - [ ] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
+   - [ ] The async-local `MockContext`, with its behaviour cases.
+   - [ ] `Arg` interceptors with ordinals.
+   - [ ] Analyzers VGM0001 to VGM0005, each with locations.
+   - [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
+   - [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
+2. Preview B: typed surface.
+   - [ ] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
+3. Preview C: recursive mocks.
+   - [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`, its default set from the Phase 0 sweep, and analyzer VGM0007.
+4. First release.
+   - [ ] Framework hook snippets in the README, each tested in CI.
+   - [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
+   - [ ] Pages: README, `docs/guide/getting-started-mocks.md` with a section per host framework, the guides "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks" and "Mock a type from a generic helper", the migration guide from NSubstitute, the "Known differences from NSubstitute" page, `docs/diagnostics/VGM0001.md` to `VGM0005.md` and `VGM0007.md`, and the generated-code page.
 
 ### Phase 2: comparison and mining
 
 When done, every behaviour NSubstitute users rely on is either matched or documented as a deliberate difference.
 
+Needs: Phase 1. Nothing from the other packages.
+
 - [ ] Expand the first-release NSubstitute comparison toward exhaustive compatibility, keeping the generated known-differences page current.
 - [ ] Issue mining, one pass per library, queued as separate pieces of work.
 - [ ] Ported scenarios from Rocks, Mockolate and Imposter.
+- [ ] Pages: the "Known differences from NSubstitute" page regenerated from the expanded comparison.
 
 ### Phase 3: wider shapes
 
 When done, users can mock classes and use the remaining NSubstitute features.
 
+Needs: Phase 1, and the issue mining from Phase 2 for the `ref struct` decision. Nothing from the other packages.
+
 - [ ] Classes with virtual members, calling the base by default, and VGM0006.
 - [ ] `ReturnsForAnyArgs` and `Received.InOrder`.
 - [ ] The `ref struct` decision below.
+- [ ] Pages: the guide "Mock a class", the migration guide from Moq, `docs/diagnostics/VGM0006.md`, and the class mock part of the generated-code page.
 
 ## Risks and open questions
 
