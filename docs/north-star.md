@@ -2,10 +2,22 @@
 
 VerificationGlue is a set of three .NET packages for writing tests that build with source generation and run under Native AOT. When it is done, a developer can do the following.
 
-- Write `Verify(order.Total == 20)` and, when it fails, read every sub-expression's value in the message with no hand-written text.
+- Write `Verify(order.Total == 20)` and read a generated failure message, with captured sub-expression values when eligible tier 3 rewriting is enabled and the generated copy runs.
 - Write `[Mock] IClock clock` and get a mock that works under Native AOT, with NSubstitute-style setup such as `clock.Now.Returns(date)`.
 - Mark a method `[VerifyTest]`, take services and mocks as parameters, and get a fresh DI container per test that is disposed when that test ends.
 - Install one package per need, in any combination, and upgrade without the breaking changes that come with each new major version of a test framework.
+
+Value capture requires an eligible method in a `partial` containing-type chain. Tier 3 remains opt-in until the phase 0 gates pass; installing a package alone does not enable it.
+
+| Host or call site | Capability with the generator enabled |
+|---|---|
+| xunit/NUnit test body invoked through reflection, or another host invoking the original body | Tier 2 shape text and source location |
+| Direct user-source call to an eligible non-virtual `[Verify]` helper | Tier 3 captured values when rewriting is enabled and the call redirects |
+| Eligible `[VerifyTest]` method | Tier 3 captured values when rewriting is enabled and the runner calls the copy |
+| Rewriting disabled, non-partial type chain or unsupported method | Tier 2 in the original body |
+| Generator disabled or not running | Tier 1 condition text only |
+
+Unavailable values are identified rather than re-evaluated. The [full call-site matrix](design/verification-glue.md#host-and-call-site-capabilities) also covers helpers called from rewritten bodies.
 
 The three packages ship from this repository with one version number.
 
@@ -50,13 +62,15 @@ Each package carries its own runtime library and its own generator in `analyzers
 2. **Every extension point is a public interface with a static or instance method the generator calls directly.** Generic attributes such as `[Container<T>]` name the type, so nothing is created through `Activator`.
 3. **One package per need.** A user installs `VerificationGlue.Tests` and edits `global.json` once. Nothing else is required.
 4. **Scopes are explicit.** Every container, test instance and fixture has a defined creation point and disposal point, and disposal is awaited.
-5. **Test identity is ours.** A test's UID is computed at compile time from its symbol and data row. The display name is a separate, pluggable piece.
+5. **Test identity is ours.** Method identities use fully qualified signatures. Literal-row identities use stable typed values computed at compile time; runtime row identities are completed at discovery from stable unique keys or indices under an explicit deterministic-replay contract. Insertion or reordering must not silently assign an existing UID to different data. UID filtering and fresh-process retries are gated on reordered-source and duplicate-key acceptance cases. The display name is a separate, pluggable piece.
 6. **Builds must be fast cold, not only warm.** Agents and CI clone a repository, build once and push. The target scale is 10,000 tests averaging 10 `Verify` calls each, across a few assemblies. Every generator has a cold-build benchmark in CI.
 7. **Misuse fails at build time.** Each package ships analyzers with its generator. A construct the generator cannot handle produces a diagnostic, never a silent fallback.
 
 ## Decisions taken
 
 - Target net10 only, so the test framework can follow MTP 3.
+- Tier 3 stays opt-in until breakpoint binding and stepping pass in every advertised IDE and a separately user-approved total added cold-build budget passes at 100,000 calls. Report the matched generator-off baseline ratio too. Missing budget approval is not a pass; documented Hot Reload limitations alone do not block the gate.
+- Phase 0 evidence pins the .NET 10 SDK, MTP 3, IDE and IDE-plugin versions and covers discovery, UID-filtered runs, navigation/debugging and warning-free Native AOT execution. Record the combined results and supported limitations in `docs/research/ide-report.md` before making release promises; the MTP 2.5.3 spike is historical evidence only.
 - Each MTP major version gets a VerificationGlue major version. The previous major stays on a release branch that receives fixes.
 - `Verify(cond)` throws at once. `Check(cond)` records a failure and lets the test continue. The test then fails at the end with every recorded failure listed.
 - `.WithMessage` and `.Because` outside a `[Verify]` method are build errors.
@@ -253,7 +267,7 @@ Most code written against these packages will be written by AI agents, so the do
 Work follows the three design documents. Each one has phases, and each phase says what a user can do when it ships.
 
 1. **The CSharpAuthor changes** listed above, released before any generator work.
-2. **Spikes that decide the approach.** The debugging spike decides whether the `Verify` rewrite is on by default. The cold-build benchmark decides the cost budget. The mock shape sweep decides how wide the first mock release is.
+2. **Spikes that decide the approach.** The debugging and IDE discovery spikes validate the pinned shipping stack and the default-enablement gates above. The cold-build benchmark reports total added seconds at 100,000 calls and the matched-baseline ratio against a separately user-approved budget; without approval or a passing result, tier 3 remains opt-in. The mock shape sweep decides how wide the first mock release is.
 3. **`VerificationGlue` and `VerificationGlue.Mocks` first releases.** Both are usable from xunit, NUnit, MSTest and TUnit, which gives early users and feedback before the test framework exists.
 4. **`VerificationGlue.Tests` first release.** Tests, containers, `[Mock]` parameters, data rows and scheduling on MTP.
 5. **The DependencyModules adapter.** It ships from the DependencyModules repository.
