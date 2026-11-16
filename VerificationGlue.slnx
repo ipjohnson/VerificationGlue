@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/">
+    <File Path="src/Shared.Generator/Shared.Generator.projitems" />
+    <File Path="src/Shared.Generator/GeneratorVersion.cs" />
+    <Project Path="src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
+    <Project Path="src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
+    <Project Path="src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <Project Path="src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
+    <Project Path="src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Shared.Generator.Specs/Shared.Generator.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Generator.Specs/VerificationGlue.Generator.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Mocks.Generator.Specs/VerificationGlue.Mocks.Generator.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Mocks.Specs/VerificationGlue.Mocks.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Specs/VerificationGlue.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Tests.Generator.Specs/VerificationGlue.Tests.Generator.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Tests.Specs/VerificationGlue.Tests.Specs.csproj" />
+  </Folder>
+</Solution>

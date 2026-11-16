@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Source-generated mocks with NSubstitute-style setup that work under Native AOT.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
+    <None Include="buildTransitive/VerificationGlue.Mocks.props" Pack="true" PackagePath="buildTransitive/" />
+  </ItemGroup>
+</Project>

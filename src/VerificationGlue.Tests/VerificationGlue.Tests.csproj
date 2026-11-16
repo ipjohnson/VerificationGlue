@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>A test framework on Microsoft.Testing.Platform with generated discovery and per-test containers.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
+    <ProjectReference Include="../VerificationGlue/VerificationGlue.csproj" PrivateAssets="none" />
+    <ProjectReference Include="../VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" PrivateAssets="none" />
+  </ItemGroup>
+</Project>
