@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
+  </ItemGroup>
+</Project>

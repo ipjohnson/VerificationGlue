@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+  </ItemGroup>
+</Project>

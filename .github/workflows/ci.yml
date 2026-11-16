@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Install Native AOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Build
+        run: dotnet build VerificationGlue.slnx -c Release
+
+      - name: Run specs
+        run: dotnet test --solution VerificationGlue.slnx -c Release --no-build
+
+      - name: Pack, consume, publish with Native AOT and check version mismatch
+        run: eng/pack-and-consume.sh --no-build

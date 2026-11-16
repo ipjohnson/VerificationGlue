@@ -1,0 +1,6 @@
+<Project>
+  <!-- Source shared by the three generators. Each generator compiles it into its own assembly. -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)**/*.cs" Exclude="$(MSBuildThisFileDirectory)bin/**;$(MSBuildThisFileDirectory)obj/**" />
+  </ItemGroup>
+</Project>

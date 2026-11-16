@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../src/Shared.Generator/Shared.Generator.projitems" />
+</Project>

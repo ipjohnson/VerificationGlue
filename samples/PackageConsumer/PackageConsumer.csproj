@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Built by eng/pack-and-consume.sh against the packed packages in a local feed.
+    It references only VerificationGlue.Tests, as a user's test project does.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="VerificationGlue.Tests" Version="$(VerificationGlueVersion)" />
+  </ItemGroup>
+
+  <!-- Rooting the runtimes makes the Native AOT publish analyze all of their code, not only what this sample calls. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="VerificationGlue" />
+    <TrimmerRootAssembly Include="VerificationGlue.Mocks" />
+    <TrimmerRootAssembly Include="VerificationGlue.Tests" />
+  </ItemGroup>
+
+  <Target Name="CheckVerificationGlueVersion" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <Error Condition="'$(VerificationGlueVersion)' == ''" Text="Set VerificationGlueVersion to the version of the packed packages." />
+  </Target>
+
+  <!-- The props and generators of all three packages must reach a project that references only VerificationGlue.Tests. -->
+  <Target Name="CheckTransitivePackageAssets" BeforeTargets="CoreCompile">
+    <Error Condition="!$(InterceptorsNamespaces.Contains('VerificationGlue.Generated'))"
+           Text="buildTransitive/VerificationGlue.props was not imported. InterceptorsNamespaces is '$(InterceptorsNamespaces)'." />
+    <Error Condition="!$(InterceptorsNamespaces.Contains('VerificationGlue.Mocks.Generated'))"
+           Text="buildTransitive/VerificationGlue.Mocks.props was not imported. InterceptorsNamespaces is '$(InterceptorsNamespaces)'." />
+    <Error Condition="'@(Analyzer->AnyHaveMetadataValue('Filename', 'VerificationGlue.Generator'))' != 'true'"
+           Text="The VerificationGlue generator was not passed to the compiler." />
+    <Error Condition="'@(Analyzer->AnyHaveMetadataValue('Filename', 'VerificationGlue.Mocks.Generator'))' != 'true'"
+           Text="The VerificationGlue.Mocks generator was not passed to the compiler." />
+    <Error Condition="'@(Analyzer->AnyHaveMetadataValue('Filename', 'VerificationGlue.Tests.Generator'))' != 'true'"
+           Text="The VerificationGlue.Tests generator was not passed to the compiler." />
+  </Target>
+</Project>

@@ -1,0 +1,36 @@
+<Project>
+  <!--
+    Packaging rules shared by the three packages.
+
+    A ProjectReference with PackAsAnalyzer="true" names a generator project. Its assembly goes into
+    analyzers/dotnet/cs of this package, so the runtime and the generator always ship at one version.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AddGeneratorsToPackage</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="AddGeneratorsToPackage">
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('PackAsAnalyzer', 'true'))"
+             Targets="GetTargetPath"
+             RemoveProperties="TargetFramework;RuntimeIdentifier">
+      <Output TaskParameter="TargetOutputs" ItemName="_GeneratorAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_GeneratorAssembly)" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    NuGet packs a ProjectReference as a minimum-version dependency. The packages share one version,
+    so a package depends on exactly the version of each package it references.
+  -->
+  <Target Name="UseExactProjectReferenceVersions" AfterTargets="_GetProjectReferenceVersions">
+    <ItemGroup>
+      <_ExactProjectReferenceVersion Include="@(_ProjectReferencesWithVersions)">
+        <ProjectVersion>[%(_ProjectReferencesWithVersions.ProjectVersion)]</ProjectVersion>
+      </_ExactProjectReferenceVersion>
+      <_ProjectReferencesWithVersions Remove="@(_ProjectReferencesWithVersions)" />
+      <_ProjectReferencesWithVersions Include="@(_ExactProjectReferenceVersion)" />
+    </ItemGroup>
+  </Target>
+</Project>
