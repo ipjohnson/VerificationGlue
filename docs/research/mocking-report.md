@@ -16,7 +16,7 @@ Each claim below is marked **(verified)** when a spike ran it, or **(inference)*
 
 ## The spike
 
-The spike has a runtime library (`Glue.Mocks`, 633 lines), an incremental generator (`Glue.Mocks.Generator`, 887 lines), a demo published with Native AOT, a generator driver harness, and one test project each for xunit v3 3.2.2, NUnit 4.6.1, MSTest 4.5.3 and TUnit 1.85.0. The names are placeholders. The spike is in a temp directory and is not committed.
+The spike has a runtime library (`Glue.Mocks`, 633 lines), an incremental generator (`Glue.Mocks.Generator`, 887 lines), a demo published with Native AOT, a generator driver harness, and one test project each for xunit v3 3.2.2, NUnit 4.6.1, MSTest 4.5.3 and TUnit 1.85.0. The names are placeholders. The spike is committed under `spikes/mocks`.
 
 A generated member looks like this:
 
