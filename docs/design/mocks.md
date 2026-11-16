@@ -256,7 +256,7 @@ Each case states one outcome: it passes, it reports a named diagnostic, or it is
 
 ### Comparison against NSubstitute
 
-The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix. This is untested. No file has been compiled against both yet.
+The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix. This is untested. No file has been compiled against both yet. A bounded comparison is a first-release gate: it covers argument matching, setup precedence, response sequences, async results, last-call hazards and parallel use, including `Returns(await ...)` and a background caller during `Received()`. Each difference must be fixed or recorded as an intentional decision; a known NSubstitute defect is not the required behavior. The run generates the "Known differences from NSubstitute" page before the first release. Broad issue mining and exhaustive compatibility work remain in phase 2.
 
 ### Case format
 
@@ -319,12 +319,13 @@ When done, a user in any framework writes `Mock.Of<T>()` with NSubstitute-style 
 - [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
 - [ ] Framework hook snippets in the README, each tested in CI.
 - [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
+- [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
 
 ### Phase 2: comparison and mining
 
 When done, every behaviour NSubstitute users rely on is either matched or documented as a deliberate difference.
 
-- [ ] The NSubstitute comparison run.
+- [ ] Expand the first-release NSubstitute comparison toward exhaustive compatibility, keeping the generated known-differences page current.
 - [ ] Issue mining, one pass per library, queued as separate pieces of work.
 - [ ] Ported scenarios from Rocks, Mockolate and Imposter.
 
