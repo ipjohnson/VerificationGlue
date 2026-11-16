@@ -4,11 +4,28 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/design-re
 
 ## What the user gets
 
-- `Verify(list.Count > 3)` fails with a message that names the expression, the value of every sub-expression, and the file and line. Nobody writes the message by hand.
+- `Verify(list.Count > 3)` fails with a message that names the expression, the file and line with the generator enabled, and captured sub-expression values when eligible tier 3 rewriting is enabled. Nobody writes the message by hand.
 - The message is the same under Native AOT, where stack traces carry no file or line.
 - `Check(cond)` records a failure and lets the test continue. The test then fails with every recorded failure listed.
 - The package works in xunit, NUnit, MSTest, TUnit and plain application code. `VerificationGlue.Tests` adds nothing the user has to learn.
 - Misuse is a build error with a clear message.
+
+### Host and call-site capabilities
+
+Tier 3 remains opt-in until the phase 0 gates pass. The value-rich message below requires an eligible method in a `partial` containing-type chain and enabled rewriting; installing the package alone does not guarantee values.
+
+| Host or call site | Message capability |
+|---|---|
+| xunit or NUnit test body invoked through reflection | Tier 2 with the generator enabled, even if the body has `[Verify]` |
+| MSTest, TUnit or another host invoking the original body without redirection | Tier 2 with the generator enabled; no automatic tier 3 promise |
+| Direct call from user source to an eligible non-virtual `[Verify]` helper in a `partial` type chain | Tier 3 when rewriting is enabled and the call is redirected |
+| Eligible `[VerifyTest]` method invoked by `VerificationGlue.Tests` | Tier 3 when rewriting is enabled and the runner calls the generated copy |
+| Helper called from a rewritten body | Tier 3 only when that call is explicitly redirected to an eligible generated copy; copying the original call alone is insufficient |
+| Rewriting disabled, a non-partial type chain, or an unsupported method | Original method with tier 2 when the generator is enabled |
+| Generator disabled or not running | Tier 1 source text only |
+| An individual value cannot be captured without changing behavior | Its text with the value marked unavailable; skipped expressions say `<not evaluated>` |
+
+Phase 0 validates the advertised IDE support and the default; it does not remove these call-site restrictions.
 
 ```
 Verify failed: s.StartsWith("x") && s.Length < 10
@@ -48,15 +65,15 @@ Verify(await repo.CountAsync() == 3);                    // await works inside V
 
 ## Three tiers
 
-The package gives the best message each call site allows. A user never has to opt in to a tier.
+The package gives the best message each call site allows. Tier 3 is opt-in until the debugging and performance gates below pass; tiers 1 and 2 do not require that opt-in.
 
 | Tier | Applies to | Message | Mechanism |
 |---|---|---|---|
 | 1 | Every call, generator disabled or not running | Source text of the condition | `[CallerArgumentExpression]` |
 | 2 | Every `Verify` and `Check` call in the project | Shape-specific text, for example "x can not be null", plus file and line embedded at compile time | One interceptor per call site |
-| 3 | Calls inside `[Verify]` methods and methods whose attribute is marked `[VerifyRewrite]` | Every sub-expression's value | A rewritten copy of the method |
+| 3 | Eligible methods with `[Verify]` or a `[VerifyRewrite]` attribute, when rewriting is enabled and the copy runs | Captured values, with unavailable and skipped values identified | A rewritten copy of the method |
 
-`[VerifyTest]` from `VerificationGlue.Tests` carries `[VerifyRewrite]`, so every test method gets tier 3. Any other library can mark its own attribute the same way.
+`[VerifyTest]` from `VerificationGlue.Tests` carries `[VerifyRewrite]`, so eligible test methods can get tier 3 when rewriting is enabled. Any other library can mark its own attribute the same way.
 
 ### Tier 2: interceptors
 
@@ -79,7 +96,7 @@ The package `build/VerificationGlue.props` adds `VerificationGlue.Generated` to 
 
 ### Tier 3: rewritten methods
 
-For each qualifying method in a `partial` type, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
+When tier 3 is enabled, for each qualifying method in a `partial` type chain, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
 
 The rewrite assigns each sub-expression to a typed local as it is evaluated, `(v0 = expr)`. The expression keeps its shape, so evaluation order and short-circuiting do not change.
 
@@ -99,14 +116,14 @@ if (!((v1 = (v0 = s).StartsWith("x")) && (v4 = (v3 = v0.Length) < 10)))
 
 Rules:
 
-1. Each sub-expression is evaluated exactly once. The spike checked this with a counter: `Next() + Next() == 10 || Next() == 0` called `Next()` three times.
+1. Once-only evaluation is a correctness requirement: preserve the original evaluation count, order and short-circuiting of every expression occurrence; explanations use original captured values or mark them unavailable, never evaluate them again. The spike checked this with a counter: `Next() + Next() == 10 || Next() == 0` called `Next()` three times.
 2. Locals are typed, so the success path does not box or allocate. Formatting happens on the failure path only.
 3. Constants and literals are not captured.
-4. Repeated reads of the same local or parameter are captured once. The spike printed `s` twice, which this rule fixes.
+4. Preserve every semantically distinct read of a local or parameter across an intervening mutation. Captures may be shared only when no intervening operation can change the value, including through `ref`, `out` or a closure; deduplicating message labels must not reuse stale values.
 5. A sub-expression on the skipped side of `&&`, `||`, `?:` or `??` reports `<not evaluated>`.
 6. Each rewrite is an `if` statement, not a block, so `out var` declared in a `Verify` stays in scope for the following statements. Verified in the spike.
 7. `await` inside the condition stays in place. Verified in the spike.
-8. Property patterns are explained member by member on the failure path. Each member is re-read only when the pattern has already failed, using `x is { Name: var p0 }`.
+8. Property-pattern explanations use only values captured during the original evaluation, preserving its evaluation order and count. Never re-read a getter on the failure path. If a value cannot be captured while preserving pattern semantics and variable scope, retain the original pattern and report the value as unavailable; skipped members report `<not evaluated>`.
 9. A sub-expression whose type cannot be stored in a local, such as a `ref struct` or a pointer, is not captured. The message shows its text, and analyzer VG0006 reports it as information.
 10. A mutable struct receiver is not copied into a local, because a copy would take the mutation. It is reported by text only.
 
@@ -118,7 +135,7 @@ Generators cannot see each other's output. The test generator emits a call to `{
 static bool WillRewrite(IMethodSymbol method)   // in a partial type chain, has [Verify] or a [VerifyRewrite] attribute, body has no errors
 ```
 
-When the function returns false, the test generator calls the original method and the test gets tier 2 messages. A contract test in `test/Contract.Specs` builds a project with both generators and checks that every combination compiles.
+Both generators also use the same tier 3 enablement setting. When rewriting is disabled or the function returns false, the test generator calls the original method and the test gets tier 2 messages. A contract test in `test/Contract.Specs` builds a project with both generators and checks that every combination compiles.
 
 ### Explanations by shape
 
@@ -131,7 +148,7 @@ The generator knows the static types at each call site, so it picks an explanati
 | `items.Contains(y)` | `items` (capped) and `y` |
 | `dict.ContainsKey(k)` | The key and up to 10 existing keys |
 | `x == Approx(...)` | Difference and tolerance |
-| `x is { ... }` | Each member: value and whether it matched |
+| `x is { ... }` | Original captured member values and match results, or explicit unavailable/not-evaluated markers |
 | A call returning `VerifyOutcome` | The outcome's `Explanation` |
 
 ### Formatting values
@@ -151,7 +168,7 @@ public static VerifyOutcome IsSorted<T>(IReadOnlyList<T> items) where T : ICompa
 Verify(IsSorted(prices));
 ```
 
-`VerifyOutcome` converts implicitly to `bool`. A helper marked `[Verify]` gets full values from its own `Verify` calls.
+`VerifyOutcome` converts implicitly to `bool`. An eligible helper marked `[Verify]` gets captured values from its own `Verify` calls when rewriting is enabled and its generated copy runs.
 
 ## Analyzers
 
@@ -193,11 +210,13 @@ Figures from the spike, on a loaded machine with a generator that was not increm
 - 2000 `[Verify]` methods with 6000 calls: 2.5 s without the generator, 6.6 s with it. About 0.7 ms per call.
 - At 100,000 calls that is about 70 s of total build time across all assemblies.
 
-Proposed budgets, to be confirmed by the phase 0 benchmark:
+Exploratory per-call targets, not approval to enable tier 3 by default:
 
 - Tier 2 adds no more than 0.1 ms per call to a cold build.
 - Tier 3 adds no more than 0.4 ms per call to a cold build.
 - An edit to one test file regenerates only that file's outputs.
+
+The default-enablement gate requires a separately user-approved limit on total added cold-build seconds at 100,000 calls, measured against the same generator-off build in the same job. Report that total and the matched-baseline ratio for tier 2 alone and tier 3. Benchmark results inform the proposed budget, but neither a measured result nor missing approval counts as acceptance.
 
 ## Documentation
 
@@ -216,9 +235,10 @@ This package owns these pages. The rules for producing and checking them are in 
 
 When done, we know whether tier 3 can be the default.
 
-- [ ] Debugging spike: breakpoints, stepping and Hot Reload in a tier 3 method in Visual Studio, Rider and VS Code, with the result written down per IDE.
+- [ ] Debugging spike on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions: breakpoints bind in the original source and hit the executing copy, and stepping stays in original source without exposing capture scaffolding, in every advertised IDE (Visual Studio, Rider and VS Code). Record Hot Reload separately; its limitations alone do not block the default.
+- [ ] Record the combined results in `docs/research/ide-report.md`, alongside the Tests discovery, UID-filtered execution, navigation/debugging and warning-free AOT run on the same pinned stack. MTP 2.5.3 evidence is historical only; record supported limitations before release promises.
 - [ ] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3, with an incremental generator built on CSharpAuthor.
-- [ ] Decision recorded: tier 3 on by default, or opt-in through a property.
+- [ ] Keep tier 3 opt-in unless every advertised IDE passes breakpoint binding and stepping and the separately user-approved total added cold-build budget passes at 100,000 calls; report the matched-baseline ratio too. Missing budget approval is not a pass. Record the evidence and resulting default explicitly.
 
 ### Phase 1: messages from source text and shape
 
@@ -233,9 +253,10 @@ When done, a user on any test framework installs `VerificationGlue` and gets fil
 
 ### Phase 2: values
 
-When done, a `Verify` in a `[Verify]` method reports every sub-expression's value, each evaluated once.
+When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports original captured values or explicit unavailable markers, preserving evaluation semantics.
 
 - [ ] Tier 3 rewrite for every rule listed above, with tests for each rule.
+- [ ] Before tier 3 ships, conformance cases prove side-effecting property getters are never re-read (including one that throws on a second read), skipped members remain unevaluated, and local/parameter reads separated by mutation retain their distinct values.
 - [ ] The shared `WillRewrite` function and the contract test.
 - [ ] Analyzers VG0001, VG0005 and VG0006, and the code fix for VG0005.
 - [ ] Duplicate compiler errors suppressed by skipping the copy when the original body has errors.
@@ -256,4 +277,4 @@ When done, `Check` collects failures, and strings, collections and patterns get 
 - A copy of a virtual method would skip overrides when called through the redirect. Only non-virtual methods are redirected. Overrides get tier 2.
 - Each rewritten body compiles twice. The budget above bounds the cost.
 - Stack frames show `{Name}__Verified`. A runner can strip the suffix when it reports a stack trace. Other frameworks will show it.
-- xunit and NUnit call test methods through reflection, so their test bodies get tier 2. `[Verify]` helpers called from those tests get tier 3.
+- xunit and NUnit call test methods through reflection, so their test bodies get tier 2. Eligible `[Verify]` helpers directly called from those tests get tier 3 only when rewriting is enabled and the call redirects to the copy.
