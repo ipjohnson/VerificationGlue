@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+    <ProjectReference Include="../Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
+  </ItemGroup>
+</Project>
