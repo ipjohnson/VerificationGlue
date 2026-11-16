@@ -69,9 +69,12 @@ Each package carries its own runtime library and its own generator in `analyzers
 ## Decisions taken
 
 - Target net10 only, so the test framework can follow MTP 3.
+- `VerificationGlue.Tests` builds against the MTP 3 previews from Phase 1. 1.0.0 of all three packages ships only after MTP 3 is stable. Until then `VerificationGlue` and `VerificationGlue.Mocks` release as 0.x.
 - Tier 3 stays opt-in until breakpoint binding and stepping pass in every advertised IDE and a separately user-approved total added cold-build budget passes at 100,000 calls. Report the matched generator-off baseline ratio too. Missing budget approval is not a pass; documented Hot Reload limitations alone do not block the gate.
 - Phase 0 evidence pins the .NET 10 SDK, MTP 3, IDE and IDE-plugin versions and covers discovery, UID-filtered runs, navigation/debugging and warning-free Native AOT execution. Record the combined results and supported limitations in `docs/research/ide-report.md` before making release promises; the MTP 2.5.3 spike is historical evidence only.
 - Each MTP major version gets a VerificationGlue major version. The previous major stays on a release branch that receives fixes.
+- The three packages keep one version number. A major caused by MTP does not break the public surface of `VerificationGlue` or `VerificationGlue.Mocks`. CI checks this through `PublicAPI.Shipped.txt`: such a major removes no entry from those two packages' files.
+- This repository's `.Specs` projects start on xunit v3 with MTP. See "Repository layout".
 - `Verify(cond)` throws at once. `Check(cond)` records a failure and lets the test continue. The test then fails at the end with every recorded failure listed.
 - `.WithMessage` and `.Because` outside a `[Verify]` method are build errors.
 - Mock setup uses NSubstitute-style syntax. Each mock has its own `MockAdapter` instance.
@@ -127,7 +130,7 @@ A file path and span for a diagnostic travel as strings and integers, not as a `
 
 ### Required changes to CSharpAuthor
 
-These four changes ship in a CSharpAuthor minor release before generator work starts. The rules above describe CSharpAuthor 2.0.0. Once the changes land, the generators use them and drop the workarounds.
+These four changes ship in a CSharpAuthor minor release. Generator work does not wait for it. It starts on CSharpAuthor 2.0.0 with the rules above, which describe 2.0.0. Each change is filed as an issue in `ipjohnson/CSharpAuthor`. Once the changes land, the generators use them and drop the workarounds.
 
 1. **`OutputContext.Reset()`.** It clears the output and the derived type references and keeps the buffer, so a generator reuses one context for many small files such as interceptors. Replaces one context per file.
 2. **A cache for `TypeDefinition.Get(Type)`, keyed by `Type`.** It must be thread-safe, because Roslyn runs generators in parallel. Replaces our own cache of BCL types. Our `KnownTypes` for runtime types stay, because those are named by string.
@@ -149,6 +152,8 @@ test/
   ...                                  one test project per source project, plus the conformance, benchmark and docs suites
 samples/
   ...                                  compiled sample projects; every code block in the docs comes from here
+spikes/
+  ...                                  the research spikes, kept as evidence; not product code
 docs/
   north-star.md
   guide/                               user documentation, see "Documentation" below
@@ -158,6 +163,8 @@ docs/
 ```
 
 The package `VerificationGlue.Tests` takes the name a test project would normally use. This repository's own test projects therefore live under `test/` and end in `.Specs`, for example `VerificationGlue.Mocks.Specs`.
+
+The `.Specs` projects start on xunit v3 with MTP, because `VerificationGlue.Tests` cannot run them until its Phase 2 is done. They move to `VerificationGlue.Tests` when `docs/design/tests.md` Phase 2 is done, each project as a whole, and that move is the paired sample for the xunit migration guide. The conformance suites stay runnable on xunit v3 after the move, so a defect in `VerificationGlue.Tests` cannot hide a defect in the other two packages. `VerificationGlue.Tests.Specs` stays on xunit v3, because a runner cannot be the only check of itself.
 
 ## Documentation
 
@@ -170,7 +177,7 @@ The rule behind this: **documentation is built from the product, not written bes
 | Kind | Where | Audience | Source of truth |
 |---|---|---|---|
 | Package README | Each package's NuGet page and `src/*/README.md` | Someone deciding whether to install | Hand-written, examples from `samples/` |
-| Getting started | `docs/guide/getting-started-*.md`, one per package and one per host framework (xunit, NUnit, MSTest, TUnit, `VerificationGlue.Tests`) | A new user | Hand-written, examples from `samples/` |
+| Getting started | `docs/guide/getting-started-*.md`, one per package, with a section per host framework (xunit, NUnit, MSTest, TUnit, `VerificationGlue.Tests`) that pulls its snippet from that host's sample project | A new user | Hand-written, examples from `samples/` |
 | Task guides | `docs/guide/*.md`, for example "Mock an async method", "Share a container across a class", "Write a custom formatter" | A user with a specific job | Hand-written, examples from `samples/` |
 | Migration guides | `docs/guide/migrate-from-*.md`: xunit, NUnit, NSubstitute, Moq, FluentAssertions, Shouldly, `DependencyModules.xUnit` | A team switching | Hand-written, with side-by-side samples that both compile |
 | Failure message gallery | `docs/guide/messages.md` | Anyone reading a failure | Generated from real test runs |
@@ -235,7 +242,7 @@ These CI checks run on every pull request:
 
 The docs-impact check can be overridden with a `no-docs-needed` label, so a reviewer makes the call on purpose.
 
-A phase in a design document is done only when its pages exist and pass these checks. Each design document lists the pages its package owns.
+A phase in a design document is done only when its pages exist and pass these checks. Each design document lists the pages its package owns, and each phase checklist names the pages due in that phase.
 
 Each release branch carries its own docs, so a user on an older MTP major reads the docs for the version they run.
 
@@ -259,18 +266,52 @@ Most code written against these packages will be written by AI agents, so the do
 
 - Phase 1 of each package ships with its README, getting-started guide, diagnostics pages, and the snippet, sample, diagnostics, API-docs and style checks.
 - The output and docs-impact checks ship with the first release of `VerificationGlue`, because message formatting is its product.
-- Migration guides and `llms.txt` ship with each package's first release.
+- Each package's first release ships one migration guide: xunit `Assert` for `VerificationGlue`, NSubstitute for `VerificationGlue.Mocks`, and xunit for `VerificationGlue.Tests`. Each other migration guide ships with the phase that delivers the features it needs.
+- Each package's first release ships one getting-started page, with a section per host framework.
+- `llms.txt` ships with each package's first release.
 - The fresh-reader test starts with the first release that has all three packages.
 
 ## How we deliver
 
 Work follows the three design documents. Each one has phases, and each phase says what a user can do when it ships.
 
-1. **The CSharpAuthor changes** listed above, released before any generator work.
-2. **Spikes that decide the approach.** The debugging and IDE discovery spikes validate the pinned shipping stack and the default-enablement gates above. The cold-build benchmark reports total added seconds at 100,000 calls and the matched-baseline ratio against a separately user-approved budget; without approval or a passing result, tier 3 remains opt-in. The mock shape sweep decides how wide the first mock release is.
-3. **`VerificationGlue` and `VerificationGlue.Mocks` first releases.** Both are usable from xunit, NUnit, MSTest and TUnit, which gives early users and feedback before the test framework exists.
-4. **`VerificationGlue.Tests` first release.** Tests, containers, `[Mock]` parameters, data rows and scheduling on MTP.
-5. **The DependencyModules adapter.** It ships from the DependencyModules repository.
+1. **Repository foundation.** When done, a pull request that adds an empty generator project builds, packs, runs its specs, passes a Native AOT publish and passes the pack-and-consume check in CI.
+   - First action: commit the three research spikes under `spikes/`, without `bin/` and `obj/`, with a README that says they are not product code. They sit in temporary directories today, and three Phase 0 items start from them.
+   - The solution, the projects under `src/` and `test/` from "Repository layout", and `Shared.Generator`.
+   - Packaging: the runtime in `lib/net10.0`, the generator in `analyzers/dotnet/cs`, the props files, and one version number for the three packages.
+   - CI: build, specs, and the Native AOT publish job that principle 1 requires.
+   - The pack-and-consume check: CI packs the three packages and builds a sample that references only `VerificationGlue.Tests` from a local feed.
+   - The generator benchmark harness, the generator snapshot test harness and the generator driver harness.
+   - The docs tooling: snippet expansion, the descriptor-to-page test, and the link and style checks. It is due before the first Phase 1 pull request and does not block the spikes.
+2. **Spikes that decide the approach.** The debugging and IDE discovery spikes validate the pinned shipping stack and the default-enablement gates above. The cold-build benchmark reports total added seconds at 100,000 calls and the matched-baseline ratio against a separately user-approved budget; without approval or a passing result, tier 3 remains opt-in. The mock shape sweep decides how wide the first mock release is. The spikes run in parallel on CSharpAuthor 2.0.0 with the documented workarounds. The criteria for the tier 3 default are written in `docs/design/verification-glue.md` Phase 0 before the spikes run. The IDE discovery spike runs on MTP 2.5.3 and on the current MTP 3 preview, with SDK, MTP and IDE versions pinned and a fallback per IDE written down first. Its results go to `docs/research/ide-report.md` with the debugging spike's.
+3. **The CSharpAuthor changes** listed above, alongside the spikes. Each is filed as an issue in `ipjohnson/CSharpAuthor`. None of them blocks generator work. The `VerificationGlue.Tests` generator is the only one whose design names one of them, change 4, and it copies attributes into its own records until that change lands. The cold-build benchmark is rerun on the CSharpAuthor release that has the changes before the budgets are set.
+4. **`VerificationGlue` and `VerificationGlue.Mocks` first releases.** Both are usable from xunit, NUnit, MSTest and TUnit, which gives early users and feedback before the test framework exists. Both release as 0.x.
+5. **`VerificationGlue.Tests` first release.** Tests, containers, `[Mock]` parameters, data rows and scheduling on MTP. It is 1.0.0 of all three packages and ships only after MTP 3 is stable.
+6. **The DependencyModules adapter.** It ships from the DependencyModules repository.
+
+### Releases
+
+A phase that ships before its package's first public release ships as a preview. "Repository foundation" is an internal milestone, and every release depends on its packaging check.
+
+| Package | Previews | First public release | Feature set | Acceptance checks |
+|---|---|---|---|---|
+| `VerificationGlue` | Phase 1 | Phases 1 and 2, as 0.x | `Verify`, `Check`, `VerifyScope`, `Throws`, `ThrowsAsync` and the interpolated message form. Tier 2 messages for every listed shape. Tier 3 values in `[Verify]` methods. | A Native AOT sample in CI with no warnings. Sample tests in xunit, NUnit, MSTest and TUnit pass in CI. A test for each tier 3 rule. The contract test in `test/Contract.Specs`. The cold-build budget met in CI. |
+| `VerificationGlue.Mocks` | The three previews inside Phase 1 | Phase 1, as 0.x | `Mock.Of<T>()` for interfaces, NSubstitute-style setup, the typed `Setup()` and `Calls()` surface, recursive mocks, and analyzers VGM0001 to VGM0005 and VGM0007. | The pipeline layer of the conformance suite, with the stale-model regression test. The bounded NSubstitute comparison suite, with every difference recorded. The framework hook snippets tested in CI. Generator time and compile time budgets enforced in CI. |
+| `VerificationGlue.Tests` | Phase 1, then Phase 2 | Phases 1 to 3, as 1.0.0 | `[VerifyTest]` on MTP with UID filtering and TRX. Scopes and per-test containers. `[Mock]` parameters. Data rows, pluggable names and scheduling. | A Native AOT test project in CI. The Phase 0 IDE results recorded in `docs/research/ide-report.md`. The lifecycle acceptance cases of Phase 2. The data-row identity cases of Phase 3. |
+
+The later phases follow each package's first public release: `verification-glue.md` Phase 3, `mocks.md` Phases 2 and 3, and `tests.md` Phase 4.
+
+Some phases need a phase of another package:
+
+| Phase | Needs |
+|---|---|
+| `tests.md` Phase 1, the calls to `__Verified` | `verification-glue.md` Phase 2, which holds the tier 3 rewrite and `WillRewrite` |
+| `tests.md` Phase 2, `Check` failures per test | `verification-glue.md` Phase 2, which holds `Check` and `VerifyScope` |
+| `tests.md` Phase 2, `[Mock]` parameters | `mocks.md` Phase 1 |
+| `mocks.md`, `[Mock]` parameters in `VerificationGlue.Tests` and in DependencyModules | `tests.md` Phase 2 and Phase 4 |
+| `mocks.md` Phase 1, values for `Verify(calc.Calls()...)` in a `[VerifyTest]` | `verification-glue.md` Phase 2 |
+
+Each phase in the three design documents carries a "Needs" line with the same information.
 
 ## Open questions
 
