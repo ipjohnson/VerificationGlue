@@ -239,19 +239,27 @@ The default-enablement gate requires a separately user-approved limit on total a
 
 This package owns these pages. The rules for producing and checking them are in the north star.
 
-- README and `docs/guide/getting-started-verify.md`, with one sample per host framework.
+- README and `docs/guide/getting-started-verify.md`, with a section and a sample per host framework.
 - `docs/guide/messages.md`, generated from `samples/Messages`, one failing test per explanation shape and per tier.
 - Guides: "How tiers work and how to get values", "Soft checks with `Check`", "Write a formatter", "Write a custom verifier with `VerifyOutcome`".
-- Migration guides from xunit `Assert`, FluentAssertions and Shouldly.
+- Migration guides from xunit `Assert`, FluentAssertions and Shouldly. The xunit `Assert` guide ships with the first release. The other two ship with Phase 3, which delivers the explanations they compare against.
 - `docs/diagnostics/VG0001.md` to `VG0008.md`.
 - A generated-code page showing a tier 2 interceptor and a tier 3 rewritten method.
 
 ## Delivery
 
+Phase 1 ships as a preview. Phases 1 and 2 together are the first public release. Phase 3 follows it. The release map for all three packages is in the north star.
+
 ### Phase 0: spikes that decide the approach
 
 When done, we know whether tier 3 can be the default.
 
+Needs: the assertion spike committed under `spikes/` and the benchmark harness, both from "Repository foundation" in the north star. The spikes run on CSharpAuthor 2.0.0.
+
+The criteria in this list are fixed before the spikes run. A result does not change them.
+
+- [ ] The debugging spike runs on a rewrite that covers a `[Verify]` helper called from a `[VerifyTest]` body, a body that depends on the file's `using` directives, and a line that uses the typed mock surface, `Verify(calc.Calls().Add(1, 2) == 1)`.
+- [ ] An IDE that fails is named in `docs/research/ide-report.md` and on the IDE setup page, with the property that switches tier 3 as the documented way to change it there.
 - [ ] Debugging spike on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions: breakpoints bind in the original source and hit the executing copy, and stepping stays in original source without exposing capture scaffolding, in every advertised IDE (Visual Studio, Rider and VS Code). Record Hot Reload separately; its limitations alone do not block the default.
 - [ ] Record the combined results in `docs/research/ide-report.md`, alongside the Tests discovery, UID-filtered execution, navigation/debugging and warning-free AOT run on the same pinned stack. MTP 2.5.3 evidence is historical only; record supported limitations before release promises.
 - [ ] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3 including the redirect pipeline, with an incremental generator built on CSharpAuthor.
@@ -261,16 +269,21 @@ When done, we know whether tier 3 can be the default.
 
 When done, a user on any test framework installs `VerificationGlue` and gets file, line and shape-specific messages, including under Native AOT.
 
+Needs: "Repository foundation" in the north star. Nothing from the other packages.
+
 - [ ] `VerifySyntax` with `Verify`, `Throws`, `ThrowsAsync` and the interpolated message form.
 - [ ] Tier 2 interceptors for every listed shape.
 - [ ] `buildTransitive/VerificationGlue.props` sets `InterceptorsNamespaces`.
 - [ ] Analyzers VG0002, VG0003 and VG0004.
 - [ ] A Native AOT sample in CI with no warnings.
 - [ ] Sample tests in xunit, NUnit, MSTest and TUnit in CI.
+- [ ] Pages: README, `docs/guide/getting-started-verify.md` with a section per host framework, `docs/diagnostics/VG0002.md` to `VG0004.md`, and the tier 2 part of the generated-code page.
 
 ### Phase 2: values
 
-When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports original captured values or explicit unavailable markers, preserving evaluation semantics.
+When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports original captured values or explicit unavailable markers, preserving evaluation semantics. `Check` collects failures and reports them when its `VerifyScope` ends.
+
+Needs: Phase 1 and the Phase 0 result. Nothing from the other packages. `tests.md` Phase 1 needs this phase for `WillRewrite` and the `__Verified` copies, and `tests.md` Phase 2 needs it for `Check` and `VerifyScope`.
 
 - [ ] Tier 3 rewrite for every rule listed above, with tests for each rule.
 - [ ] Before tier 3 ships, conformance cases prove side-effecting property getters are never re-read (including one that throws on a second read), skipped members remain unevaluated, and local/parameter reads separated by mutation retain their distinct values.
@@ -278,16 +291,20 @@ When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports o
 - [ ] Analyzers VG0001, VG0005, VG0006 and VG0008, and the code fix for VG0005.
 - [ ] The copy is skipped when the original body has syntax errors, so those errors are not reported twice.
 - [ ] Rewrite conformance cases for using aliases, extension methods, file-local types and `[CallerMemberName]`.
-- [ ] The cold-build budget met in CI.
-
-### Phase 3: soft checks and explanations
-
-When done, `Check` collects failures, and strings, collections and patterns get specific explanations.
-
 - [ ] `Check`, `VerifyScope` and analyzer VG0007.
+- [ ] The cold-build budget met in CI.
+- [ ] Pages: `docs/guide/messages.md` for tier 2 and tier 3, the guides "How tiers work and how to get values" and "Soft checks with `Check`", the migration guide from xunit `Assert`, `docs/diagnostics/VG0001.md` and `VG0005.md` to `VG0008.md`, the tier 3 part of the generated-code page, and `llms.txt`.
+
+### Phase 3: explanations
+
+When done, strings, collections and patterns get specific explanations.
+
+Needs: Phase 2.
+
 - [ ] The explanation table above.
 - [ ] Value formatting rules and `[VerifyFormatter]`.
 - [ ] `VerifyOutcome`, `Approx` and `Eventually`.
+- [ ] Pages: the entries in `docs/guide/messages.md` for each explanation shape, the guides "Write a formatter" and "Write a custom verifier with `VerifyOutcome`", and the migration guides from FluentAssertions and Shouldly.
 
 ## Risks and open questions
 
