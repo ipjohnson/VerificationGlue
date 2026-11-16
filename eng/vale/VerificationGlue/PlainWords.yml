@@ -1,0 +1,10 @@
+extends: substitution
+message: "Use '%s' instead of '%s'. See docs/STYLE.md."
+level: error
+ignorecase: true
+swap:
+  blazing(?:ly)? fast: fast
+  explodes?: fails
+  leverag(?:e|es|ed|ing): use
+  utiliz(?:e|es|ed|ing): use
+  just works: works

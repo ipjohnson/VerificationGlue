@@ -12,9 +12,11 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <!-- begin-snippet: reference-verificationglue-tests -->
   <ItemGroup>
     <PackageReference Include="VerificationGlue.Tests" Version="$(VerificationGlueVersion)" />
   </ItemGroup>
+  <!-- end-snippet -->
 
   <!-- Rooting the runtimes makes the Native AOT publish analyze all of their code, not only what this sample calls. -->
   <ItemGroup>

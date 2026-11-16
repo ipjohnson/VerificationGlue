@@ -33,3 +33,30 @@ jobs:
 
       - name: Pack, consume, publish with Native AOT and check version mismatch
         run: eng/pack-and-consume.sh --no-build
+
+  docs:
+    runs-on: ubuntu-latest
+    env:
+      LYCHEE_VERSION: 0.24.2
+      VALE_VERSION: 3.27.0
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Install lychee and Vale
+        run: |
+          bin="$RUNNER_TEMP/bin"
+          mkdir -p "$bin"
+          curl -sSfL "https://github.com/lycheeverse/lychee/releases/download/lychee-v$LYCHEE_VERSION/lychee-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar xz -C "$bin" --strip-components=1 lychee-x86_64-unknown-linux-gnu/lychee
+          curl -sSfL "https://github.com/errata-ai/vale/releases/download/v$VALE_VERSION/vale_${VALE_VERSION}_Linux_64-bit.tar.gz" \
+            | tar xz -C "$bin" vale
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: Check snippets, links and style
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: eng/check-docs.sh

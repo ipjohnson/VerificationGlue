@@ -10,6 +10,7 @@
     <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/Docs.Specs/Docs.Specs.csproj" />
     <Project Path="test/Shared.Generator.Specs/Shared.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Generator.Specs/VerificationGlue.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Mocks.Generator.Specs/VerificationGlue.Mocks.Generator.Specs.csproj" />
