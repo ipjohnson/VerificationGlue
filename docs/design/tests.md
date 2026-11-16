@@ -300,7 +300,9 @@ Every interface is public and versioned with the package. A breaking change to a
 
 - Each MTP major gets a VerificationGlue major. The previous major stays on a `release/N.x` branch that receives fixes.
 - MTP 3 drops the net8 and net9 assets. VerificationGlue targets net10 only.
+- `VerificationGlue.Tests` builds against the MTP 3 previews from Phase 1. Its first public release is 1.0.0, and 1.0.0 of all three packages ships only after MTP 3 is stable. Until then `VerificationGlue.Tests` ships previews only.
 - `VerificationGlue`, `VerificationGlue.Mocks` and `VerificationGlue.Tests` share one version number, because the test generator depends on the `WillRewrite` contract and on `Mock.Of<T>()`.
+- A major caused by MTP does not break the public surface of `VerificationGlue` or `VerificationGlue.Mocks`. The north star states the rule and the CI check.
 
 ## Documentation
 
@@ -309,17 +311,23 @@ This package owns these pages. The rules for producing and checking them are in 
 - README and `docs/guide/getting-started-tests.md`, including the `global.json` line and the IDE setup for Visual Studio, Rider and VS Code.
 - Guides: "Containers and scopes", "Parameters and where they come from", "Data rows", "Scheduling groups and resources", "Running under Native AOT", "CI setup with TRX and retries".
 - `docs/guide/extending.md`, covering every extension interface, with the DependencyModules adapter as the worked example.
-- Migration guides from xunit, NUnit and `DependencyModules.xUnit`, as paired samples that both compile.
+- Migration guides from xunit, NUnit and `DependencyModules.xUnit`, as paired samples that both compile. The xunit guide ships with the first release. The `DependencyModules.xUnit` guide ships with Phase 4. The NUnit guide follows the first release.
 - `docs/diagnostics/VGT0001.md` to `VGT0006.md` and `VGT1001.md`.
 - A generated-code page showing a test class's registration file.
 - A lifecycle page built around the scope diagram, with a sample that logs every step.
 
 ## Delivery
 
+Phases 1 and 2 ship as previews. Phases 1 to 3 together are the first public release, 1.0.0. Phase 4 follows it. The release map for all three packages is in the north star.
+
 ### Phase 0: IDE discovery spike
 
 When done, we know that a generated MTP framework shows tests with source navigation in Visual Studio, Rider and VS Code.
 
+Needs: the runner spike committed under `spikes/`, which is the first action of "Repository foundation" in the north star. It shares its IDE setup with the debugging spike in `verification-glue.md` Phase 0.
+
+- [ ] Write down the fallback for each IDE before the spike runs: what the docs promise for that IDE if discovery, run, debug or navigation fails there.
+- [ ] Run the adapter on MTP 2.5.3 as well as on the current MTP 3 preview, so a failure can be attributed to the preview or to a generated framework.
 - [ ] Run the adapter on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions; record discovery, UID-filtered execution, navigation and debugging per IDE in `docs/research/ide-report.md`, alongside the assertion debugging spike.
 - [ ] Publish and execute the same stack under Native AOT with no trim or AOT warnings.
 - [ ] Record supported limitations and fallback behavior in that report before making release promises; MTP 2.5.3 results are historical comparison only.
@@ -329,16 +337,21 @@ When done, we know that a generated MTP framework shows tests with source naviga
 
 When done, a user marks methods `[VerifyTest]`, runs `dotnet test`, filters by UID, gets TRX, and publishes the test project with Native AOT.
 
-- [ ] Runtime adapter for discovery and execution.
+Needs: Phase 0, and "Repository foundation" in the north star. The calls to `__Verified` need `verification-glue.md` Phase 2, which holds the tier 3 rewrite and `WillRewrite`.
+
+- [ ] Runtime adapter for discovery and execution, built against the current MTP 3 preview.
 - [ ] Generator for registration, UIDs and attribute materialisation, built on CSharpAuthor.
 - [ ] The props and targets, including VGT1001.
 - [ ] Calls to `__Verified` through `WillRewrite`.
 - [ ] Analyzers VGT0001 and VGT0004.
 - [ ] A Native AOT test project in CI, with startup time recorded.
+- [ ] Pages: README, `docs/guide/getting-started-tests.md`, the guide "Running under Native AOT", `docs/diagnostics/VGT0001.md`, `VGT0004.md`, `VGT0006.md` and `VGT1001.md`, and the generated-code page.
 
 ### Phase 2: scopes and containers
 
 When done, tests take services and mocks as parameters from a per-test container that is disposed when the test ends.
+
+Needs: Phase 1. `Check` failures need `Check` and `VerifyScope` from `verification-glue.md` Phase 2. `[Mock]` parameters need `Mock.Of<T>()` from `mocks.md` Phase 1.
 
 - [ ] Assembly, class and test scopes with the order above.
 - [ ] `ITestContainerBootstrap`, `ITestContainer`, `[Container<T>]` with test and class scope.
@@ -347,24 +360,31 @@ When done, tests take services and mocks as parameters from a per-test container
 - [ ] Middleware, scope listeners and test output during container build.
 - [ ] `Check` failures reported per test.
 - [ ] Lifecycle acceptance cases: exactly-once disposal for container-owned and runner-owned instances; cancellation during setup; invocation plus multiple cleanup and `Check` failures with all failures retained; lazy attribute-construction failure attributed to its owner while unrelated tests run; fresh per-attempt state and cleanup on retries.
+- [ ] Pages: the guides "Containers and scopes" and "Parameters and where they come from", the lifecycle page, and the sections of `docs/guide/extending.md` for containers, parameter providers, middleware and scope listeners.
 
 ### Phase 3: data, naming and scheduling
 
 When done, data-driven tests get a result and a container per row, names are pluggable, and tests are scheduled by group.
+
+Needs: Phase 2. Nothing new from the other packages.
 
 - [ ] `[Row]`, `[RowSource]`, `ITestDataSource`, and analyzers VGT0002 and VGT0005.
 - [ ] `ITestNameFormatter` and the default format.
 - [ ] Schedule groups, resources, `[RunAfter]`, VGT0003 and `ITestScheduler`.
 - [ ] `--vg-filter`.
 - [ ] Gate data-row UID filtering and fresh-process retry support on cases for inserted/reordered literal rows, reordered keyed runtime sources, duplicate runtime keys, and explicit deterministic index replay; each retry must execute the intended row and invalid sources must fail rather than select different data.
+- [ ] Pages: the guides "Data rows", "Scheduling groups and resources" and "CI setup with TRX and retries", `docs/diagnostics/VGT0002.md`, `VGT0003.md` and `VGT0005.md`, the sections of `docs/guide/extending.md` for data sources, name formatters and schedulers, the migration guide from xunit, and `llms.txt`.
 
 ### Phase 4: DependencyModules
 
 When done, a DependencyModules user moves a test from `[ModuleTest]` on xunit to `[VerifyTest]` by changing the attribute and the package.
 
+Needs: Phase 2, `mocks.md` Phase 1, and the DependencyModules work listed under "DependencyModules adapter", which is done in the DependencyModules repository.
+
 - [ ] The adapter package in the DependencyModules repository.
 - [ ] Reflection-free variants of the DependencyModules test interfaces.
 - [ ] `[TestExport]` and `IMockSupportAttribute`.
+- [ ] Pages: the migration guide from `DependencyModules.xUnit`, and the adapter as the worked example in `docs/guide/extending.md`.
 
 ## Risks and open questions
 
