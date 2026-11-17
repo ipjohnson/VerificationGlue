@@ -33,6 +33,8 @@ public interface ICalculator
     event EventHandler<int>? Changed;
 
     T Echo<T>(T value);
+
+    TimeSpan Since(IClock clock);
 }
 
 /// <summary>Named only in <c>[assembly: GenerateMock]</c>, and created by a generic helper.</summary>

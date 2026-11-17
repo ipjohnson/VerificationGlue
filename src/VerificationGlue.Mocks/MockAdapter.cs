@@ -127,6 +127,55 @@ public sealed class MockAdapter
     public void EventRemove(int memberId, string name, Delegate? handler) =>
         Dispatch(memberId, name, null, [handler], out _);
 
+    /// <summary>The adapter of a generated mock.</summary>
+    /// <exception cref="ArgumentException"><paramref name="mock"/> is not a generated mock.</exception>
+    public static MockAdapter Of(object mock) =>
+        mock is IMock generated
+            ? generated.Adapter
+            : throw new ArgumentException($"{mock?.GetType().ToString() ?? "null"} is not a generated mock. Create one with Mock.Of<T>().", nameof(mock));
+
+    /// <summary>The target of a generated <c>Setup()</c> member that returns a value. Each argument is an <see cref="Arg{T}"/>.</summary>
+    public MockSetup<TResult> SetupCall<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
+        new(this, CallSpec.FromMatchers(memberId, name, typeArguments, Responses.Matchers(arguments)));
+
+    /// <summary>The target of a generated <c>Setup()</c> member that returns <c>void</c>. Each argument is an <see cref="Arg{T}"/>.</summary>
+    public MockSetup SetupVoidCall(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
+        new(this, CallSpec.FromMatchers(memberId, name, typeArguments, Responses.Matchers(arguments)));
+
+    /// <summary>The target of a generated <c>Calls()</c> member: the number of recorded calls that match. Each argument is an <see cref="Arg{T}"/>.</summary>
+    public CallCount CountCalls(int memberId, string name, Type[]? typeArguments, object?[] arguments)
+    {
+        var spec = CallSpec.FromMatchers(memberId, name, typeArguments, Responses.Matchers(arguments));
+        var toMember = new List<CallRecord>();
+        var count = 0;
+        lock (_gate)
+        {
+            foreach (var call in _calls)
+            {
+                if (call.MemberId != memberId)
+                {
+                    continue;
+                }
+
+                toMember.Add(call);
+                if (spec.Matches(call))
+                {
+                    count++;
+                }
+            }
+        }
+
+        return new CallCount(count, name, toMember);
+    }
+
+    internal void AddResponse(CallSpec spec, Func<CallInfo, object?> response)
+    {
+        lock (_gate)
+        {
+            _responses.Add((spec, response));
+        }
+    }
+
     internal void BindResponse(CallRecord setupCall, CallSpec spec, Func<CallInfo, object?> response)
     {
         lock (_gate)

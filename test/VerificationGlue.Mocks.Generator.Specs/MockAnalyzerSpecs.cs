@@ -99,6 +99,55 @@ public class MockAnalyzerSpecs
     }
 
     [Fact]
+    public void An_NSubstitute_style_matcher_passed_to_Setup_or_Calls_reports_VGM0002_as_an_error()
+    {
+        var diagnostics = Analyze(
+            """
+            public class Tests
+            {
+                public bool Run()
+                {
+                    var calc = Mock.Of<ICalculator>();
+                    calc.Setup().Add(1, Arg.Any<int>()).Returns(3);
+                    calc.Setup().Add(Arg.Is<int>(x => x > 0), Arg<int>.Any()).Returns(4);
+                    return calc.Calls().Add(Arg.Is(2), 1) == 1;
+                }
+            }
+            """,
+            generate: true);
+
+        Assert.Equal(
+            [
+                "Error VGM0002 line 6 'Arg.Any<int>()': 'Arg.Any<int>()' is an NSubstitute-style matcher, so this Arg<T> parameter matches only the default value and the matcher waits for the next mock call. Use 'Arg<int>.Any()'.",
+                "Error VGM0002 line 7 'Arg.Is<int>(x => x > 0)': 'Arg.Is<int>(x => x > 0)' is an NSubstitute-style matcher, so this Arg<T> parameter matches only the default value and the matcher waits for the next mock call. Use 'Arg<int>.Is(x => x > 0)'.",
+                "Error VGM0002 line 8 'Arg.Is(2)': 'Arg.Is(2)' is an NSubstitute-style matcher, so this Arg<T> parameter matches only the default value and the matcher waits for the next mock call. Use 'Arg<int>.Is(2)'.",
+            ],
+            diagnostics);
+    }
+
+    [Fact]
+    public void Typed_setup_and_call_counts_report_nothing()
+    {
+        var diagnostics = Analyze(
+            """
+            public class Tests
+            {
+                public bool Run()
+                {
+                    var calc = Mock.Of<ICalculator>();
+                    calc.Setup().Add(1, Arg<int>.Any()).Returns(3);
+                    calc.Setup().Length.Returns(4);
+                    calc.Add(Arg.Any<int>(), 2).Returns(5);
+                    return calc.Calls().Add(Arg<int>.Is(x => x > 0), 1) == 1;
+                }
+            }
+            """,
+            generate: true);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public void A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named()
     {
         var diagnostics = Analyze("""
@@ -190,15 +239,27 @@ public class MockAnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    /// <summary>Each diagnostic as "ID line N 'text at its location': message", with lines counted in <paramref name="source"/>.</summary>
-    private static List<string> Analyze(string source)
+    /// <summary>
+    /// Each diagnostic as "ID line N 'text at its location': message", with lines counted in
+    /// <paramref name="source"/>. With <paramref name="generate"/> the generator runs first, so the
+    /// source can use the typed <c>Setup()</c> and <c>Calls()</c> surface, and each line starts with
+    /// the severity.
+    /// </summary>
+    private static List<string> Analyze(string source, bool generate = false)
     {
-        var tree = CSharpSyntaxTree.ParseText(source, MockCompiler.ParseOptions, "Tests.cs");
-        var compilation = CSharpCompilation.Create(
+        var parseOptions = MockCompiler.ParseOptions.WithFeatures([new("InterceptorsNamespaces", "VerificationGlue.Mocks.Generated")]);
+        var tree = CSharpSyntaxTree.ParseText(source, parseOptions, "Tests.cs");
+        Compilation compilation = CSharpCompilation.Create(
             "AnalyzerCase",
-            [CSharpSyntaxTree.ParseText(Contracts, MockCompiler.ParseOptions, "Contracts.cs"), tree],
+            [CSharpSyntaxTree.ParseText(Contracts, parseOptions, "Contracts.cs"), tree],
             ShapeCase.FrameworkReferences.Append(MockCompiler.RuntimeReference),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+
+        if (generate)
+        {
+            CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions)
+                .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _, TestContext.Current.CancellationToken);
+        }
 
         var errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors));
@@ -216,7 +277,8 @@ public class MockAnalyzerSpecs
             {
                 Assert.Same(tree, d.Location.SourceTree);
                 var line = d.Location.GetLineSpan().StartLinePosition.Line + 1;
-                return $"{d.Id} line {line} '{tree.GetText().ToString(d.Location.SourceSpan)}': {d.GetMessage()}";
+                var severity = generate ? d.Severity + " " : "";
+                return $"{severity}{d.Id} line {line} '{tree.GetText().ToString(d.Location.SourceSpan)}': {d.GetMessage()}";
             })
             .ToList();
     }

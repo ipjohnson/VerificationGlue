@@ -26,6 +26,18 @@ internal static class MockDiagnostics
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VGM0002.md");
 
+    // VGM0002 has two severities, and release tracking records one per ID. The release file lists the warning.
+#pragma warning disable RS2001
+    public static readonly DiagnosticDescriptor MatcherInTypedSurface = new(
+        id: "VGM0002",
+        title: "NSubstitute-style Arg matcher passed to a typed Setup() or Calls() member",
+        messageFormat: "'{0}' is an NSubstitute-style matcher, so this Arg<T> parameter matches only the default value and the matcher waits for the next mock call. Use '{1}'.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGM0002.md");
+#pragma warning restore RS2001
+
     public static readonly DiagnosticDescriptor MemberCannotBeMocked = new(
         id: "VGM0003",
         title: "Member cannot be mocked",

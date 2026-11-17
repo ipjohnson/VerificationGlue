@@ -66,6 +66,14 @@ calc.DidNotReceive().Add(3, 3);
 Fails<ReceivedCallsException>(() => calc.Received().Add(7, 7), "Received on a call that was not made");
 Fails<ReceivedCallsException>(() => calc.DidNotReceive().Reset(), "DidNotReceive on a call that was made");
 
+var typed = Mock.Of<ICalculator>();
+typed.Setup().Add(1, Arg<int>.Any()).Returns(3);
+typed.Setup().ComputeAsync(Arg<int>.Is(v => v > 0)).Returns(8);
+Check(typed.Add(1, 2) == 3 && typed.Add(2, 2) == 0, "Setup() with Arg<T>.Any()");
+Check(await typed.ComputeAsync(1) == 8, "Setup() with Arg<T>.Is on a Task<int> member");
+Check(typed.Calls().Add(1, 2) == 1 && typed.Calls().Add(1, Arg<int>.Any()) == 1, "Calls() counts matching calls");
+Check(typed.Calls().Add(5, 5).ToString() == "0 (Add received 2 calls: Add(1, 2), Add(2, 2))", "CallCount lists the calls to the member");
+
 var clock = Make<IClock>();
 clock.Now.Returns(new DateTime(2026, 11, 17));
 Check(clock.Now == new DateTime(2026, 11, 17), "Mock.Of<T>() in a generic helper with [assembly: GenerateMock]");

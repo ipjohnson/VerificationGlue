@@ -6,7 +6,7 @@
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line;
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
-#      warnings as errors and runs. It checks each part of the NSubstitute-style setup;
+#      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface;
 #   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
 # Extra arguments are passed to dotnet pack, for example -p:VersionSuffix=ci.42 or --no-build.
 set -euo pipefail
@@ -38,7 +38,8 @@ echo "All three packages have version $version"
 
 echo "== Package layout"
 expect_entry() {
-  unzip -Z1 "$feed/$1.$version.nupkg" | grep -qx "$2" || fail "$1 does not contain $2"
+  # grep -q would stop reading early, and unzip's SIGPIPE then fails the pipe under pipefail.
+  unzip -Z1 "$feed/$1.$version.nupkg" | grep -x "$2" > /dev/null || fail "$1 does not contain $2"
 }
 expect_entry VerificationGlue "lib/net10.0/VerificationGlue.dll"
 expect_entry VerificationGlue "analyzers/dotnet/cs/VerificationGlue.Generator.dll"

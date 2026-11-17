@@ -257,7 +257,8 @@ internal sealed class MockModelBuilder
             false,
             isUnsafe,
             false,
-            unsupported));
+            unsupported,
+            "M:" + method.Name + "`" + method.Arity + "(" + ParameterKeys(method.Parameters) + ")"));
         return null;
     }
 
@@ -295,7 +296,8 @@ internal sealed class MockModelBuilder
             property.SetMethod is { IsInitOnly: true },
             isUnsafe,
             false,
-            unsupported));
+            unsupported,
+            property.IsIndexer ? "I:" + ParameterKeys(property.Parameters) : "P:" + property.MetadataName));
         _nextId += 2;
         return null;
     }
@@ -334,7 +336,8 @@ internal sealed class MockModelBuilder
             false,
             false,
             canRaise,
-            null));
+            null,
+            "E:" + @event.Name));
         _nextId += 2;
         return null;
     }
@@ -529,6 +532,33 @@ internal sealed class MockModelBuilder
             (named.ContainingType != null && ContainsTypeParameter(named.ContainingType)),
         _ => false,
     };
+
+    private static string ParameterKeys(IEnumerable<IParameterSymbol> parameters) =>
+        string.Join(",", parameters.Select(parameter => TypeKey(parameter.Type)));
+
+    /// <summary>
+    /// The type as C# compares it in a signature: no nullable reference annotations, no tuple element
+    /// names, <c>dynamic</c> as <c>object</c>, and a method type parameter by its position.
+    /// </summary>
+    private static string TypeKey(ITypeSymbol type) => type switch
+    {
+        ITypeParameterSymbol { TypeParameterKind: TypeParameterKind.Method } parameter => "!!" + parameter.Ordinal,
+        ITypeParameterSymbol parameter => "!" + parameter.Name,
+        IArrayTypeSymbol array => TypeKey(array.ElementType) + "[" + array.Rank + "]",
+        IPointerTypeSymbol pointer => TypeKey(pointer.PointedAtType) + "*",
+        IDynamicTypeSymbol => "System.Object",
+        INamedTypeSymbol named => NamedKey(named.TupleUnderlyingType ?? named),
+        _ => type.ToDisplayString(),
+    };
+
+    private static string NamedKey(INamedTypeSymbol type)
+    {
+        var container = type.ContainingType != null
+            ? NamedKey(type.ContainingType) + "+"
+            : type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString() + ".";
+        var arguments = type.TypeArguments.Length == 0 ? "" : "<" + string.Join(",", type.TypeArguments.Select(TypeKey)) + ">";
+        return container + type.MetadataName + arguments;
+    }
 
     private string MockName(INamedTypeSymbol type)
     {

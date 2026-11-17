@@ -51,7 +51,9 @@ internal sealed record ParameterModel(
 
 /// <summary>
 /// One interface member. <see cref="Unsupported"/> holds the reason when the member compiles but
-/// throws, which the generator reports as VGM0003.
+/// throws, which the generator reports as VGM0003. <see cref="SurfaceKey"/> is equal for two
+/// members whose typed setup members would have the same C# signature, such as <c>M(string)</c> and
+/// <c>M(out string?)</c>, so the surface keeps only the first.
 /// </summary>
 internal sealed record MockMemberModel(
     MemberKind Kind,
@@ -69,7 +71,8 @@ internal sealed record MockMemberModel(
     bool IsInit,
     bool IsUnsafe,
     bool CanRaise,
-    string? Unsupported);
+    string? Unsupported,
+    string SurfaceKey);
 
 internal sealed record DiagnosticModel(string Id, EquatableArray<string> Arguments);
 
