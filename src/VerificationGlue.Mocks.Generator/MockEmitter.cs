@@ -336,7 +336,7 @@ internal static class MockEmitter
 
     private static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
-    private static string Render(ITypeDefinition type)
+    internal static string Render(ITypeDefinition type)
     {
         var builder = new StringBuilder();
         type.WriteTypeName(builder, TypeOutputMode.Global);

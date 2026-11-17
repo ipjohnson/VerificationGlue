@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The behaviour layer of the mock conformance suite. These lines add what the VerificationGlue.Mocks
+    package adds: the runtime, the generator and buildTransitive/VerificationGlue.Mocks.props, so the
+    specs use mocks generated at build time, as a user's tests do.
+  -->
+  <Import Project="../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.props" />
   <ItemGroup>
     <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

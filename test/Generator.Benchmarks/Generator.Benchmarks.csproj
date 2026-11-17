@@ -7,5 +7,7 @@
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
     <ProjectReference Include="../Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
   </ItemGroup>
 </Project>

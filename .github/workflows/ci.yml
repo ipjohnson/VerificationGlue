@@ -36,6 +36,13 @@ jobs:
           dotnet run --project test/Generator.Benchmarks -c Release --no-build --
           --filter '*' --job short --inProcess --artifacts artifacts/benchmarks
 
+      # Fails when the mock generator's median time over 500 interfaces is above a limit in
+      # mock-budgets.json. docs/design/mocks.md, Performance, has the figures the limits come from.
+      - name: Check generator budgets
+        run: >
+          dotnet run --project test/Generator.Benchmarks -c Release --no-build --
+          budget test/Generator.Benchmarks/mock-budgets.json
+
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v5
