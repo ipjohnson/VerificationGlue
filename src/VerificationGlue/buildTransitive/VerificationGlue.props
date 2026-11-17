@@ -2,4 +2,8 @@
   <PropertyGroup>
     <InterceptorsNamespaces>$(InterceptorsNamespaces);VerificationGlue.Generated</InterceptorsNamespaces>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Set VerificationGlueRewrite to true to turn on tier 3: copies of eligible [Verify] methods that report captured values. -->
+    <CompilerVisibleProperty Include="VerificationGlueRewrite" />
+  </ItemGroup>
 </Project>

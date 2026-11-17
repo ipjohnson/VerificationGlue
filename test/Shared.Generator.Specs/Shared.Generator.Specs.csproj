@@ -1,3 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+  </ItemGroup>
   <Import Project="../../src/Shared.Generator/Shared.Generator.projitems" />
 </Project>

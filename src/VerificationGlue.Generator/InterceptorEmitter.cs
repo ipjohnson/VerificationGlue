@@ -12,7 +12,7 @@ internal static class InterceptorEmitter
     // The compiler recognises InterceptsLocationAttribute by name, and the BCL does not ship it, so
     // each file declares its own copy as a file-local type. CSharpAuthor writes one namespace per
     // file, so the declaration goes in front of its output as text.
-    private const string InterceptsLocationDeclaration =
+    public const string InterceptsLocationDeclaration =
         "namespace System.Runtime.CompilerServices\n{\n" +
         "    [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]\n" +
         "    file sealed class InterceptsLocationAttribute(int version, string data) : global::System.Attribute\n    {\n    }\n}\n";
@@ -73,17 +73,27 @@ internal static class InterceptorEmitter
             switch (call.Kind)
             {
                 case CallKind.Verify:
+                    method.SetReturnType(KnownTypes.VerifyResult);
                     method.AddParameter(typeof(bool), "condition");
                     AddExpression(method);
                     method.If(Ex.Not(Condition)).AddIndentedStatement(Ex.Throw(
                         Ex.Call(KnownTypes.VerifyFailure, "Static", Expression, message, path, line)));
+                    method.Return(Ex.Raw("default"));
                     break;
                 case CallKind.VerifyWithMessage:
+                    method.SetReturnType(KnownTypes.VerifyResult);
                     method.AddParameter(typeof(bool), "condition");
                     method.AddParameter(KnownTypes.VerifyMessageHandler, "message").Modifier = ParameterModifier.Ref;
                     AddExpression(method);
                     method.If(Ex.Not(Condition)).AddIndentedStatement(Ex.Throw(
                         Ex.Call(KnownTypes.VerifyFailure, "Static", Expression, message, path, line, Ex.RefArg(Ex.Id("message")))));
+                    method.Return(Ex.Raw("default"));
+                    break;
+                case CallKind.Check:
+                    method.AddParameter(typeof(bool), "condition");
+                    AddExpression(method);
+                    method.If(Ex.Not(Condition)).AddIndentedStatement(
+                        Ex.Call(KnownTypes.VerifyFailure, "CheckFailed", Expression, message, path, line));
                     break;
                 case CallKind.Throws:
                 case CallKind.ThrowsAsync:

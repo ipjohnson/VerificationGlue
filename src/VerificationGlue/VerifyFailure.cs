@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -32,6 +34,89 @@ public static class VerifyFailure
     /// <param name="userMessage">The interpolated message from the call.</param>
     public static VerifyException Static(string? expression, string? message, string? file, int line, ref VerifyMessageHandler userMessage) =>
         new(Compose("Verify", expression, message, null, userMessage.ToStringAndClear(), file, line));
+
+    /// <summary>
+    /// Records the failure of a <c>Check</c> call whose message is known at compile time in the
+    /// current <see cref="VerifyScope"/>, or throws it when no scope is open.
+    /// </summary>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call, or null.</param>
+    /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
+    public static void CheckFailed(string? expression, string? message, string? file, int line) =>
+        VerifyScope.Report(new VerifyException(Compose("Check", expression, message, null, null, file, line)));
+
+    /// <summary>
+    /// A tier 2 <c>Verify</c> inside a rewritten copy, where no interceptor can reach the call, such
+    /// as in a lambda.
+    /// </summary>
+    /// <param name="condition">The condition that must hold.</param>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    /// <returns>A value whose <see cref="VerifyResult.Because"/> does nothing here.</returns>
+    public static VerifyResult Verify([DoesNotReturnIf(false)] bool condition, string? expression, string? message, string? file, int line)
+    {
+        if (!condition)
+        {
+            throw Static(expression, message, file, line);
+        }
+
+        return default;
+    }
+
+    /// <summary>A tier 2 <c>Verify</c> with an interpolated message inside a rewritten copy.</summary>
+    /// <param name="condition">The condition that must hold.</param>
+    /// <param name="userMessage">The interpolated message from the call. Its holes run only on failure.</param>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    /// <returns>A value whose <see cref="VerifyResult.Because"/> does nothing here.</returns>
+    public static VerifyResult Verify(
+        [DoesNotReturnIf(false)] bool condition,
+        [InterpolatedStringHandlerArgument(nameof(condition))] ref VerifyMessageHandler userMessage,
+        string? expression,
+        string? message,
+        string? file,
+        int line)
+    {
+        if (!condition)
+        {
+            throw Static(expression, message, file, line, ref userMessage);
+        }
+
+        return default;
+    }
+
+    /// <summary>A tier 2 <c>Check</c> inside a rewritten copy, where no interceptor can reach the call.</summary>
+    /// <param name="condition">The condition that should hold.</param>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    public static void Check(bool condition, string? expression, string? message, string? file, int line)
+    {
+        if (!condition)
+        {
+            CheckFailed(expression, message, file, line);
+        }
+    }
+
+    /// <summary>Starts the tier 3 failure of a <c>Verify</c> call. Only the failure path calls it.</summary>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    /// <returns>A builder that takes the captured values.</returns>
+    public static VerifyFailureBuilder Start(string expression, string file, int line) => new("Verify", expression, file, line);
+
+    /// <summary>Starts the tier 3 failure of a <c>Check</c> call. Only the failure path calls it.</summary>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    /// <returns>A builder that takes the captured values.</returns>
+    public static VerifyFailureBuilder StartCheck(string expression, string file, int line) => new("Check", expression, file, line);
 
     /// <summary>Runs <paramref name="action"/> and returns the <typeparamref name="T"/> it throws.</summary>
     /// <typeparam name="T">The exception type, or a base type of it.</typeparam>
@@ -93,7 +178,7 @@ public static class VerifyFailure
 
     private static string Expected<T>() => "expected " + typeof(T).Name;
 
-    private static string Compose(string kind, string? expression, string? message, string? detail, string? userMessage, string? file, int line)
+    internal static string Compose(string kind, string? expression, string? message, string? detail, string? userMessage, string? file, int line)
     {
         var text = new StringBuilder(kind).Append(" failed: ").Append(expression);
         AppendLine(text, message);
