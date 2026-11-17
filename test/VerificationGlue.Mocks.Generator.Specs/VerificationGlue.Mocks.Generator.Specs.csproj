@@ -2,5 +2,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
+    <ProjectReference Include="../MockSweep/MockSweep.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+  </ItemGroup>
+  <!-- The shape files are inputs that the specs compile, not part of this project. -->
+  <ItemGroup>
+    <Compile Remove="Shapes/**" />
+    <None Include="Shapes/**" />
   </ItemGroup>
 </Project>

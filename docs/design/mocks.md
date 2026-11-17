@@ -173,6 +173,7 @@ A class mock calls the base member for every virtual member that has not been se
 | Classes with public virtual members | Later, calling the base by default. The spike showed class mocks work with a parameterless constructor. |
 | Static abstract members, sealed types, structs | No. Error VGM0001. |
 | `ref struct` parameters | No in the first release. Warning VGM0003 and the member throws. See the open question. |
+| Pointer members | No. Warning VGM0003 and the member throws. A project without `AllowUnsafeBlocks` gets error VGM0001 for the type. |
 | `ReturnsForAnyArgs`, `Received.InOrder`, strict mode, delegates | Later |
 
 ## Use from other frameworks
@@ -276,9 +277,9 @@ Each case file starts with a header:
 
 | ID | Severity | Reports |
 |---|---|---|
-| VGM0001 | Error | A type that cannot be mocked: sealed, struct, or with static abstract members |
+| VGM0001 | Error | A type that cannot be mocked: sealed, struct, with static abstract members, with an abstract member the project cannot see, or with pointer members in a project without `AllowUnsafeBlocks` |
 | VGM0002 | Warning or Error | As a warning, an `Arg` matcher outside a mock call, or stored in a local. As an error, an NSubstitute-style `Arg` call passed to a `Setup()` or `Calls()` parameter |
-| VGM0003 | Warning | A member that cannot be mocked, such as one with a `ref struct` parameter |
+| VGM0003 | Warning | A member that cannot be mocked, such as one with a `ref struct` or pointer parameter |
 | VGM0004 | Warning | `Mock.Of<T>()` for a `T` that is not discovered anywhere |
 | VGM0005 | Error | `Returns` or `Throws` on an expression that is not a mock call, such as `"abc".Length.Returns(3)` |
 | VGM0006 | Error | Setup on a non-virtual member of a class mock |
@@ -308,10 +309,12 @@ When done, we know which shapes the generator gets wrong before any user does.
 
 Needs: the mock spike committed under `spikes/` and the generator driver harness, both from "Repository foundation" in the north star. The sweep runs on CSharpAuthor 2.0.0. Nothing from the other packages.
 
-- [ ] Class emitter for interfaces, built on CSharpAuthor, starting from the spike's 887-line generator. The sweep runs it, so it is built here and not in Phase 1.
-- [ ] Sweep harness that generates and compiles a mock for every public interface in the BCL and the top 100 NuGet packages.
-- [ ] Hand-written shape files from the list above.
-- [ ] Results triaged into fixed, diagnostic, or documented as unsupported.
+- [x] Class emitter for interfaces, built on CSharpAuthor, starting from the spike's 887-line generator. The sweep runs it, so it is built here and not in Phase 1.
+- [x] Sweep harness that generates and compiles a mock for every public interface in the BCL and the top 100 NuGet packages.
+- [x] Hand-written shape files from the list above.
+- [x] Results triaged into fixed, diagnostic, or documented as unsupported.
+
+The results and the triage are in [mocks-shape-sweep.md](mocks-shape-sweep.md).
 
 ### Phase 1: first release
 
@@ -374,4 +377,6 @@ Open question: should `ref struct` parameters get a typed path?
 
 A `ref struct` such as `Span<T>` or `ReadOnlySpan<char>` cannot be boxed into the argument array, so the uniform `MockAdapter.Call` path cannot carry it. A typed path would pass such arguments to a generated per-member matcher instead, as Rocks and Mockolate do. It costs a second code path through the adapter and the generator.
 
-Recommendation: leave it out of the first release, which warns with VGM0003. The shape sweep counts how many BCL and popular-package interfaces have such members. The issue mining shows how often users of other libraries asked for it. Decide in phase 3 from those two numbers.
+Recommendation: leave it out of the first release, which warns with VGM0003. The issue mining shows how often users of other libraries asked for it. Decide in phase 3 from that number and the sweep's.
+
+The shape sweep found 8 such members in 7 of 1,452 interfaces in the BCL and the top 100 packages. They include `ISpanFormattable.TryFormat` and `IBufferWriter<T>.GetSpan`.

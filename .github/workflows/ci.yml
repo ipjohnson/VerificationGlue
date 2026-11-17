@@ -75,6 +75,43 @@ jobs:
             artifacts/cold-build/report.json
           if-no-files-found: ignore
 
+  # Generates and compiles a mock for every public interface in the BCL and the top 100 NuGet
+  # packages, and fails when one does not compile. docs/design/mocks-shape-sweep.md has the triage.
+  mock-sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore the swept packages
+        run: dotnet build test/MockSweep.Packages -c Release
+
+      - name: Build the sweep
+        run: dotnet build test/MockSweep -c Release
+
+      - name: Run the sweep
+        run: >
+          dotnet run --project test/MockSweep -c Release --no-build --
+          --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep
+
+      - name: Add the report to the job summary
+        if: always()
+        run: |
+          if [ -f artifacts/mock-sweep/report.md ]; then
+            cat artifacts/mock-sweep/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mock-sweep
+          path: artifacts/mock-sweep/
+          if-no-files-found: ignore
+
   docs:
     runs-on: ubuntu-latest
     env:
