@@ -21,6 +21,18 @@ It proved:
 - `Verify.Throws<T>` cannot coexist with `using static` `Verify(...)` (`Name`).
 - About 2000 `[Verify]` methods with 6000 calls add about 4 s to a build, roughly 0.7 ms per call (`Perf`).
 
+## `ide/`
+
+The Phase 0 IDE spike from `docs/research/ide-report.md`. One source set in `src/` builds against MTP 2.5.3 (`Mtp2`) and MTP 3.0.0-preview.26566.9 (`Mtp3`). `src/Generated` holds hand-written tier 3 copies with `#line` spans, test registration and a mock. `PdbCheck` prints the sequence points of the copies, and `tools/server_probe.py` drives the test host in server mode. Unlike the other spikes, its `global.json` sets `rollForward` to `disable`.
+
+It proved:
+
+- Discovery, UID-filtered runs and server-mode navigation data work on both MTP versions with no source change.
+- A Native AOT publish has no trim or AOT warnings on both versions.
+- Every visible sequence point of a copy maps to its original statement, and a passing `Verify` line takes one step.
+
+The IDE results are recorded in the report.
+
 ## `mocks/`
 
 The mock spike from `docs/research/mocking-report.md`. `src/Glue.Mocks` is the 633-line runtime and `src/Glue.Mocks.Generator` is the 887-line generator.
