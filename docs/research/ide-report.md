@@ -39,7 +39,7 @@ These were written before any IDE check ran. They say what the docs promise for 
 
 `verification-glue.md` does not name the property that switches tier 3 yet. The setup page uses the name that Phase 2 gives it.
 
-Hot Reload has its own row in the results. A Hot Reload failure is documented as a limitation and does not block the default.
+Hot Reload has its own section in the results. A Hot Reload failure is documented as a limitation and does not block the default.
 
 ## The spike
 
@@ -114,39 +114,34 @@ The MTP 2.5.3 column is historical comparison only, as the north star says. It s
 
 ## IDE results
 
-A person runs these checks at each IDE with the procedure below. Each cell holds pass, fail with what happened, or not run.
+A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS.
 
 ### Discovery, run and navigation
 
-| Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
-|---|---|---|---|
-| MTP 2.5.3: 3 tests appear | not run | not run | not run |
-| MTP 2.5.3: run one test from the tree runs only that test | not run | not run | not run |
-| MTP 2.5.3: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
-| MTP 3 preview: 3 tests appear | not run | not run | not run |
-| MTP 3 preview: run one test from the tree runs only that test | not run | not run | not run |
-| MTP 3 preview: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
+| ID | Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
+|---|---|---|---|---|
+| 1 | MTP 2.5.3: 3 tests appear | not run | not run | not run |
+| 2 | MTP 2.5.3: run one test from the tree runs only that test | not run | not run | not run |
+| 3 | MTP 2.5.3: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
+| 4 | MTP 3 preview: 3 tests appear | not run | not run | not run |
+| 5 | MTP 3 preview: run one test from the tree runs only that test | not run | not run | not run |
+| 6 | MTP 3 preview: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
 
 ### Debugging the `__Verified` copies, MTP 3 preview
 
-| Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
-|---|---|---|---|
-| Helper case: a breakpoint on line 22 binds and is hit when debugging `HelperCall` | not run | not run | not run |
-| Helper case: step into line 22 lands on line 30 in `src/UserTests.cs` | not run | not run | not run |
-| Helper case: a breakpoint on line 31 is hit, and step out returns to line 23 | not run | not run | not run |
-| Using directives case: breakpoints on lines 37 and 39 are hit, and stepping visits 37, 38, 39, 40, 41, 42 in order | not run | not run | not run |
-| Mock case: a breakpoint on line 49 is hit, and one step over goes to line 50 | not run | not run | not run |
-| No step lands in `UserTests.Verified.g.cs`, `ICalc.Mock.g.cs` or `Registration.g.cs` with Just My Code on | not run | not run | not run |
-| The call stack shows the `__Verified` frame at the original file and line | not run | not run | not run |
-| Hot Reload: edit line 30 to `total * 3` while stopped and continue | not run | not run | not run |
+| ID | Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
+|---|---|---|---|---|
+| 7 | Helper case: a breakpoint on line 22 binds and is hit when debugging `HelperCall` | not run | not run | not run |
+| 8 | Helper case: step into line 22 lands on line 30 in `src/UserTests.cs` | not run | not run | not run |
+| 9 | Helper case: a breakpoint on line 31 is hit, and step out returns to line 23 | not run | not run | not run |
+| 10 | Using directives case: a breakpoint on line 37 is hit, and stepping visits 38, 39, 40, 41, 42 in order | not run | not run | not run |
+| 11 | Mock case: a breakpoint on line 49 is hit, and one step over goes to line 50 | not run | not run | not run |
+| 12 | No step lands in `UserTests.Verified.g.cs`, `ICalc.Mock.g.cs` or `Registration.g.cs` | not run | not run | not run |
+| 13 | The call stack shows the `__Verified` frames at the original file and line | not run | not run | not run |
 
-### Procedure
+### Hot Reload
 
-1. Install the pinned SDK, then build both projects: `dotnet build spikes/ide/Mtp2` and `dotnet build spikes/ide/Mtp3`.
-2. Open `spikes/ide/Mtp3/Mtp3.csproj` in the IDE. Turn on MTP support where the IDE needs it. In Visual Studio this is the "Use testing platform server mode" preview feature. In Rider it is "Enable Testing Platform support" under Unit Testing settings. In VS Code it is `dotnet.testWindow.useTestingPlatformProtocol`.
-3. Fill the discovery, run and navigation rows for MTP 3. Repeat them with `spikes/ide/Mtp2/Mtp2.csproj`.
-4. Debug each test from the test tree and fill the debugging rows. Line numbers refer to `spikes/ide/src/UserTests.cs`.
-5. Write the IDE version and plugin versions in the column header if they differ from the pinned ones.
+Hot Reload cannot be checked on this spike. The copies are hand-written, so an edit to `src/UserTests.cs` changes only the original method. The runner calls the copy, which keeps the old body. Hot Reload needs the tier 3 generator from `verification-glue.md` Phase 2, which regenerates the copy on each edit. Its limitations alone do not block the default.
 
 ## Limitations
 
