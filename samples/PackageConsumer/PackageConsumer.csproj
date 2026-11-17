@@ -1,20 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     Built by eng/pack-and-consume.sh against the packed packages in a local feed.
-    It references only VerificationGlue.Tests, as a user's test project does.
+    It references VerificationGlue.Tests, as a user's test project does, and publishes its tests with Native AOT.
   -->
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <!-- begin-snippet: publish-tests-with-native-aot -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+  <!-- end-snippet -->
 
   <!-- begin-snippet: reference-verificationglue-tests -->
   <ItemGroup>
     <PackageReference Include="VerificationGlue.Tests" Version="$(VerificationGlueVersion)" />
+  </ItemGroup>
+  <!-- end-snippet -->
+
+  <!-- begin-snippet: reference-trx-report -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="3.0.0-preview.26566.9" />
   </ItemGroup>
   <!-- end-snippet -->
 
@@ -41,5 +52,7 @@
            Text="The VerificationGlue.Mocks generator was not passed to the compiler." />
     <Error Condition="'@(Analyzer->AnyHaveMetadataValue('Filename', 'VerificationGlue.Tests.Generator'))' != 'true'"
            Text="The VerificationGlue.Tests generator was not passed to the compiler." />
+    <Error Condition="'$(IsTestingPlatformApplication)' != 'true' Or '$(OutputType)' != 'Exe'"
+           Text="build/VerificationGlue.Tests.props was not imported. IsTestingPlatformApplication is '$(IsTestingPlatformApplication)' and OutputType is '$(OutputType)'." />
   </Target>
 </Project>
