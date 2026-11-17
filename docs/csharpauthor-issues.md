@@ -1,13 +1,13 @@
 # CSharpAuthor issue drafts
 
-This page holds one issue for each change in [Required changes to CSharpAuthor](north-star.md#required-changes-to-csharpauthor). File each one in [ipjohnson/CSharpAuthor](https://github.com/ipjohnson/CSharpAuthor/issues/new) with the title and body below. Then replace its "Not filed" status with the issue link.
+This page holds the text of the issue filed for each change in [Required changes to CSharpAuthor](north-star.md#required-changes-to-csharpauthor). The status column links each filed issue in [ipjohnson/CSharpAuthor](https://github.com/ipjohnson/CSharpAuthor/issues).
 
 | Change | Title | Status |
 |---|---|---|
-| 1 | Add OutputContext.Reset() | Not filed |
-| 2 | Cache TypeDefinition.Get(Type) results by Type | Not filed |
-| 3 | Add value equality to EmitProfile | Not filed |
-| 4 | Add an equatable snapshot of AttributeInstance | Not filed |
+| 1 | Add OutputContext.Reset() | [ipjohnson/CSharpAuthor#27](https://github.com/ipjohnson/CSharpAuthor/issues/27) |
+| 2 | Cache TypeDefinition.Get(Type) results by Type | [ipjohnson/CSharpAuthor#28](https://github.com/ipjohnson/CSharpAuthor/issues/28) |
+| 3 | Add value equality to EmitProfile | [ipjohnson/CSharpAuthor#29](https://github.com/ipjohnson/CSharpAuthor/issues/29) |
+| 4 | Add an equatable snapshot of AttributeInstance | [ipjohnson/CSharpAuthor#30](https://github.com/ipjohnson/CSharpAuthor/issues/30) |
 
 ## 1. Add OutputContext.Reset()
 

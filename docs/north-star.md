@@ -132,12 +132,12 @@ A file path and span for a diagnostic travel as strings and integers, not as a `
 
 ### Required changes to CSharpAuthor
 
-These four changes ship in a CSharpAuthor minor release. Generator work does not wait for it. It starts on CSharpAuthor 2.0.0 with the rules above, which describe 2.0.0. Each change is filed as an issue in `ipjohnson/CSharpAuthor`. The issue drafts and their status are in [CSharpAuthor issue drafts](csharpauthor-issues.md). Once the changes land, the generators use them and drop the workarounds.
+These four changes ship in a CSharpAuthor minor release. Generator work does not wait for it. It starts on CSharpAuthor 2.0.0 with the rules above, which describe 2.0.0. Each change is filed as an issue in `ipjohnson/CSharpAuthor`. The issue text is in [CSharpAuthor issue drafts](csharpauthor-issues.md). Once the changes land, the generators use them and drop the workarounds.
 
-1. **`OutputContext.Reset()`.** It clears the output and the derived type references and keeps the buffer, so a generator reuses one context for many small files such as interceptors. Replaces one context per file.
-2. **A cache for `TypeDefinition.Get(Type)`, keyed by `Type`.** It must be thread-safe, because Roslyn runs generators in parallel. Replaces our own cache of BCL types. Our `KnownTypes` for runtime types stay, because those are named by string.
-3. **Value equality on `EmitProfile`**, over every setting that changes output. A frozen profile can then flow through a pipeline. Replaces the `EmitSettings` record and its cache.
-4. **An equatable snapshot of `AttributeInstance`**, holding the attribute type as `ITypeDefinition` and its arguments as values. Attribute reads can then flow through a pipeline. Replaces the copy into our own records.
+1. **`OutputContext.Reset()`.** It clears the output and the derived type references and keeps the buffer, so a generator reuses one context for many small files such as interceptors. Replaces one context per file. Filed as [ipjohnson/CSharpAuthor#27](https://github.com/ipjohnson/CSharpAuthor/issues/27).
+2. **A cache for `TypeDefinition.Get(Type)`, keyed by `Type`.** It must be thread-safe, because Roslyn runs generators in parallel. Replaces our own cache of BCL types. Our `KnownTypes` for runtime types stay, because those are named by string. Filed as [ipjohnson/CSharpAuthor#28](https://github.com/ipjohnson/CSharpAuthor/issues/28).
+3. **Value equality on `EmitProfile`**, over every setting that changes output. A frozen profile can then flow through a pipeline. Replaces the `EmitSettings` record and its cache. Filed as [ipjohnson/CSharpAuthor#29](https://github.com/ipjohnson/CSharpAuthor/issues/29).
+4. **An equatable snapshot of `AttributeInstance`**, holding the attribute type as `ITypeDefinition` and its arguments as values. Attribute reads can then flow through a pipeline. Replaces the copy into our own records. Filed as [ipjohnson/CSharpAuthor#30](https://github.com/ipjohnson/CSharpAuthor/issues/30).
 
 ## Repository layout
 
