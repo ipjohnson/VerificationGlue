@@ -67,3 +67,18 @@ It proved:
 - The app runs on TestServer by default and on a free Kestrel port with `Kestrel = true`.
 - A Native AOT publish of `ShopApi.Aot.Tests` has no warnings, is 15.8 MB and runs 3 tests in 14 to 29 ms.
 - A controller returns 404 unless the bootstrap passes the app's assembly name as `--applicationName`.
+
+## `aspnet/Shapes/`
+
+The entry point shapes spike from the "Entry point shapes", "An app that stops before it builds a host" and "Apps that start at once" sections of `docs/research/aspnet-report.md`. `Apps/` holds one app for each shape: `VoidApp`, `IntApp`, `TaskApp`, `TaskIntApp`, `MainApp`, `InternalApp`, `InternalIvtApp` and `StartupApp`, plus `ThrowApp` and `ReturnApp`, which stop before they build a host. `EntryGenerator` writes the entry type for each app from a `[WebAppEntry]` class in `Shapes.Tests`. `SymbolProbe` prints what a referencing compilation sees of each app's entry point. `ConcurrentBuild` builds hosts on many threads with no test bootstrap. Like `aspnet/`, it references the projects under `src/`.
+
+Run `dotnet run --project Shapes.Tests` and `dotnet run --project SymbolProbe` in `aspnet/Shapes` for the JIT results. Pass `-p:ShowFailure=true` to add the two tests that fail on purpose, and `-p:ShowCompileError=true` to add the hand-written entry type that fails with CS0122. Run `dotnet publish Shapes.Aot.Tests -c Release -o <dir>` for the Native AOT binary, and set `WEBAPP_SERIAL_BUILD=1` when you run it to build one host at a time. Run `ConcurrentBuild <threads> slim|startup|mixed` after a publish to build hosts at once.
+
+It proved:
+
+- The bootstrap starts top-level statements that return `void`, `int`, `Task` and `Task<int>`, an explicit `Main` in a static class, an internal `Program` with and without `InternalsVisibleTo`, and a `Startup` app built with `Host.CreateDefaultBuilder`. Each shape's test passes on the JIT and under Native AOT. Under Native AOT the `Startup` app's test passes only when hosts build one at a time.
+- A generator in the test project can read every shape after it sets `MetadataImportOptions.All`. In a build it sees only the PE entry point, which is the compiler's `<Main>` for an async shape. The generated accessor names the app's type as a string and needs no `InternalsVisibleTo`.
+- An accessor for a method that does not exist throws `MissingMethodException` on the JIT and under Native AOT.
+- An app that throws before it builds a host fails the test with the app's exception. An app that returns first fails it with the exit code.
+- 16 apps that start at once on 16 threads each get their own host and their own mock.
+- Under Native AOT, hosts with a `Startup` class that build at once can fail with a `NullReferenceException` in `ActivatorUtilities.CreateInstance`, with no test bootstrap involved. A Native AOT publish of `ConcurrentBuild` fails in 3 of 100 runs with `Startup` hosts only, in 14 of 100 with mixed hosts, and in 0 of 100 with `CreateSlimBuilder` hosts.

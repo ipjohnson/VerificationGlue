@@ -138,7 +138,7 @@ The evidence:
 - With `WEBAPP_SERIAL_BUILD=1` the bootstrap builds one host at a time. Then all 13 native tests pass in 20 of 20 runs.
 - Without it, 12 of 20 native runs fail the test that starts many apps at once. In each of those runs the `Startup` test fails next with the same `NullReferenceException` in `ActivatorUtilities.CreateInstance`. In the other 8 runs the `Startup` test passes.
 
-The `Startup` test on its own does not fail under Native AOT. The failure comes from hosts that build at the same time.
+The `Startup` test on its own does not fail under Native AOT. The failure comes from hosts that build at the same time. [Apps that start at once](#apps-that-start-at-once) traces it to the framework.
 
 ### What a generator in the test project can read
 
@@ -168,9 +168,97 @@ So a generator can write the entry type for every shape, after it switches the c
 
 A generator in the test project should write the entry type. It reads the shape from the reference, it needs no `InternalsVisibleTo`, and the test author writes one attribute. An analyzer that checks a hand-written entry type would need to read the same private method, so it would do the generator's work and still leave the code to the user.
 
+## An app that stops before it builds a host
+
+When the entry point throws or returns before it builds a host, the test fails with the reason. It does not hang **(verified)**.
+
+The bootstrap waits for whichever comes first: the host from `HostBuilt`, or the end of the entry point. When the entry point ends first, `WebApp.StartAsync` does this:
+
+- If the entry point threw, it rethrows that exception.
+- If the entry point returned, it throws `InvalidOperationException` with the exit code.
+
+The same check runs again while the bootstrap waits for `ApplicationStarted`. The spike has two apps for this. `ThrowApp` throws when its connection string is missing. `ReturnApp` writes a line to standard error and returns 2 unless `Mode` is `serve`. `EarlyExitTests` checks both messages, and `FailingTests.cs` adds two tests that fail on purpose when built with `-p:ShowFailure=true`.
+
+The output on the JIT, with the paths shortened:
+
+```text
+failed The_app_returns_before_it_builds_a_host (1ms)
+  System.InvalidOperationException: The entry point of ReturnApp returned 2 before it built a host.
+    at Shapes.Tests.WebApp.StartAsync[TEntry](IReadOnlyList`1 overrides, ITestOutput output) in .../Shapes.Tests/WebApp.cs:113
+    at Shapes.Tests.WebAppBootstrap`1.BuildAsync(TestContainerContext context) in .../Shapes.Tests/WebApp.cs:36
+    at VerificationGlue.Tests.TestRunner.BuildContainerAsync(TestContext context, TestScope classScope) in .../TestRunner.cs:291
+    at VerificationGlue.Tests.TestRunner.RunAsync(TestDescriptor test) in .../TestRunner.cs:57
+failed The_app_throws_before_it_builds_a_host (0ms)
+  System.InvalidOperationException: The connection string 'Shop' is missing.
+    at Program.<Main>$(String[] args) in .../Apps/ThrowApp/Program.cs:4
+    at Shapes.Tests.ThrowAppEntry.EntryPoint(Object type, String[] args)
+    at Shapes.Tests.ThrowAppEntry.Run(String[] args) in .../EntryGenerator/ThrowAppEntry.g.cs:12
+    at Shapes.Tests.WebApp.<>c__DisplayClass8_0`1.<StartAsync>b__1() in .../Shapes.Tests/WebApp.cs:81
+    --- End of stack trace from previous location ---
+    at Shapes.Tests.WebApp.StartAsync[TEntry](IReadOnlyList`1 overrides, ITestOutput output) in .../Shapes.Tests/WebApp.cs:112
+    ...
+```
+
+All of these are **(verified)**:
+
+- A throw shows the app's own exception and the line of `Program.cs` that threw.
+- Under Native AOT the message and the frames are the same, but a frame shows an offset in place of a line, such as `Program.<Main>$(String[] args) + 0x11c`.
+- A return shows only the exit code. `ReturnApp`'s line on standard error goes to the console of the test process, not to the test's output. The bootstrap's logger is added on `HostBuilding`, so no log line from the app reaches the test before a host exists.
+- Each failure takes 2 ms or less.
+
+The package should keep the exit code in the message. It could also capture what the app writes to standard error while it starts, but `Console.SetError` is global to the process, so it would mix the output of apps that start at once **(inference)**.
+
+## Apps that start at once
+
+Two apps can start at once. Each bootstrap receives its own host and its own overrides, on the JIT and under Native AOT. The one exception is an app with a `Startup` class under Native AOT, where building such hosts at the same time can fail inside ASP.NET Core **(verified)**.
+
+`ConcurrentStartTests` starts 16 apps on 16 threads at once: four each of `VoidApp`, `TaskIntApp`, `MainApp` and `StartupApp`. Each app gets a mocked `IClock` that returns a different day. The test checks each of these:
+
+- Each app answers `GET /now` with its own name and its own day.
+- The 16 hosts are distinct.
+- Each test output holds one start line, so no app's log went to another app's output.
+- More than one entry point was running between its start and its `HostBuilt` event at the same time.
+
+The bootstrap keeps the hosts apart because `HostCapture.Current` is an `AsyncLocal` set on each app's thread. The hosting `DiagnosticListener` is created on the thread that builds the host, so it subscribes the capture of that thread only.
+
+All of these are **(verified)**:
+
+| Run | Result |
+|---|---|
+| JIT, 3 runs | 13 of 13 pass in each. The test reports that 16 of 16 apps were starting at once. |
+| Native AOT with `WEBAPP_SERIAL_BUILD=1`, 20 runs | 13 of 13 pass in each, in 28 to 54 ms. At most 1 app was starting at a time. |
+| Native AOT without it, 20 runs | 7 runs fail, and 13 pass. In each failing run, the concurrent test fails, and then the `Startup` test fails. The step before this one saw 12 of 20 runs fail. |
+
+The failure is a `NullReferenceException` in `ActivatorUtilities.CreateInstance`, which `GenericWebHostBuilder.UseStartup` calls while the host builds its services:
+
+```text
+System.NullReferenceException: Object reference not set to an instance of an object.
+  at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider, Type, Object[]) + 0x370
+  at Microsoft.AspNetCore.Hosting.GenericWebHostBuilder.UseStartup(Type, HostBuilderContext, IServiceCollection, Object) + 0x118
+  at Microsoft.AspNetCore.Hosting.GenericWebHostBuilder.<>c__DisplayClass7_0.<UseStartup>b__0(HostBuilderContext context, IServiceCollection services) + 0xb0
+  at Microsoft.Extensions.Hosting.HostBuilder.InitializeServiceProvider() + 0xec
+  at Microsoft.Extensions.Hosting.HostBuilder.Build() + 0x70
+  at Program.<Main>$(String[] args) + 0x90
+  at Shapes.Tests.StartupAppEntry.Run(String[]) + 0xc
+```
+
+The `ConcurrentBuild` project builds 16 hosts on 16 threads at once in a new process. It has no test bootstrap and no `DiagnosticListener`. Its results **(verified)**:
+
+| Hosts | JIT, 10 runs | Native AOT, 100 runs |
+|---|---|---|
+| `WebApplication.CreateSlimBuilder` | 0 fail | 0 fail |
+| `Host.CreateDefaultBuilder` with a `Startup` class | 0 fail | 3 fail |
+| Half of each | 0 fail | 14 fail |
+
+The same `NullReferenceException` appears without the bootstrap, so the fault is in the framework under Native AOT, not in the host capture. The `Startup` test fails after the concurrent test because the fault leaves the process in a broken state **(inference)**. The spike did not find the cause inside `ActivatorUtilities`.
+
+For the package this means:
+
+- Apps can start at once when the runner runs tests in parallel.
+- Under Native AOT, the bootstrap should build one host at a time, as `WEBAPP_SERIAL_BUILD=1` does. With it the hosts still start and serve requests at the same time, and only the build is serial. It can apply this to every app, or only to apps built with `Host.CreateDefaultBuilder`. The bootstrap cannot tell the two apart before the entry point runs **(inference)**.
+
 ## Not covered
 
-- **Parallel tests.** The bootstrap finds its host through an `AsyncLocal` set on the app's thread, so two apps that start at once should not mix **(inference)**. The runner runs one test at a time until `tests.md` Phase 3.
 - **Heavier apps.** The spike's app has three services. An app with EF Core, hosted services or a slow startup was not measured.
 - **Per-test configuration.** The spike passes fixed command-line arguments. It has no way for a test to set a configuration value or the environment name.
 - **Authentication.** The spike has no endpoint that needs a user.
@@ -189,7 +277,9 @@ The part every database shares is small: start once, hand a value to each test's
 ## What the design must answer
 
 1. The name and surface of the fourth package, and the change to the north star's package list.
-2. How the entry type is written: by a generator, or by hand with an analyzer that checks it.
+2. Whether the design takes the spike's recommendation that a generator writes the entry type, and what `MetadataImportOptions.All` costs on each edit in the IDE.
 3. The parameters a test can take: `HttpClient`, the host, the app's services, and whether a type of our own wraps them.
 4. How a test sets configuration, the environment name and the choice of TestServer or Kestrel.
 5. Whether the bootstrap turns off the configuration watcher by default, as the spike does.
+6. Whether the bootstrap builds one host at a time under Native AOT only, or always.
+7. Whether the failure of an app that returns before it builds a host shows what the app wrote to standard error.
