@@ -1,0 +1,9 @@
+<Project>
+  <!--
+    Stops the search for the repository's Directory.Build.props. This project pins its own package
+    versions and must not turn restore warnings into errors.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>
