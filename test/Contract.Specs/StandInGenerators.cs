@@ -45,10 +45,11 @@ public sealed class TypedCallsGenerator : IIncrementalGenerator
 }
 
 /// <summary>
-/// The runner's side of the contract, as the test generator of issue #19 will write it: for each
-/// method with an attribute marked <c>[VerifyRewrite]</c>, a registry entry that calls the
-/// <c>__Verified</c> copy when rewriting is on and <c>WillRewrite</c> is true, and the original
-/// otherwise. It cannot see the copies, so it relies on the shared rules alone.
+/// The runner's side of the contract, with the decision <c>TestGenerator</c> makes: for each method
+/// with an attribute marked <c>[VerifyRewrite]</c>, a registry entry that calls the <c>__Verified</c>
+/// copy when rewriting is on and <c>WillRewrite</c> is true, and the original otherwise. It cannot see
+/// the copies, so it relies on the shared rules alone. <c>TestGenerator</c>'s own registrations are
+/// run in <c>test/VerificationGlue.Tests.Generator.Specs/RewriteSpecs.cs</c>.
 /// </summary>
 public sealed class RunnerGenerator : IIncrementalGenerator
 {

@@ -4,6 +4,11 @@
     <PackageVersion Include="CSharpAuthor" Version="2.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <!-- The MTP 3 preview that docs/research/ide-report.md pins. Only VerificationGlue.Tests and its fixtures reference it. -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="3.0.0-preview.26566.9" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport.Abstractions" Version="3.0.0-preview.26566.9" />
+    <PackageVersion Include="Microsoft.Testing.Platform" Version="3.0.0-preview.26566.9" />
+    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="3.0.0-preview.26566.9" />
     <PackageVersion Include="MSTest" Version="4.5.3" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="NUnit" Version="4.6.1" />

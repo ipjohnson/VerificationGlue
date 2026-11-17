@@ -3,11 +3,21 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>A test framework on Microsoft.Testing.Platform with generated discovery and per-test containers.</Description>
+    <!-- Microsoft.Testing.Platform's targets make every project that references it a test application. This one is the framework. -->
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
     <ProjectReference Include="../VerificationGlue/VerificationGlue.csproj" PrivateAssets="none" />
     <ProjectReference Include="../VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" PrivateAssets="none" />
+    <PackageReference Include="Microsoft.Testing.Platform" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport.Abstractions" />
+    <None Include="build/VerificationGlue.Tests.props" Pack="true" PackagePath="build/" />
+    <None Include="build/VerificationGlue.Tests.targets" Pack="true" PackagePath="build/" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
