@@ -121,8 +121,6 @@ public sealed class RewriteAnalyzer : DiagnosticAnalyzer
         IMethodSymbol { MethodKind: MethodKind.Destructor } method => $"the finalizer of '{method.ContainingType.Name}'",
         IMethodSymbol method when method.GetAttributes().Any(attribute => attribute.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.ModuleInitializerAttribute") =>
             $"the module initializer '{method.Name}'",
-        IFieldSymbol { IsStatic: true } field => $"the initializer of the static field '{field.Name}'",
-        IPropertySymbol { IsStatic: true } property => $"the initializer of the static property '{property.Name}'",
         _ => null,
     };
 }

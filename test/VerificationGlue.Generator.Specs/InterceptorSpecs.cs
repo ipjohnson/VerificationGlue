@@ -55,6 +55,7 @@ public class InterceptorSpecs
             public static void MultiLineOperand() => Verify(present == @"y
         z");
             public static void WithMessage() => Verify(order.Total == 40, $"order total {order.Total}");
+            public static void CheckWithoutScope() => Check(order.Total == 40);
             public static void ThrowsNothing() => Throws<InvalidOperationException>(() => order.ToString());
             public static void ThrowsOther() => Throws<InvalidOperationException>(() => throw new FormatException("bad digit"));
             public static void ThrowsBlock() => Throws<InvalidOperationException>(() => { order.ToString(); });
@@ -112,6 +113,7 @@ public class InterceptorSpecs
         { "Qualified", "Verify failed: order.Total == 40\n  expected order.Total to equal 40" },
         { "NamedArguments", "Verify failed: the total\n  expected order.Total to equal 40" },
         { "WithMessage", "Verify failed: order.Total == 40\n  expected order.Total to equal 40\n  order total 30" },
+        { "CheckWithoutScope", "Check failed: order.Total == 40\n  expected order.Total to equal 40" },
         { "ThrowsNothing", "Throws failed: () => order.ToString()\n  expected order.ToString() to throw InvalidOperationException\n  no exception was thrown" },
         { "ThrowsOther", "Throws failed: () => throw new FormatException(\"bad digit\")\n  expected throw new FormatException(\"bad digit\") to throw InvalidOperationException\n  it threw System.FormatException: bad digit" },
         { "ThrowsBlock", "Throws failed: () => { order.ToString(); }\n  expected () => { order.ToString(); } to throw InvalidOperationException\n  no exception was thrown" },
@@ -124,6 +126,17 @@ public class InterceptorSpecs
         var failure = Fail(method);
 
         Assert.Equal(expected + $"\n  at Tests/Shapes.cs:{LineOf(method)}", failure.Message);
+    }
+
+    [Fact]
+    public void A_check_in_a_scope_is_reported_when_the_scope_ends()
+    {
+        var scope = VerifyScope.Begin();
+        Cases.Value.GetMethod("CheckWithoutScope")!.Invoke(null, null);
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.Equal($"1 check failed\n\nCheck failed: order.Total == 40\n  expected order.Total to equal 40\n  at Tests/Shapes.cs:{LineOf("CheckWithoutScope")}", failure.Message);
     }
 
     [Fact]

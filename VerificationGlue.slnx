@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <File Path="src/Shared.Generator/Shared.Generator.projitems" />
     <File Path="src/Shared.Generator/GeneratorVersion.cs" />
+    <File Path="src/Shared.Generator/VerifyRewriteRules.cs" />
+    <Project Path="src/VerificationGlue.CodeFixes/VerificationGlue.CodeFixes.csproj" />
     <Project Path="src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
     <Project Path="src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
     <Project Path="src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
