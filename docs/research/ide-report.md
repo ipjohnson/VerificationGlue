@@ -4,11 +4,11 @@ Research for VerificationGlue Phase 0 (`verification-glue.md` and `tests.md`). D
 
 ## Result
 
-The test host side passes on MTP 2.5.3 and on the MTP 3 preview. The same generated framework discovers 3 tests, runs a single test by UID, reports file and line for navigation in server mode, and publishes with Native AOT with no trim or AOT warnings. The `__Verified` copies map every visible sequence point to the original statement in `src/UserTests.cs`, so a debugger reads the original file and lines from the PDB.
+The test host side passes on MTP 2.5.3 and on the MTP 3 preview. The same generated framework discovers 5 tests, runs a single test by UID, reports file and line for navigation in server mode, and publishes with Native AOT with no trim or AOT warnings. The `__Verified` copies map every visible sequence point to the original statement in `src/UserTests.cs`, so a debugger reads the original file and lines from the PDB.
 
-The breakpoint, stepping and navigation checks inside Visual Studio, Rider and VS Code are recorded in [IDE results](#ide-results).
+Rider 2026.2.0.2 passes discovery, run, navigation, breakpoint binding and stepping on the copies. It needs Testing Platform support turned on and a reference to `Microsoft.Testing.Platform.MSBuild`. VS Code and Visual Studio were not run. The details are in [IDE results](#ide-results).
 
-Tier 3 stays opt-in. The cold-build budget has no user approval yet, and missing approval is not a pass.
+Tier 3 stays opt-in. Two advertised IDEs have no debugging result, and the cold-build budget has no user approval yet. Missing approval is not a pass.
 
 Each claim below is marked **(verified)** when a run on the pinned stack showed it, or **(inference)** when it comes from reading code or documentation.
 
@@ -51,6 +51,7 @@ Hot Reload has its own section in the results. A Hot Reload failure is documente
 | `src/Generated/UserTests.Verified.g.cs` | Hand-written tier 3 output. It copies the file's `using` directives, emits a `{Name}__Verified` copy per method, and maps each copied statement to its original line with a `#line` span. |
 | `src/Generated/Registration.g.cs` | Hand-written test generator output. The runner calls each `__Verified` copy directly. |
 | `src/Generated/ICalc.Mock.g.cs` | Hand-written mocks generator output with the typed `Calls()` surface. |
+| `src/ControlTests.cs` | A test with no copy. It and `HelperCallOriginal`, which runs the original `HelperCall`, are debugger controls. |
 | `src/Core.cs` | A stand-in runtime and MTP adapter. |
 | `PdbCheck` | Prints the sequence points and local scopes of every `__Verified` method. |
 | `tools/server_probe.py` | Drives the test host over the MTP server protocol, as Visual Studio and C# Dev Kit do. |
@@ -98,14 +99,14 @@ Each row ran on both MTP versions with the same source and the same commands. `o
 | Check | MTP 2.5.3 | MTP 3.0.0-preview.26566.9 |
 |---|---|---|
 | Build, Debug | Passes with no warnings | Passes with no warnings |
-| `--list-tests` | 3 tests | 3 tests |
-| Full run | 3 of 3 pass | 3 of 3 pass |
+| `--list-tests` | 5 tests | 5 tests |
+| Full run | 5 of 5 pass | 5 of 5 pass |
 | `--filter-uid "MyApp.Tests.OrderTests.MockCalls()"` | 1 test runs and passes | 1 test runs and passes |
 | `dotnet test --project ... --filter-uid "MyApp.Tests.OrderTests.FileUsings()"` | 1 test runs and passes | 1 test runs and passes |
 | Server mode `testing/discoverTests` | 3 nodes with `location.file`, `location.line-start`, `location.type` and `location.method` | Same |
 | Server mode `testing/runTests` with one UID | Only that test runs and passes | Same |
 | AOT publish, osx-arm64 | 0 warnings, 10.9 MB | 0 warnings, 10.3 MB |
-| AOT `--list-tests`, full run and `--filter-uid` | 3 tests, 3 of 3 pass in 0.05 s wall time, 1 filtered test passes | 3 tests, 3 of 3 pass in 0.07 s wall time, 1 filtered test passes |
+| AOT `--list-tests`, full run and `--filter-uid` | 5 tests, 5 of 5 pass, 1 filtered test passes | 5 tests, 5 of 5 pass, 1 filtered test passes |
 | AOT server mode discovery and one-UID run | Same as JIT | Same as JIT |
 
 All rows are **(verified)**. The MTP 3 preview needed no source change from MTP 2.5.3 for the APIs the adapter uses: `ITestFramework`, `TestNodeUpdateMessage`, `TestNodeUidListFilter`, `TestFileLocationProperty` and `TestMethodIdentifierProperty`. The server reports itself as `test-anywhere` with the MTP version.
@@ -114,7 +115,7 @@ The MTP 2.5.3 column is historical comparison only, as the north star says. It s
 
 ## IDE results
 
-A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS.
+A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS. VS Code was not run in this session.
 
 ### What Rider needs to discover an MTP project
 
@@ -129,24 +130,28 @@ Rider 2026.2.0.2 needs two things before it shows any test from the spike **(ver
 
 | ID | Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
 |---|---|---|---|---|
-| 1 | MTP 2.5.3: 3 tests appear | not run | not run | not run |
-| 2 | MTP 2.5.3: run one test from the tree runs only that test | not run | not run | not run |
-| 3 | MTP 2.5.3: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
-| 4 | MTP 3 preview: 3 tests appear | not run | not run | not run |
-| 5 | MTP 3 preview: run one test from the tree runs only that test | not run | not run | not run |
-| 6 | MTP 3 preview: open a test from the tree goes to its method in `src/UserTests.cs` | not run | not run | not run |
+| 1 | MTP 2.5.3: the tests appear | not run | pass | not run |
+| 2 | MTP 2.5.3: run one test from the tree runs only that test | not run | pass | not run |
+| 3 | MTP 2.5.3: open a test from the tree goes to its method in `src/UserTests.cs` | not run | pass | not run |
+| 4 | MTP 3 preview: the tests appear | not run | pass | not run |
+| 5 | MTP 3 preview: run one test from the tree runs only that test | not run | pass | not run |
+| 6 | MTP 3 preview: open a test from the tree goes to its method in `src/UserTests.cs` | not run | pass | not run |
 
 ### Debugging the `__Verified` copies, MTP 3 preview
 
 | ID | Check | Visual Studio | Rider 2026.2.0.2 | VS Code 1.144.0, C# Dev Kit 11.11.98 |
 |---|---|---|---|---|
-| 7 | Helper case: a breakpoint on line 22 binds and is hit when debugging `HelperCall` | not run | not run | not run |
-| 8 | Helper case: step into line 22 lands on line 30 in `src/UserTests.cs` | not run | not run | not run |
-| 9 | Helper case: a breakpoint on line 31 is hit, and step out returns to line 23 | not run | not run | not run |
-| 10 | Using directives case: a breakpoint on line 37 is hit, and stepping visits 38, 39, 40, 41, 42 in order | not run | not run | not run |
-| 11 | Mock case: a breakpoint on line 49 is hit, and one step over goes to line 50 | not run | not run | not run |
-| 12 | No step lands in `UserTests.Verified.g.cs`, `ICalc.Mock.g.cs` or `Registration.g.cs` | not run | not run | not run |
-| 13 | The call stack shows the `__Verified` frames at the original file and line | not run | not run | not run |
+| 7 | Helper case: a breakpoint on line 22 binds and is hit when debugging `HelperCall` | not run | pass | not run |
+| 8 | Helper case: step into line 22 lands on line 30 in `src/UserTests.cs` | not run | pass | not run |
+| 9 | Helper case: a breakpoint on line 31 is hit, and step out returns to line 23 | not run | pass | not run |
+| 10 | Using directives case: a breakpoint on line 37 is hit, and stepping visits 38, 39, 40, 41, 42 in order | not run | pass | not run |
+| 11 | Mock case: a breakpoint on line 49 is hit, and one step over goes to line 50 | not run | pass | not run |
+| 12 | No step lands in `UserTests.Verified.g.cs`, `ICalc.Mock.g.cs` or `Registration.g.cs` | not run | pass | not run |
+| 13 | The call stack shows the `__Verified` frames at the original file and line | not run | pass | not run |
+
+The user ran the Rider checks and reported that they all pass. Rider's logs confirm row 7 on MTP 2.5.3 and on the MTP 3 preview. In each debug session the breakpoint on line 22 was `Bound` and hit once, while `HelperCall` was the running test and `HelperCallOriginal` had not started. The hit was therefore in `HelperCall__Verified`. The `ControlTests.Plain` breakpoint was hit too.
+
+Two earlier Rider debug sessions of `FileUsings` bound a breakpoint on line 37 and finished without stopping. That happened before the user's final run of the checklist, which they report as passing. The logs do not show why.
 
 ### Hot Reload
 
