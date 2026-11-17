@@ -9,6 +9,13 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
     <PackageReference Include="CSharpAuthor" PrivateAssets="all" IncludeAssets="build" />
   </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="VerificationGlue.Generator.Specs" />
+  </ItemGroup>
 
   <Import Project="../Shared.Generator/Shared.Generator.projitems" />
 </Project>

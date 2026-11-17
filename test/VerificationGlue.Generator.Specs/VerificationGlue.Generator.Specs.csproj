@@ -2,5 +2,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
   </ItemGroup>
 </Project>

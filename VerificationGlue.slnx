@@ -9,6 +9,13 @@
     <Project Path="src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
     <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Shop/Shop.csproj" />
+    <Project Path="samples/VerifyInMSTest/VerifyInMSTest.csproj" />
+    <Project Path="samples/VerifyInNUnit/VerifyInNUnit.csproj" />
+    <Project Path="samples/VerifyInTUnit/VerifyInTUnit.csproj" />
+    <Project Path="samples/VerifyInXunit/VerifyInXunit.csproj" />
+  </Folder>
   <Folder Name="/test/">
     <Project Path="test/ColdBuild/ColdBuild.csproj" />
     <Project Path="test/ColdBuild.Generator/ColdBuild.Generator.csproj" />

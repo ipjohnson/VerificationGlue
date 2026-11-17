@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Verify and Check assertions with generated failure messages that work under Native AOT.</Description>
   </PropertyGroup>
   <ItemGroup>

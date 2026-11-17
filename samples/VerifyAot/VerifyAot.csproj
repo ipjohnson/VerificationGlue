@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Built by eng/pack-and-consume.sh against the packed packages in a local feed. It publishes with
+    Native AOT and warnings as errors, then runs. Each Verify in Program.cs checks a message, so the
+    run fails when a message lacks its shape, file or line.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- begin-snippet: install-verificationglue -->
+  <ItemGroup>
+    <PackageReference Include="VerificationGlue" Version="$(VerificationGlueVersion)" />
+  </ItemGroup>
+  <!-- end-snippet -->
+
+  <!-- Rooting the runtime makes the Native AOT publish analyze all of its code, not only what this sample calls. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="VerificationGlue" />
+  </ItemGroup>
+
+  <Target Name="CheckVerificationGlueVersion" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <Error Condition="'$(VerificationGlueVersion)' == ''" Text="Set VerificationGlueVersion to the version of the packed packages." />
+  </Target>
+</Project>

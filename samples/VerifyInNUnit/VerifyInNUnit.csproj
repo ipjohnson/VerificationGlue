@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <ProjectReference Include="../Shop/Shop.csproj" />
+  </ItemGroup>
+</Project>
