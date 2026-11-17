@@ -28,7 +28,7 @@ dotnet build IdeSpike.slnx    # must end with "Build succeeded"
 ### R0. Set up
 
 1. Write down the version from **Rider > About JetBrains Rider**. The pinned one is 2026.2.0.2.
-2. Open **Rider > Settings > Build, Execution, Deployment > Unit Testing > Testing Platform**. Tick **Enable Testing Platform support** and click **Save**.
+2. Open **Rider > Settings > Build, Execution, Deployment > Unit Testing > VSTest**. Tick **Enable Testing Platform support** and click **Save**. Rider turns it off by default. Without it, Rider explores the projects with the MSTest, NUnit, VSTest and xUnit providers only, and the Unit Tests window stays empty. `IdeSpike.slnx.DotSettings` turns it on for this solution too, so the box may already be ticked.
 3. Open **Settings > Build, Execution, Deployment > Debugger**. Make sure **Enable external source debug** is off and **Just My Code** is on (in some versions this is "Debug only user code").
 4. **File > Open**, pick `spikes/ide/IdeSpike.slnx`, and wait until the solution finishes loading.
 5. Open the **Unit Tests** window (**View > Tool Windows > Unit Tests**) and click **Build** or **Refresh** at the top of it.
