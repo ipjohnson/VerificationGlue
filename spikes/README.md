@@ -52,3 +52,18 @@ It proved:
 The runner spike from `docs/research/design-report.md` section 2. `Core.cs` is a hand-written runtime and `Generated.cs` is a hand-written version of the code the test generator would emit for `UserTests.cs`.
 
 It proved that the generated shape builds against Microsoft.Testing.Platform 2.5.3 alone, and that `--list-tests` and `--filter-uid` work. A Native AOT publish has no trim warnings, is 10.9 MB and runs 2 tests in 32 ms. The north star treats this MTP 2.5.3 result as historical evidence only.
+
+## `aspnet/`
+
+The app testing spike from `docs/research/aspnet-report.md`. `ShopApi.Tests/WebApp.cs` is an `ITestContainerBootstrap` that starts an ASP.NET Core app for a test, a class or the assembly. Unlike the other spikes, it references the projects under `src/`, so it uses the real names. It ran against commit 670d373.
+
+Run `dotnet run` in `ShopApi.Tests` for the JIT results. Set `WEBAPP_WATCH_CONFIG=1` to leave the configuration watcher on, and pass `-p:ShowFailure=true` to add the test that fails on purpose. Run `dotnet publish -c Release -o bin/aot` in `ShopApi.Aot.Tests` for the Native AOT binary.
+
+It proved:
+
+- An unchanged top-level `Program.cs` starts inside the test process with no reflection. The bootstrap calls the compiler-written entry point through `UnsafeAccessor` and takes the host from the hosting `DiagnosticListener`.
+- A `[Mock]` parameter reaches a minimal API endpoint and an MVC controller, and the app's log reaches the test's output.
+- 46 tests with 45 app starts run in about 400 ms, with a median start of 3.1 ms. With the configuration watcher on, the median start is 64 ms or more.
+- The app runs on TestServer by default and on a free Kestrel port with `Kestrel = true`.
+- A Native AOT publish of `ShopApi.Aot.Tests` has no warnings, is 15.8 MB and runs 3 tests in 14 to 29 ms.
+- A controller returns 404 unless the bootstrap passes the app's assembly name as `--applicationName`.

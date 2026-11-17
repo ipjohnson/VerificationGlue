@@ -1,0 +1,13 @@
+<Project>
+  <!-- Shared by every app. PublishAot turns on the request delegate generator and the AOT analyzers. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Clock/Clock.csproj" />
+  </ItemGroup>
+</Project>

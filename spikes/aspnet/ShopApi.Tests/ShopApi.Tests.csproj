@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+  <Import Project="../../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <Import Project="../../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <DefineConstants Condition="'$(ShowFailure)' == 'true'">$(DefineConstants);SHOW_FAILURE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+    <ProjectReference Include="../ShopApi/ShopApi.csproj" />
+    <ProjectReference Include="../../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <ProjectReference Include="../../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Import Project="../../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.targets" />
+  <Import Project="../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>
