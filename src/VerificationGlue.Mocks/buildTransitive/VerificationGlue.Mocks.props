@@ -5,5 +5,7 @@
   <ItemGroup>
     <!-- When it is not set, the generator uses its default, RecursiveMocks.DefaultDepth. -->
     <CompilerVisibleProperty Include="VerificationGlueMocksRecursionDepth" />
+    <!-- Set from the VerificationGlueMockAttribute items by VerificationGlue.Mocks.targets. -->
+    <CompilerVisibleProperty Include="VerificationGlueMockAttributes" />
   </ItemGroup>
 </Project>

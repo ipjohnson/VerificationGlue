@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
     <None Include="buildTransitive/VerificationGlue.Mocks.props" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="buildTransitive/VerificationGlue.Mocks.targets" Pack="true" PackagePath="buildTransitive/" />
   </ItemGroup>
 </Project>

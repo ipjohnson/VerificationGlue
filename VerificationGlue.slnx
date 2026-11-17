@@ -12,10 +12,15 @@
     <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/Billing/Billing.csproj" />
     <Project Path="samples/Messages/Messages.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/After/MigrateFromXunitAssert.After.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/Before/MigrateFromXunitAssert.Before.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/Store/Store.csproj" />
+    <Project Path="samples/MocksInMSTest/MocksInMSTest.csproj" />
+    <Project Path="samples/MocksInNUnit/MocksInNUnit.csproj" />
+    <Project Path="samples/MocksInTUnit/MocksInTUnit.csproj" />
+    <Project Path="samples/MocksInXunit/MocksInXunit.csproj" />
     <Project Path="samples/Shop/Shop.csproj" />
     <Project Path="samples/VerifyInMSTest/VerifyInMSTest.csproj" />
     <Project Path="samples/VerifyInNUnit/VerifyInNUnit.csproj" />

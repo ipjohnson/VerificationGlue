@@ -43,6 +43,19 @@ public sealed class MockGenerator : IIncrementalGenerator
             .Select(static (model, _) => model!)
             .WithTrackingName(DiscoveryStep);
 
+        var hostAttributeNames = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) => MockDiscovery.ReadMockAttributes(options.GlobalOptions));
+
+        var hostAttributed = context.SyntaxProvider
+            .CreateSyntaxProvider(static (node, _) => MockDiscovery.IsAttributeOnMockTarget(node), static (syntax, token) => HostAttribute.From(syntax, token))
+            .Where(static attribute => attribute is not null)
+            .Combine(hostAttributeNames)
+            .Where(static pair => pair.Right.Contains(pair.Left!.Name))
+            .Select(static (pair, _) => Build(pair.Left!.TargetType, pair.Left.Compilation))
+            .Where(static model => model is not null)
+            .Select(static (model, _) => model!)
+            .WithTrackingName(DiscoveryStep);
+
         var assembly = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 MockDiscovery.GenerateMockAttribute,
@@ -55,7 +68,7 @@ public sealed class MockGenerator : IIncrementalGenerator
             .Select(static (options, _) => RecursiveMocks.ReadDepth(options.GlobalOptions));
 
         var mocks = calls.Collect()
-            .Combine(attributed.Collect())
+            .Combine(attributed.Collect().Combine(hostAttributed.Collect()).Select(static (pair, _) => pair.Left.AddRange(pair.Right)))
             .Combine(assembly.Collect())
             .Combine(depth)
             .Combine(context.CompilationProvider)
@@ -102,6 +115,34 @@ public sealed class MockGenerator : IIncrementalGenerator
         syntax.SemanticModel.GetSymbolInfo(syntax.Node, token).Symbol is IMethodSymbol method && MockDiscovery.IsMockOf(method)
             ? Build(method.TypeArguments[0], syntax.SemanticModel.Compilation)
             : null;
+
+    /// <summary>
+    /// An attribute on a parameter, property or field, before the generator knows whether its name is
+    /// in the <c>VerificationGlueMockAttribute</c> items. <c>[Mock]</c> itself is left to its own step.
+    /// </summary>
+    private sealed class HostAttribute(string name, ITypeSymbol targetType, Compilation compilation)
+    {
+        public string Name { get; } = name;
+
+        public ITypeSymbol TargetType { get; } = targetType;
+
+        public Compilation Compilation { get; } = compilation;
+
+        public static HostAttribute? From(GeneratorSyntaxContext syntax, CancellationToken token)
+        {
+            var attribute = (AttributeSyntax)syntax.Node;
+            if (syntax.SemanticModel.GetSymbolInfo(attribute, token).Symbol is not IMethodSymbol { ContainingType: { } attributeType })
+            {
+                return null;
+            }
+
+            var name = attributeType.ToDisplayString();
+            return name != MockDiscovery.MockAttribute &&
+                MockDiscovery.TypeOfTarget(MockDiscovery.TargetOf(attribute, syntax.SemanticModel, token)) is { } type
+                ? new HostAttribute(name, type, syntax.SemanticModel.Compilation)
+                : null;
+        }
+    }
 
     private static EquatableArray<MockModel> FromAssemblyAttributes(GeneratorAttributeSyntaxContext syntax)
     {

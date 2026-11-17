@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <EnableNUnitRunner>true</EnableNUnitRunner>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <ProjectReference Include="../Billing/Billing.csproj" />
+  </ItemGroup>
+  <!-- begin-snippet: mocks-hook-nunit-item -->
+  <ItemGroup>
+    <VerificationGlueMockAttribute Include="MocksInNUnit.MockAttribute" />
+  </ItemGroup>
+  <!-- end-snippet -->
+</Project>

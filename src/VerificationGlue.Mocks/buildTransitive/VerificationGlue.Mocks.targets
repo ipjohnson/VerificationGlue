@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Each VerificationGlueMockAttribute item names an attribute, by its full name, that marks a mock
+    like [Mock], such as a test framework hook's own attribute. Items are only known after the
+    properties are evaluated, so this target joins them into the property the generator reads.
+  -->
+  <Target Name="VerificationGlueMockAttributes" BeforeTargets="GenerateMSBuildEditorConfigFileShouldRun">
+    <PropertyGroup>
+      <VerificationGlueMockAttributes>@(VerificationGlueMockAttribute)</VerificationGlueMockAttributes>
+    </PropertyGroup>
+  </Target>
+</Project>

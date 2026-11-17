@@ -1,5 +1,8 @@
+using System.Linq;
+using CSharpAuthor.Collections;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace VerificationGlue.Mocks.Generator;
 
@@ -15,6 +18,40 @@ internal static class MockDiscovery
 {
     public const string MockAttribute = "VerificationGlue.Mocks.MockAttribute";
     public const string GenerateMockAttribute = "VerificationGlue.Mocks.GenerateMockAttribute";
+
+    /// <summary>The <c>VerificationGlueMockAttribute</c> items, joined with semicolons by <c>buildTransitive/VerificationGlue.Mocks.targets</c>.</summary>
+    public const string MockAttributesOption = "build_property.VerificationGlueMockAttributes";
+
+    /// <summary>The full names of the other attributes that mark a mock, such as a test framework hook's own <c>[Mock]</c>.</summary>
+    public static EquatableArray<string> ReadMockAttributes(AnalyzerConfigOptions options)
+    {
+        if (!options.TryGetValue(MockAttributesOption, out var text))
+        {
+            return new EquatableArray<string>(System.Array.Empty<string>());
+        }
+
+        var names = text
+            .Split(';')
+            .Select(name => name.Trim())
+            .Where(name => name.Length > 0 && name != MockAttribute)
+            .Distinct(System.StringComparer.Ordinal)
+            .OrderBy(name => name, System.StringComparer.Ordinal)
+            .ToArray();
+        return new EquatableArray<string>(names);
+    }
+
+    /// <summary>A syntax check for an attribute on a parameter, a property or a field, the places a mock attribute can mark.</summary>
+    public static bool IsAttributeOnMockTarget(SyntaxNode node) =>
+        node is AttributeSyntax { Parent: AttributeListSyntax { Parent: ParameterSyntax or PropertyDeclarationSyntax or FieldDeclarationSyntax } };
+
+    /// <summary>The symbol an attribute on a parameter, a property or a field marks. For a field it is the first variable.</summary>
+    public static ISymbol? TargetOf(AttributeSyntax attribute, SemanticModel model, System.Threading.CancellationToken token) =>
+        attribute.Parent?.Parent switch
+        {
+            FieldDeclarationSyntax field => field.Declaration.Variables.Select(variable => model.GetDeclaredSymbol(variable, token)).FirstOrDefault(),
+            { } target => model.GetDeclaredSymbol(target, token),
+            null => null,
+        };
 
     /// <summary>A syntax check for <c>Mock.Of&lt;T&gt;()</c>, written with or without the class name.</summary>
     public static bool IsMockOfSyntax(SyntaxNode node) =>
