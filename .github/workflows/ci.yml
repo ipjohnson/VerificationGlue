@@ -47,6 +47,34 @@ jobs:
       - name: Pack, consume, publish with Native AOT and check version mismatch
         run: eng/pack-and-consume.sh --no-build
 
+  # Times cold builds with the generator off, tier 2 alone and tier 3 in this one job, so the
+  # ratios compare builds on the same machine. It reports and does not fail on a budget, because no
+  # budget is approved yet.
+  cold-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Build the benchmark
+        run: dotnet build test/ColdBuild -c Release
+
+      - name: Run the cold-build benchmark
+        run: dotnet run --project test/ColdBuild -c Release --no-build -- --repeat 3 --output artifacts/cold-build
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: cold-build
+          path: |
+            artifacts/cold-build/report.md
+            artifacts/cold-build/report.json
+          if-no-files-found: ignore
+
   docs:
     runs-on: ubuntu-latest
     env:
