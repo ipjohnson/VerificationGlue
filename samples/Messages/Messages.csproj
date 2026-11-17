@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Checks that fail on purpose, one per message shape and tier. test/Docs.Specs runs them and
+    compares each message with docs/guide/messages.md.
+  -->
+  <!-- begin-snippet: enable-tier-3 -->
+  <PropertyGroup>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
+  </PropertyGroup>
+  <!-- end-snippet -->
+</Project>

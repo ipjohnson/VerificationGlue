@@ -8,6 +8,15 @@ internal static class Diagnostics
 
     private const string HelpLinkBase = "https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/";
 
+    public static readonly DiagnosticDescriptor BecauseNotRewritten = new(
+        id: "VG0001",
+        title: "Because or WithMessage outside a method that tier 3 rewrites",
+        messageFormat: "'.{0}' adds text only in a method that tier 3 rewrites. Here Verify throws before '.{0}' runs, so the text never reaches the message.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0001.md");
+
     public static readonly DiagnosticDescriptor ConstantCondition = new(
         id: "VG0002",
         title: "Verify condition is a constant",
@@ -34,4 +43,40 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VG0004.md");
+
+    public static readonly DiagnosticDescriptor TypeNotPartial = new(
+        id: "VG0005",
+        title: "A [Verify] method is in a type that is not partial",
+        messageFormat: "'{0}' cannot get a tier 3 copy because '{1}' is not partial. Add 'partial' to each type that contains the method.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0005.md");
+
+    public static readonly DiagnosticDescriptor NotCaptured = new(
+        id: "VG0006",
+        title: "A part of a Verify condition cannot be captured",
+        messageFormat: "'{0}' is not captured, because {1}. The failure message shows its text with the value unavailable.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0006.md");
+
+    public static readonly DiagnosticDescriptor CheckWithoutScope = new(
+        id: "VG0007",
+        title: "Check where no VerifyScope can report it",
+        messageFormat: "Check in {0} runs where no VerifyScope can be open, so a failure throws at once. Use Verify instead.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0007.md");
+
+    public static readonly DiagnosticDescriptor FileTypeInFile = new(
+        id: "VG0008",
+        title: "A [Verify] method is not rewritten because its file declares a file type",
+        messageFormat: "'{0}' is not rewritten, because its file declares the file type '{1}', which a copy in another file cannot see. It gets tier 2 messages.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0008.md");
 }

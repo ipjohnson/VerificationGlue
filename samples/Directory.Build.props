@@ -8,10 +8,12 @@
   <!--
     The samples in the solution reference the projects, not the package. These lines add what the
     VerificationGlue package adds: the runtime, the generator and buildTransitive/VerificationGlue.props.
-    samples/VerifyAot and samples/PackageConsumer use the packed packages instead.
+    samples/VerifyAot and samples/PackageConsumer use the packed packages instead. A sample that
+    shows code without VerificationGlue sets UseVerificationGlue to false in its own
+    Directory.Build.props before it imports this file.
   -->
-  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
-  <ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue/buildTransitive/VerificationGlue.props" Condition="'$(UseVerificationGlue)' != 'false'" />
+  <ItemGroup Condition="'$(UseVerificationGlue)' != 'false'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue/VerificationGlue.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

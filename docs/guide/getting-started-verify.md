@@ -2,7 +2,7 @@
 
 At the end of this page you can write checks with `Verify`, `Throws` and `ThrowsAsync` in xunit, NUnit, MSTest or TUnit. You can also read the message a failed check gives, including under Native AOT.
 
-`VerificationGlue` is a preview. This page covers what the preview ships: messages built from the source text and the shape of each check. Captured values and `Check` come in a later preview.
+This page covers messages built from the source text and the shape of each check. [Soft checks with Check](check.md) covers `Check`, and [How tiers work](tiers.md) covers messages with captured values.
 
 ## Install
 
@@ -201,6 +201,10 @@ Assert.Equal("Verify failed: count == 3", failure.Message);
 <sup><a href='/test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#L20-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-tier-1-message' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Captured values
+
+With tier 3 on, a check in a `[Verify]` method lists the value of each part of its condition. [How tiers work](tiers.md) explains how to turn it on, and the [messages page](messages.md) shows each message.
+
 ## Build warnings
 
 The package reports conditions that cannot check what they seem to check:
@@ -208,3 +212,11 @@ The package reports conditions that cannot check what they seem to check:
 - [VG0002](../diagnostics/VG0002.md): the condition is a constant.
 - [VG0003](../diagnostics/VG0003.md): the condition changes state.
 - [VG0004](../diagnostics/VG0004.md): the condition compares `float` or `double` values with `==` or `!=`.
+
+It also reports what keeps a method from tier 3, and a misplaced `Check`:
+
+- [VG0001](../diagnostics/VG0001.md): `.Because` or `.WithMessage` where tier 3 does not rewrite the call.
+- [VG0005](../diagnostics/VG0005.md): a `[Verify]` method in a type that is not `partial`.
+- [VG0006](../diagnostics/VG0006.md): a part of a condition that cannot be captured.
+- [VG0007](../diagnostics/VG0007.md): `Check` where no `VerifyScope` can be open.
+- [VG0008](../diagnostics/VG0008.md): a `[Verify]` method in a file that declares a `file` type.

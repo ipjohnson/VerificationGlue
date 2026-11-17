@@ -99,7 +99,7 @@ The package's `buildTransitive/VerificationGlue.props` adds `VerificationGlue.Ge
 
 ### Tier 3: rewritten methods
 
-When tier 3 is enabled, for each qualifying method in a `partial` type chain, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text, with the call changes below, and with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
+The MSBuild property `VerificationGlueRewrite` set to `true` enables tier 3. When tier 3 is enabled, for each qualifying method in a `partial` type chain, the generator emits `{Name}__Verified` in the same type with the same signature. Its body is the original body with each `Verify` or `Check` statement replaced. Every other statement is copied as text, with the call changes below, and with `#line` directives that map it to the original file. Interceptors redirect direct calls of the original method to the copy. The test runner in `VerificationGlue.Tests` calls the copy directly.
 
 Interceptors cannot reach a call inside generated code, because `InterceptsLocation` needs a location in a source file of the compilation the generators receive. The rewriter therefore handles calls in copied text itself. A direct call to a method for which `WillRewrite` is true becomes a call to its `{Name}__Verified` copy. A `Verify` or `Check` call that the rewriter cannot rewrite, such as one inside a lambda or a local function, is emitted inline in its tier 2 form. Each copy carries a generated marker attribute with the contract version, and a call into another assembly is redirected only to a copy that carries that marker.
 
@@ -227,9 +227,9 @@ The phase 0 cold-build benchmark adds 53.9 s at 100,000 calls for tier 2 alone a
 
 The benchmark is `test/ColdBuild`. It writes 10,000 `[VerifyTest]` methods with 10 `Verify` calls each into three assemblies. Each test class also has one `[Verify]` helper that every test in it calls, which gives tier 3 a call to redirect. That makes 101,002 calls, and added seconds are scaled to 100,000. Each configuration is a cold rebuild of all three assemblies with build servers off, run three times in rotating order. The table gives the median of the summed build times.
 
-The generator it times is `test/ColdBuild.Generator`. It is an incremental generator on CSharpAuthor with the three pipelines above. It is not the product generator, so the benchmark runs again once Phases 1 and 2 build the real one.
+Since Phase 2 the benchmark times the product generator, `src/VerificationGlue.Generator`, with `VerificationGlueRewrite` switching tier 3. The benchmark sources declare a `[VerifyRewrite]` attribute named `VerifyTest` in place of the one from `VerificationGlue.Tests`.
 
-First run, on macOS 27.0.1 Arm64 with 11 logical processors and .NET SDK 10.0.403, on 2026-11-17:
+Phase 0 timed a stand-in generator, `test/ColdBuild.Generator`, which Phase 2 removed. Its first run, on macOS 27.0.1 Arm64 with 11 logical processors and .NET SDK 10.0.403, on 2026-11-17:
 
 | Build | Median seconds | Added seconds at 100,000 calls | Ratio to generator off | Interceptors | Copies | Redirects |
 |---|---:|---:|---:|---:|---:|---:|
@@ -241,10 +241,16 @@ Tier 3 costs less than tier 2 alone. Under tier 3 the 100,000 calls in test bodi
 
 The assertion spike measured about 0.7 ms per call with a generator that was not incremental, about 70 s at 100,000 calls. The benchmark replaces that figure.
 
+The same stand-in on the 4-core ubuntu CI runner measured 104.3 s added at 100,000 calls with a ratio of 5.71 for tier 2 alone, and 80.7 s with a ratio of 4.65 for tier 3.
+
 Budgets, with the numbers set by the phase 0 benchmark:
 
 - Each cold-build budget, for tier 2 alone and for tier 3, is stated both as a ratio to the same build with the generators off, measured in the same CI job, and as total added seconds at 100,000 calls.
 - An edit to one test file regenerates only that file's outputs.
+
+The approved CI budget is 50% above the stand-in's CI figures: tier 2 alone at most 160 s added at 100,000 calls and a ratio of 8.5, and tier 3 at most 120 s and a ratio of 7.0. `test/ColdBuild/budgets.json` holds the limits, and the CI job `cold-build` fails when a configuration is over one. The budget applies to the CI job only and does not decide the tier 3 default.
+
+On this Mac the product generator's generated code is the same size as the stand-in's for tier 2, 16.5 MB per assembly, and smaller for tier 3, 22.8 MB against 25.0 MB. Its single-assembly timings matched the stand-in's within the run-to-run noise of a shared machine.
 
 The default-enablement gate requires a separately user-approved limit on total added cold-build seconds at 100,000 calls, measured against the same generator-off build in the same job. Report that total and the matched-baseline ratio for tier 2 alone and tier 3. Benchmark results inform the proposed budget, but neither a measured result nor missing approval counts as acceptance.
 
@@ -280,7 +286,7 @@ The criteria in this list are fixed before the spikes run. A result does not cha
 
 Result: tier 3 stays opt-in. Two gates fail.
 
-- No total added cold-build budget has user approval. The measured cost is 42.7 s at 100,000 calls with a ratio of 7.08 for tier 3, and 53.9 s with a ratio of 8.67 for tier 2 alone. See [Performance](#performance).
+- No total added cold-build budget for the default has user approval. Phase 2 has an approved budget for the CI job, which does not decide the default. The measured cost is 42.7 s at 100,000 calls with a ratio of 7.08 for tier 3, and 53.9 s with a ratio of 8.67 for tier 2 alone. See [Performance](#performance).
 - Rider passes breakpoint binding and stepping. Visual Studio and VS Code have no debugging result, as recorded in `docs/research/ide-report.md`.
 
 Tier 3 can become the default only after the user approves a budget that the CI job `cold-build` meets, and Visual Studio and VS Code pass the debugging checks.
@@ -305,15 +311,15 @@ When done, a `Verify` in an eligible `[Verify]` method whose copy runs reports o
 
 Needs: Phase 1 and the Phase 0 result. Nothing from the other packages. `tests.md` Phase 1 needs this phase for `WillRewrite` and the `__Verified` copies, and `tests.md` Phase 2 needs it for `Check` and `VerifyScope`.
 
-- [ ] Tier 3 rewrite for every rule listed above, with tests for each rule.
-- [ ] Before tier 3 ships, conformance cases prove side-effecting property getters are never re-read (including one that throws on a second read), skipped members remain unevaluated, and local/parameter reads separated by mutation retain their distinct values.
-- [ ] The shared `WillRewrite` function and the contract test.
-- [ ] Analyzers VG0001, VG0005, VG0006 and VG0008, and the code fix for VG0005.
-- [ ] The copy is skipped when the original body has syntax errors, so those errors are not reported twice.
-- [ ] Rewrite conformance cases for using aliases, extension methods, file-local types and `[CallerMemberName]`.
-- [ ] `Check`, `VerifyScope` and analyzer VG0007.
+- [x] Tier 3 rewrite for every rule listed above, with tests for each rule: `test/VerificationGlue.Generator.Specs/RewriteSpecs.cs`.
+- [x] Before tier 3 ships, conformance cases prove side-effecting property getters are never re-read (including one that throws on a second read), skipped members remain unevaluated, and local/parameter reads separated by mutation retain their distinct values.
+- [x] The shared `WillRewrite` function and the contract test, `test/Contract.Specs`. Until `mocks.md` Phase 1 and `tests.md` Phase 1 land, two stand-in generators in that project add `Calls()` and write the runner's calls.
+- [x] Analyzers VG0001, VG0005, VG0006 and VG0008, and the code fix for VG0005 in `src/VerificationGlue.CodeFixes`.
+- [x] The copy is skipped when the original body has syntax errors, so those errors are not reported twice.
+- [x] Rewrite conformance cases for using aliases, extension methods, file-local types and `[CallerMemberName]`.
+- [x] `Check`, `VerifyScope` and analyzer VG0007.
 - [ ] The cold-build budget met in CI.
-- [ ] Pages: `docs/guide/messages.md` for tier 2 and tier 3, the guides "How tiers work and how to get values" and "Soft checks with `Check`", the migration guide from xunit `Assert`, `docs/diagnostics/VG0001.md` and `VG0005.md` to `VG0008.md`, the tier 3 part of the generated-code page, and `llms.txt`.
+- [x] Pages: `docs/guide/messages.md` for tier 2 and tier 3, the guides "How tiers work and how to get values" (`tiers.md`) and "Soft checks with `Check`" (`check.md`), the migration guide from xunit `Assert`, `docs/diagnostics/VG0001.md` and `VG0005.md` to `VG0008.md`, the tier 3 part of the generated-code page (`generated/rewritten-methods.md`), and `llms.txt`.
 
 ### Phase 3: explanations
 

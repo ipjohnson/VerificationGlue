@@ -23,6 +23,35 @@ public class GeneratedCodeSpecs
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Interceptors_for_the_xunit_sample), generated.GetText(TestContext.Current.CancellationToken).ToString());
     }
 
+    [Fact]
+    public void Rewritten_method_for_the_messages_sample()
+    {
+        var result = GenerateMessagesSample();
+
+        var copy = result.GeneratedTrees.Single(tree => tree.FilePath.Contains(".Tier3Messages.VerifyShipping.", StringComparison.Ordinal));
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Rewritten_method_for_the_messages_sample), copy.GetText(TestContext.Current.CancellationToken).ToString());
+    }
+
+    [Fact]
+    public void Redirects_for_the_messages_sample()
+    {
+        var result = GenerateMessagesSample();
+
+        var redirects = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(".Redirects.g.cs", StringComparison.Ordinal));
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Redirects_for_the_messages_sample), redirects.GetText(TestContext.Current.CancellationToken).ToString());
+    }
+
+    private static Microsoft.CodeAnalysis.GeneratorDriverRunResult GenerateMessagesSample()
+    {
+        var messages = Path.Combine(RepositoryRoot(), "samples", "Messages");
+        var compilation = GeneratorHarness.Compilation(
+            (GeneratorHarness.ProjectDirectory + "Tier3Messages.cs", File.ReadAllText(Path.Combine(messages, "Tier3Messages.cs"))),
+            (GeneratorHarness.ProjectDirectory + "Order.cs", File.ReadAllText(Path.Combine(messages, "Order.cs"))),
+            ("/repo/Project/ImplicitUsings.cs", "global using System; global using System.Collections.Generic;"));
+
+        return GeneratorHarness.Generate(compilation, new VerificationGlueGenerator(), out _, rewrite: true);
+    }
+
     private static string RepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

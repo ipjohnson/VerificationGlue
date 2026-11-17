@@ -33,20 +33,26 @@ internal static class GeneratorHarness
             References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
-    public static GeneratorDriverRunResult Generate(CSharpCompilation compilation, IIncrementalGenerator generator, out Compilation output)
+    public static GeneratorDriverRunResult Generate(CSharpCompilation compilation, IIncrementalGenerator generator, out Compilation output, bool rewrite = false)
     {
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             [generator.AsSourceGenerator()],
             parseOptions: ParseOptions,
-            optionsProvider: new ProjectOptions(ProjectDirectory));
+            optionsProvider: new ProjectOptions(ProjectDirectory, rewrite));
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out output, out _);
         return driver.GetRunResult();
     }
 
     /// <summary>Generates, compiles and loads the sources. Fails on any compile warning or error.</summary>
-    public static Assembly Load(params (string Path, string Text)[] sources)
+    public static Assembly Load(params (string Path, string Text)[] sources) => Load(rewrite: false, sources);
+
+    /// <summary>
+    /// Generates, compiles and loads the sources, with tier 3 rewriting on when
+    /// <paramref name="rewrite"/> is true. Fails on any compile warning or error.
+    /// </summary>
+    public static Assembly Load(bool rewrite, params (string Path, string Text)[] sources)
     {
-        var result = Generate(Compilation(sources), new VerificationGlueGenerator(), out var output);
+        var result = Generate(Compilation(sources), new VerificationGlueGenerator(), out var output, rewrite);
         Assert.Empty(result.Diagnostics);
         using var stream = new MemoryStream();
         var emitted = output.Emit(stream);
@@ -61,32 +67,41 @@ internal static class GeneratorHarness
     }
 
     /// <summary>Runs the analyzer over the source and returns its diagnostics in source order.</summary>
-    public static ImmutableArray<Diagnostic> Analyze(string source)
+    public static ImmutableArray<Diagnostic> Analyze(string source, bool rewrite = false, bool allowErrors = false)
     {
         var compilation = Compilation(("/repo/Project/Input.cs", source));
-        Assert.Empty(compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(diagnostic => diagnostic.ToString()));
+        if (!allowErrors)
+        {
+            Assert.Empty(compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(diagnostic => diagnostic.ToString()));
+        }
+
         return compilation
-            .WithAnalyzers([new VerifyAnalyzer()])
+            .WithAnalyzers([new VerifyAnalyzer(), new RewriteAnalyzer()], new AnalyzerOptions([], new ProjectOptions(ProjectDirectory, rewrite)))
             .GetAnalyzerDiagnosticsAsync().Result
             .OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start)
             .ToImmutableArray();
     }
 
-    private sealed class ProjectOptions(string projectDirectory) : AnalyzerConfigOptionsProvider
+    internal sealed class ProjectOptions(string projectDirectory, bool rewrite) : AnalyzerConfigOptionsProvider
     {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(projectDirectory);
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new Options(projectDirectory, rewrite);
 
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Options.Empty;
 
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Options.Empty;
 
-        private sealed class Options(string? projectDirectory) : AnalyzerConfigOptions
+        private sealed class Options(string? projectDirectory, bool rewrite) : AnalyzerConfigOptions
         {
-            public static readonly Options Empty = new(null);
+            public static readonly Options Empty = new(null, false);
 
             public override bool TryGetValue(string key, [NotNullWhen(true)] out string? value)
             {
-                value = key == VerificationGlueGenerator.ProjectDirectoryProperty ? projectDirectory : null;
+                value = key switch
+                {
+                    VerificationGlueGenerator.ProjectDirectoryProperty => projectDirectory,
+                    "build_property.VerificationGlueRewrite" when rewrite => "true",
+                    _ => null,
+                };
                 return value is not null;
             }
         }

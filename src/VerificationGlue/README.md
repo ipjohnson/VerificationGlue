@@ -1,6 +1,6 @@
 # VerificationGlue
 
-Checks for .NET tests whose failure messages name the file, the line and the shape of the condition. They work under xunit, NUnit, MSTest, TUnit and plain application code, and give the same message under Native AOT. This version is a preview.
+Checks for .NET tests whose failure messages name the file, the line and the shape of the condition, and with tier 3 on, the value of each part. They work under xunit, NUnit, MSTest, TUnit and plain application code, and give the same message under Native AOT.
 
 ## Install
 
@@ -48,8 +48,13 @@ Verify failed: order.Total == 30
 
 A source generator in the package writes the second and third lines at compile time. Nothing is looked up at run time, so the message is the same under Native AOT.
 
+`Check` records a failure and lets the test continue. A `VerifyScope` reports every recorded failure when it ends.
+
 ## Learn more
 
 - [Getting started with Verify](../../docs/guide/getting-started-verify.md), with a section per test framework and every message shape.
-- [Generated interceptors](../../docs/guide/generated/interceptors.md), the code the generator writes.
-- Build warnings [VG0002](../../docs/diagnostics/VG0002.md), [VG0003](../../docs/diagnostics/VG0003.md) and [VG0004](../../docs/diagnostics/VG0004.md).
+- [How tiers work and how to get values](../../docs/guide/tiers.md) and [Soft checks with Check](../../docs/guide/check.md).
+- [Failure messages](../../docs/guide/messages.md), the real output of each kind of failure.
+- [Migrate from xunit Assert](../../docs/guide/migrate-from-xunit-assert.md).
+- [Generated interceptors](../../docs/guide/generated/interceptors.md) and [generated tier 3 copies](../../docs/guide/generated/rewritten-methods.md), the code the generator writes.
+- Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0008](../../docs/diagnostics/VG0008.md).

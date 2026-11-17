@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The code that both sides of the xunit Assert migration guide test. -->
+</Project>

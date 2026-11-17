@@ -7,6 +7,7 @@ namespace VerificationGlue.Generator;
 internal static class KnownTypes
 {
     public static readonly ITypeDefinition VerifyFailure = TypeDefinition.Get("VerificationGlue", "VerifyFailure");
+    public static readonly ITypeDefinition VerifyResult = TypeDefinition.Get("VerificationGlue", "VerifyResult");
     public static readonly ITypeDefinition VerifyMessageHandler = TypeDefinition.Get("VerificationGlue", "VerifyMessageHandler");
     public static readonly ITypeDefinition InterceptsLocationAttribute = TypeDefinition.Get("System.Runtime.CompilerServices", "InterceptsLocationAttribute");
 

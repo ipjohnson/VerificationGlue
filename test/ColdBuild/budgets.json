@@ -1,0 +1,4 @@
+{
+  "Tier2": { "MaxAddedSecondsAt100000Calls": 160, "MaxRatioToGeneratorOff": 8.5 },
+  "Tier3": { "MaxAddedSecondsAt100000Calls": 120, "MaxRatioToGeneratorOff": 7.0 }
+}
