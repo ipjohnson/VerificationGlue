@@ -1,0 +1,5 @@
+{
+  "MockGenerator.ColdRun": 2500,
+  "MockGenerator.RunAfterUnrelatedEdit": 1000,
+  "MockGenerator.CompileGeneratedCode": 4500
+}

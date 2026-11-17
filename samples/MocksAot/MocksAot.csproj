@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Built by eng/pack-and-consume.sh against the packed packages in a local feed. It publishes with
+    Native AOT and warnings as errors, then runs. Program.cs uses each part of the NSubstitute-style
+    setup and exits with 1 when one of them misbehaves.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="VerificationGlue.Mocks" Version="$(VerificationGlueVersion)" />
+  </ItemGroup>
+
+  <!-- Rooting the runtime makes the Native AOT publish analyze all of its code, not only what this sample calls. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="VerificationGlue.Mocks" />
+  </ItemGroup>
+
+  <Target Name="CheckVerificationGlueVersion" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <Error Condition="'$(VerificationGlueVersion)' == ''" Text="Set VerificationGlueVersion to the version of the packed packages." />
+  </Target>
+</Project>

@@ -215,7 +215,7 @@ Rules that make this hold:
 - `KnownTypes` holds `static readonly` definitions for `MockAdapter`, `IMock`, `MockRegistry`, `MockFactory<T>`, `Task<T>`, `ValueTask<T>` and the attributes.
 - Shared `Ex` nodes for `_adapter`, the `Call*` method names and the argument array.
 - The member list of a model is an `EquatableArray<MockMemberModel>`. Each member model carries its ID, name, return kind, `ITypeDefinition` parameter types with ref kinds, and type parameters as `TypeParameterDefinition` with constraints.
-- Diagnostics travel in the model as an `EquatableArray<DiagnosticModel>` with file path, span and arguments, and are reported in the output step. The spike reported them without a location, which this fixes.
+- Diagnostics travel in the model as an `EquatableArray<DiagnosticModel>` with an ID and arguments, and no location. `MockAnalyzer` reports them at each place that names the type: the `Mock.Of<T>()` call, the `[Mock]` attribute or the `[assembly: GenerateMock]` attribute. A location in `MockModel` would change on every edit above a `Mock.Of` call and regenerate the mock, against the table above. The spike reported them without a location, which this fixes.
 
 ## Performance
 
@@ -228,6 +228,16 @@ Spike figures, single runs on one machine:
 | 500 interfaces, 20 members | 797 ms | 77,528 lines | 1,689 KB |
 
 Compiling the generated code costs more than generating it. After an unrelated edit the 500-interface case still took 278 ms, because every transform reruns and rebuilds its model. The phase 1 benchmark sets a budget for both.
+
+Phase 1 figures, the median of 5 runs on an Apple silicon Mac, for 500 interfaces of 20 members with a `Mock.Of` call and an `Arg` matcher for each:
+
+| Scenario | Median | Budget |
+|---|---|---|
+| Cold generator run | 380 to 672 ms | 2,500 ms |
+| Generator run after an unrelated edit | 210 to 250 ms | 1,000 ms |
+| Compile of the input and the generated code | 941 to 1,238 ms | 4,500 ms |
+
+The budgets are about four times the local figures, because CI runners are slower. The `Check generator budgets` step in CI runs `test/Generator.Benchmarks` with `budget test/Generator.Benchmarks/mock-budgets.json` and fails when a median is over its budget. `MockGeneratorBenchmarks` gives the same scenarios through BenchmarkDotNet.
 
 Every mock call allocates an argument array and boxes value types. That is acceptable for tests. A typed fast path for calls with no matchers can come later if the benchmark shows a need.
 
@@ -325,14 +335,16 @@ Needs: Phase 0. Nothing from the other packages for the release. Values for `Ver
 The phase is built in this order, and each preview ships when its items are done:
 
 1. Preview A: NSubstitute-style setup.
-   - [ ] Runtime and generator for interfaces, on the Phase 0 emitter.
-   - [ ] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
-   - [ ] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
-   - [ ] The async-local `MockContext`, with its behaviour cases.
-   - [ ] `Arg` interceptors with ordinals.
-   - [ ] Analyzers VGM0001 to VGM0005, each with locations.
-   - [ ] Pipeline layer of the conformance suite, including the stale-model regression test.
-   - [ ] Generator time and compile time budgets set from a benchmark and enforced in CI.
+   - [x] Runtime and generator for interfaces, on the Phase 0 emitter.
+   - [x] Registry, `Mock.Of<T>()`, `MockRegistry.Create(Type)` and `[assembly: GenerateMock]`.
+   - [x] `Returns`, `Throws`, `When`/`Do`, `Received`, `DidNotReceive`, `Arg.Any`, `Arg.Is`, `Raise.Event`.
+   - [x] The async-local `MockContext`, with its behaviour cases.
+   - [x] `Arg` interceptors with ordinals.
+   - [x] Analyzers VGM0001 to VGM0005, each with locations.
+   - [x] Pipeline layer of the conformance suite, including the stale-model regression test.
+   - [x] Generator time and compile time budgets set from a benchmark and enforced in CI.
+
+   The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour`, the diagnostics and pipeline layers in `test/VerificationGlue.Mocks.Generator.Specs`, and `samples/MocksAot` runs each feature under Native AOT in `eng/pack-and-consume.sh`. Not yet done: the `VerificationGlueMockAttribute` MSBuild item for other `[Mock]` attributes, and the auto-values for `string` and collections, which still return `default`.
 2. Preview B: typed surface.
    - [ ] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
 3. Preview C: recursive mocks.

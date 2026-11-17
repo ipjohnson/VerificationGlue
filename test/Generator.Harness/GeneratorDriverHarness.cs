@@ -13,14 +13,17 @@ namespace Generator.Harness;
 /// </summary>
 public sealed class GeneratorDriverHarness
 {
-    private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Preview);
+    private static readonly CSharpParseOptions DefaultParseOptions = new(LanguageVersion.Preview);
 
     private readonly Dictionary<string, SyntaxTree> trees = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, MetadataReference> namedReferences = new(StringComparer.Ordinal);
+    private readonly CSharpParseOptions parseOptions;
     private CSharpCompilation compilation;
     private GeneratorDriver driver;
 
-    public GeneratorDriverHarness(IIncrementalGenerator generator, IEnumerable<MetadataReference>? references = null)
+    public GeneratorDriverHarness(IIncrementalGenerator generator, IEnumerable<MetadataReference>? references = null, CSharpParseOptions? parseOptions = null)
     {
+        this.parseOptions = parseOptions ?? DefaultParseOptions;
         compilation = CSharpCompilation.Create(
             "HarnessInput",
             [],
@@ -29,7 +32,7 @@ public sealed class GeneratorDriverHarness
 
         driver = CSharpGeneratorDriver.Create(
             [generator.AsSourceGenerator()],
-            parseOptions: ParseOptions,
+            parseOptions: this.parseOptions,
             driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
     }
 
@@ -42,11 +45,24 @@ public sealed class GeneratorDriverHarness
     /// <summary>Adds a source file, or replaces the file with the same path.</summary>
     public GeneratorDriverHarness WithSource(string path, string text)
     {
-        var tree = CSharpSyntaxTree.ParseText(text, ParseOptions, path);
+        var tree = CSharpSyntaxTree.ParseText(text, parseOptions, path);
         compilation = trees.TryGetValue(path, out var old)
             ? compilation.ReplaceSyntaxTree(old, tree)
             : compilation.AddSyntaxTrees(tree);
         trees[path] = tree;
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a metadata reference under a name, or replaces the reference with the same name, as when
+    /// a referenced project or DLL changes.
+    /// </summary>
+    public GeneratorDriverHarness WithReference(string name, MetadataReference reference)
+    {
+        compilation = namedReferences.TryGetValue(name, out var old)
+            ? compilation.ReplaceReference(old, reference)
+            : compilation.AddReferences(reference);
+        namedReferences[name] = reference;
         return this;
     }
 

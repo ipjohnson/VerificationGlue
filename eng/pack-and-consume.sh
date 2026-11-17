@@ -5,7 +5,9 @@
 #      warnings as errors, and runs;
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line;
-#   4. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
+#   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
+#      warnings as errors and runs. It checks each part of the NSubstitute-style setup;
+#   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
 # Extra arguments are passed to dotnet pack, for example -p:VersionSuffix=ci.42 or --no-build.
 set -euo pipefail
 
@@ -103,6 +105,15 @@ dotnet publish "$aot/VerifyAot.csproj" -c Release -warnaserror \
 [ -x "$aot/publish/VerifyAot" ] || [ -f "$aot/publish/VerifyAot.exe" ] \
   || fail "the Native AOT publish of VerifyAot produced no executable"
 "$aot/publish/VerifyAot" || fail "VerifyAot reported a wrong message under Native AOT"
+
+echo "== Mocks under Native AOT"
+mocks="$work/mocks-aot"
+write_sample "$mocks" MocksAot
+dotnet publish "$mocks/MocksAot.csproj" -c Release -warnaserror \
+  -p:VerificationGlueVersion="$version" -o "$mocks/publish"
+[ -x "$mocks/publish/MocksAot" ] || [ -f "$mocks/publish/MocksAot.exe" ] \
+  || fail "the Native AOT publish of MocksAot produced no executable"
+"$mocks/publish/MocksAot" || fail "MocksAot found a mock feature that misbehaves under Native AOT"
 
 echo "== Mismatched VerificationGlue version"
 # A separate artifacts path keeps this build from overwriting src/VerificationGlue/bin.
