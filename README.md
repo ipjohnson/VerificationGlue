@@ -30,6 +30,8 @@ The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The
 
 Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
 
+A fourth package, `VerificationGlue.Tests.AspNetCore`, will start an ASP.NET Core app for each test and pass the test an `HttpClient`. It is not built yet. [Read its design](docs/design/aspnet.md).
+
 ## Write expectations in C#
 
 Import `VerificationGlue.VerifySyntax` with `using static`, then write a condition:
