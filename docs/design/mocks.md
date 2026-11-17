@@ -44,7 +44,7 @@ calc.Received(2).Reset();
 calc.DidNotReceive().Divide(Arg.Any<int>(), Arg.Any<int>());
 ```
 
-Unconfigured members return auto-values: `default`, a completed `Task` or `ValueTask`, an empty string for `string`, and an empty collection for array and common collection interfaces.
+Unconfigured members return auto-values: `default`, a completed `Task` or `ValueTask`, an empty string for `string`, an empty collection for array and common collection interfaces, and a recursive mock for other interfaces up to the configured depth.
 
 ## How it works
 
@@ -84,7 +84,7 @@ internal sealed class Contracts_ICalculator_Mock : ICalculator, IMock
 ```
 
 - Each member passes a member ID, its name, the generic type arguments as `Type[]`, and the arguments.
-- The adapter method is chosen from the return type: `Call<T>`, `CallVoid`, `CallTask`, `CallTask<T>`, `CallValueTask<T>`. Auto-values need no reflection as a result.
+- The adapter method is chosen from the return type: `Call<T>`, `CallVoid`, `CallTask`, `CallTask<T>`, `CallValueTask<T>`, and `CallMock<T>` for a return type that gets a recursive mock. Auto-values need no reflection as a result.
 - `ref` and `out` values are written back from the argument array.
 - Events use a typed delegate field and the generated accessors.
 - Members are implemented explicitly, so name collisions between inherited interfaces do not matter.
@@ -152,9 +152,16 @@ The typed surface is the recommended style for new code and for libraries. The N
 
 An unconfigured member whose return type can be mocked returns a mock, created on the first call and returned again for the same arguments. `calc.History.Last.Returns(5)` then works without setting up `History`.
 
-- The generator generates mocks for those return types too, following interface-typed returns of every mocked type. Class-typed returns join in phase 3 with class mocks.
+- The generator generates mocks for those return types too, following interface-typed returns of every mocked type. Class-typed returns join in phase 3 with class mocks. A `Task<T>` or `ValueTask<T>` return keeps its auto-value.
 - The walk stops at a depth set by `VerificationGlueMocksRecursionDepth`, default 2, and never enters `System` namespaces. A member whose return type is beyond the depth returns `default` and reports VGM0007 as information.
-- The shape sweep measures how much code the walk adds across the BCL and popular packages, and sets the default depth from that.
+- The shape sweep measures how much code the walk adds across the BCL and popular packages, and sets the default depth from that. The rule and the figures are in [mocks-shape-sweep.md](mocks-shape-sweep.md#recursion-depth).
+
+How it works:
+
+- The model of each member records a return type that a recursive mock can stand for: a closed interface outside `System` namespaces that the project can see. The model holds its documentation reference ID and assembly name instead of a symbol, so the model stays cached.
+- After discovery, one pipeline step combines the discovered models with the depth property and the compilation. It walks breadth first from every discovered type at level 0, resolves each recorded return type by its reference ID and builds its model. A mock class has one level, the lowest any walk reaches it at, so a type also named in `Mock.Of<T>()` starts a walk of its own.
+- A member of a class below the depth calls `MockAdapter.CallMock<T>`. When no setup matches, the adapter creates the mock through `MockFactory<T>` and keeps it for those arguments. A call that `Received()` checks returns `null` and creates nothing.
+- `MockAnalyzer` runs the same walk at the end of the compilation and reports VGM0007 for each member of a class at the depth, at the places that name the type whose walk reached it. Generator and analyzer share `RecursiveMocks`, so they agree on every member.
 
 ### Class mocks
 
@@ -353,7 +360,9 @@ The phase is built in this order, and each preview ships when its items are done
 
    The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs`, including a tier 3 `Verify` failure, and the VGM0002 error cases in `MockAnalyzerSpecs`. Not yet done: the `CallCount` case in `samples/Messages`, which is needed before `CallCount` is frozen.
 3. Preview C: recursive mocks.
-   - [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`, its default set from the Phase 0 sweep, and analyzer VGM0007.
+   - [x] Recursive mocks with `VerificationGlueMocksRecursionDepth`, its default set from the Phase 0 sweep, and analyzer VGM0007.
+
+   The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs`, the generator cases in `RecursiveMockSpecs`, and the VGM0007 cases in `MockAnalyzerSpecs`. The sweep compiles every swept mock with its recursive members and writes the depth table to its report.
 4. First release.
    - [ ] Framework hook snippets in the README, each tested in CI.
    - [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.

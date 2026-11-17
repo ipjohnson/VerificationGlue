@@ -35,6 +35,24 @@ public interface ICalculator
     T Echo<T>(T value);
 
     TimeSpan Since(IClock clock);
+
+    IHistory History { get; }
+}
+
+/// <summary>Reached only through <see cref="ICalculator.History"/>, so its mock is a recursive one.</summary>
+public interface IHistory
+{
+    int Last { get; }
+
+    IEntry Find(int index);
+}
+
+/// <summary>Two steps from <see cref="ICalculator"/>, at the default depth, so its own members return null.</summary>
+public interface IEntry
+{
+    string Text { get; }
+
+    IEntry Next { get; }
 }
 
 /// <summary>Named only in <c>[assembly: GenerateMock]</c>, and created by a generic helper.</summary>

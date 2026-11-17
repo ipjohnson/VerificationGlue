@@ -33,7 +33,8 @@ public static class MockCompiler
     public static CSharpParseOptions ParseOptions { get; } = new(LanguageVersion.Preview);
 
     /// <summary>
-    /// Mocks each type, adds every generated file to <paramref name="compilation"/> and compiles
+    /// Mocks each type with the members that return recursive mocks at the default depth, as the
+    /// generator does when a test names all of them, adds every generated file to <paramref name="compilation"/> and compiles
     /// it once. Errors in a generated file belong to that file's type. Errors elsewhere are returned
     /// in <paramref name="otherErrors"/>.
     /// </summary>
@@ -44,6 +45,9 @@ public static class MockCompiler
         out CSharpCompilation compiled)
     {
         var models = types.Select(type => MockModelBuilder.Build(type, compilation)).ToList();
+        var walk = RecursiveMocks.Walk(models, RecursiveMocks.DefaultDepth, compilation);
+        var finished = walk.Nodes.ToDictionary(node => node.Model.MockName, walk.Finish, StringComparer.Ordinal);
+        models = models.Select(model => finished.TryGetValue(model.MockName, out var done) ? done : model).ToList();
         var trees = new Dictionary<SyntaxTree, int>();
         var sources = new string?[models.Count];
         for (var i = 0; i < models.Count; i++)

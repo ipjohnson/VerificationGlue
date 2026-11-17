@@ -10,3 +10,4 @@ VGM0002 | VerificationGlue.Mocks | Warning | MockDiagnostics, Error for an NSubs
 VGM0003 | VerificationGlue.Mocks | Warning | MockDiagnostics
 VGM0004 | VerificationGlue.Mocks | Warning | MockDiagnostics
 VGM0005 | VerificationGlue.Mocks | Error | MockDiagnostics
+VGM0007 | VerificationGlue.Mocks | Info | MockDiagnostics

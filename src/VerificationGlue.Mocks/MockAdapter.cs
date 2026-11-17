@@ -14,7 +14,8 @@ namespace VerificationGlue.Mocks;
 /// Each <c>Call</c> method takes the generated member ID, the member name, the type arguments of a
 /// generic method or null, and the arguments. Generated code writes <c>ref</c> and <c>out</c>
 /// values back from the argument array after the call. An unconfigured call returns the auto-value
-/// for its return type: <c>default</c>, or a completed <see cref="Task"/> or <see cref="ValueTask"/>.
+/// for its return type: <c>default</c>, a completed <see cref="Task"/> or <see cref="ValueTask"/>,
+/// or a recursive mock from <see cref="CallMock{TResult}"/>.
 /// </remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class MockAdapter
@@ -25,6 +26,7 @@ public sealed class MockAdapter
     private readonly List<CallRecord> _calls = [];
     private readonly List<(CallSpec Spec, Func<CallInfo, object?> Response)> _responses = [];
     private readonly List<(CallSpec Spec, Action<CallInfo> Callback)> _callbacks = [];
+    private readonly List<(CallSpec Spec, object Mock)> _recursiveMocks = [];
 
     /// <summary>Creates the adapter for one mock.</summary>
     /// <param name="mockName">The generated mock class name, used in messages.</param>
@@ -52,6 +54,41 @@ public sealed class MockAdapter
     /// <summary>A call to a member that returns a value.</summary>
     public TResult Call<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
         Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : default!;
+
+    /// <summary>
+    /// A call to a member whose return type has a generated mock. An unconfigured call returns a
+    /// mock of <typeparamref name="TResult"/>, created on the first call and returned again for the
+    /// same arguments. A call that <c>Received()</c> checks returns <c>default</c>.
+    /// </summary>
+    public TResult CallMock<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments)
+        where TResult : class
+    {
+        if (Dispatch(memberId, name, typeArguments, arguments, out var result, out var recorded))
+        {
+            return result is TResult typed ? typed : default!;
+        }
+
+        if (!recorded || MockFactory<TResult>.Create is not { } create)
+        {
+            return default!;
+        }
+
+        var call = new CallRecord(memberId, name, typeArguments ?? Type.EmptyTypes, arguments);
+        lock (_gate)
+        {
+            foreach (var (spec, mock) in _recursiveMocks)
+            {
+                if (spec.Matches(call) && mock is TResult existing)
+                {
+                    return existing;
+                }
+            }
+
+            var created = create();
+            _recursiveMocks.Add((CallSpec.Create(memberId, name, typeArguments, (object?[])arguments.Clone(), []), created));
+            return created;
+        }
+    }
 
     /// <summary>A call to a member that returns by reference. The reference points at a new location holding the response or the auto-value.</summary>
     public ref TResult CallRef<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments)

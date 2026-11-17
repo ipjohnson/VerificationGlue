@@ -40,6 +40,27 @@ public class MockAnalyzerSpecs
         {
             public static int Sum(int a, int b) => a + b;
         }
+
+        public interface IShop
+        {
+            IOrders Orders { get; }
+        }
+
+        public interface IOrders
+        {
+            IOrder Find(int id);
+            IServiceProvider Services { get; }
+        }
+
+        public interface IOrder
+        {
+            ICustomer Customer { get; }
+        }
+
+        public interface ICustomer
+        {
+            string Name { get; }
+        }
         """;
 
     [Fact]
@@ -218,6 +239,52 @@ public class MockAnalyzerSpecs
     }
 
     [Fact]
+    public void A_member_beyond_the_default_depth_reports_VGM0007_where_the_walk_starts()
+    {
+        var diagnostics = Analyze("""
+            public class Tests
+            {
+                public object Run() => Mock.Of<IShop>();
+            }
+            """);
+
+        Assert.Equal(
+            ["VGM0007 line 3 'Mock.Of<IShop>()': 'IOrder.Customer' returns 'ICustomer', which is beyond the recursion depth of 2, so an unconfigured call returns null. Raise VerificationGlueMocksRecursionDepth to return a mock."],
+            diagnostics);
+    }
+
+    [Fact]
+    public void VerificationGlueMocksRecursionDepth_sets_the_depth_VGM0007_reports_beyond()
+    {
+        var diagnostics = Analyze(
+            """
+            public class Tests
+            {
+                public object Run() => Mock.Of<IShop>();
+            }
+            """,
+            depth: "1");
+
+        Assert.Equal(
+            ["VGM0007 line 3 'Mock.Of<IShop>()': 'IOrders.Find' returns 'IOrder', which is beyond the recursion depth of 1, so an unconfigured call returns null. Raise VerificationGlueMocksRecursionDepth to return a mock."],
+            diagnostics);
+    }
+
+    [Fact]
+    public void A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007()
+    {
+        var diagnostics = Analyze("""
+            public class Tests
+            {
+                public object Run() => Mock.Of<IShop>();
+                public object Order() => Mock.Of<IOrder>();
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public void Correct_use_reports_nothing()
     {
         var diagnostics = Analyze("""
@@ -243,10 +310,11 @@ public class MockAnalyzerSpecs
     /// Each diagnostic as "ID line N 'text at its location': message", with lines counted in
     /// <paramref name="source"/>. With <paramref name="generate"/> the generator runs first, so the
     /// source can use the typed <c>Setup()</c> and <c>Calls()</c> surface, and each line starts with
-    /// the severity.
+    /// the severity. <paramref name="depth"/> is the <c>VerificationGlueMocksRecursionDepth</c> property, unset when null.
     /// </summary>
-    private static List<string> Analyze(string source, bool generate = false)
+    private static List<string> Analyze(string source, bool generate = false, string? depth = null)
     {
+        var options = new BuildProperties(depth is null ? [] : new() { ["VerificationGlueMocksRecursionDepth"] = depth });
         var parseOptions = MockCompiler.ParseOptions.WithFeatures([new("InterceptorsNamespaces", "VerificationGlue.Mocks.Generated")]);
         var tree = CSharpSyntaxTree.ParseText(source, parseOptions, "Tests.cs");
         Compilation compilation = CSharpCompilation.Create(
@@ -257,7 +325,7 @@ public class MockAnalyzerSpecs
 
         if (generate)
         {
-            CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions)
+            CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions, optionsProvider: options)
                 .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _, TestContext.Current.CancellationToken);
         }
 
@@ -265,7 +333,7 @@ public class MockAnalyzerSpecs
         Assert.True(errors.Count == 0, string.Join("\n", errors));
 
         var diagnostics = compilation
-            .WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MockAnalyzer()))
+            .WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MockAnalyzer()), new AnalyzerOptions([], options))
             .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken)
             .GetAwaiter()
             .GetResult();

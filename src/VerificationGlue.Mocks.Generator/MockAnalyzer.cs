@@ -11,8 +11,8 @@ using Microsoft.CodeAnalysis.Operations;
 namespace VerificationGlue.Mocks.Generator;
 
 /// <summary>
-/// Reports VGM0001 to VGM0005 at the code that causes them: the place that names a type to mock,
-/// a misplaced <c>Arg</c> matcher, or a setup on a value that no mock call returned.
+/// Reports VGM0001 to VGM0005 and VGM0007 at the code that causes them: the place that names a type
+/// to mock, a misplaced <c>Arg</c> matcher, or a setup on a value that no mock call returned.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MockAnalyzer : DiagnosticAnalyzer
@@ -27,7 +27,8 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
         MockDiagnostics.MatcherInTypedSurface,
         MockDiagnostics.MemberCannotBeMocked,
         MockDiagnostics.TypeNotDiscovered,
-        MockDiagnostics.SetupWithoutMockCall);
+        MockDiagnostics.SetupWithoutMockCall,
+        MockDiagnostics.BeyondRecursionDepth);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -35,10 +36,15 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
-            var state = new CompilationState(start.Compilation);
+            var depth = RecursiveMocks.ReadDepth(start.Options.AnalyzerConfigOptionsProvider.GlobalOptions);
+            var state = new CompilationState(start.Compilation, depth);
             start.RegisterOperationAction(operation => AnalyzeInvocation(operation, state), OperationKind.Invocation);
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, state), SyntaxKind.Attribute);
-            start.RegisterCompilationEndAction(end => state.ReportUndiscovered(end));
+            start.RegisterCompilationEndAction(end =>
+            {
+                state.ReportUndiscovered(end);
+                state.ReportBeyondDepth(end);
+            });
         });
     }
 
@@ -185,10 +191,12 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
 
     private sealed record GenericCall(IMethodSymbol Definition, ImmutableArray<ITypeSymbol> TypeArguments, Location Location);
 
-    /// <summary>What one compilation's analysis has seen, for VGM0004 at its end.</summary>
-    private sealed class CompilationState(Compilation compilation)
+    /// <summary>What one compilation's analysis has seen, for VGM0004 and VGM0007 at its end.</summary>
+    private sealed class CompilationState(Compilation compilation, int depth)
     {
         private readonly ConcurrentDictionary<ITypeSymbol, MockModel> _models = new(SymbolEqualityComparer.Default);
+
+        private readonly ConcurrentBag<(string MockName, Location Location)> _sites = new();
 
         public ConcurrentBag<OpenSite> OpenSites { get; } = new();
 
@@ -203,9 +211,38 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
             }
 
             var model = _models.GetOrAdd(closed, key => MockModelBuilder.Build((INamedTypeSymbol)key, compilation));
+            _sites.Add((model.MockName, location));
             foreach (var diagnostic in model.Diagnostics)
             {
                 report(Diagnostic.Create(MockDiagnostics.Find(diagnostic.Id), location, diagnostic.Arguments.ToArray()));
+            }
+        }
+
+        /// <summary>
+        /// Walks every discovered type as the generator does, and reports each member beyond the
+        /// depth at the places that name the discovered type whose walk reached it.
+        /// </summary>
+        public void ReportBeyondDepth(CompilationAnalysisContext context)
+        {
+            if (_models.IsEmpty)
+            {
+                return;
+            }
+
+            var walk = RecursiveMocks.Walk(_models.Values, depth, compilation);
+            var sites = _sites.ToLookup(site => site.MockName, site => site.Location);
+            foreach (var (node, member) in walk.BeyondDepth())
+            {
+                foreach (var location in sites[node.Root].Distinct())
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        MockDiagnostics.BeyondRecursionDepth,
+                        location,
+                        node.Model.TypeName,
+                        member.Kind == MemberKind.Indexer ? "this[]" : member.Name,
+                        member.MockReturn!.TypeName,
+                        depth));
+                }
             }
         }
 

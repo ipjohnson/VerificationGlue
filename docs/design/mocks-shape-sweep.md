@@ -69,6 +69,19 @@ Each problem the sweep or the shape files found is fixed, reported by a named di
 | An open generic interface whose type parameter has `allows ref struct` | `Constraints.cs` | Unsupported for `ref struct` type arguments. The mock class drops the anti-constraint so it can box its arguments. A mock of the interface closed over a `ref struct` reports VGM0003 on each member that uses it |
 | A type nested in a generic type, whose type arguments come from an extern-aliased assembly | Review of `TypeConversion` | Unsupported. The type is written with `global::`, and the mock fails to compile. No case in the sweep or the shape files has this shape |
 
-## Not covered yet
+## Recursion depth
 
-The recursion depth for recursive mocks is set from this sweep in Phase 1, Preview C, once recursive mocks exist.
+The sweep compiles each mock with the members that return recursive mocks at the default depth, and all 1,413 compile. It then walks each interface it could mock as if a test named only that interface, and counts the mocks and generated lines the walk adds at each depth. The figures below are from a local run on 2026-11-17.
+
+| Depth | Walk adds a mock | Mocks added | Lines for one interface, 95th percentile | Most lines for one interface |
+|---|---|---|---|---|
+| 1 | 480 of 1,413 | 1,850 | 6,835 | 14,358 |
+| 2 | 480 of 1,413 | 5,463 | 15,287 | 21,570 |
+| 3 | 480 of 1,413 | 8,832 | 22,467 | 30,820 |
+| 4 | 480 of 1,413 | 11,054 | 27,443 | 39,108 |
+
+The largest walks start in `Microsoft.EntityFrameworkCore.Metadata`. At depth 2, `IConventionEntityType` adds 50 mocks.
+
+The rule: the default is the largest depth at which the walk from any one interface adds fewer lines than a third of the 500-interface compile benchmark in `mocks.md`, which generates 77,528 lines. A third is 25,842 lines. Depth 2 adds at most 21,570 and depth 3 at most 30,820, so `RecursiveMocks.DefaultDepth` is 2.
+
+The line counts include each mock's typed `Setup()` and `Calls()` surface.

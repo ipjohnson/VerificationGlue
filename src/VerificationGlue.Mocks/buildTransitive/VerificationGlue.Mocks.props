@@ -2,4 +2,8 @@
   <PropertyGroup>
     <InterceptorsNamespaces>$(InterceptorsNamespaces);VerificationGlue.Mocks.Generated</InterceptorsNamespaces>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- When it is not set, the generator uses its default, RecursiveMocks.DefaultDepth. -->
+    <CompilerVisibleProperty Include="VerificationGlueMocksRecursionDepth" />
+  </ItemGroup>
 </Project>

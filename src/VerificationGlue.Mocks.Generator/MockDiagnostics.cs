@@ -66,6 +66,16 @@ internal static class MockDiagnostics
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VGM0005.md");
 
+    public static readonly DiagnosticDescriptor BeyondRecursionDepth = new(
+        id: "VGM0007",
+        title: "Return type is beyond the recursion depth",
+        messageFormat: "'{0}.{1}' returns '{2}', which is beyond the recursion depth of {3}, so an unconfigured call returns null. Raise VerificationGlueMocksRecursionDepth to return a mock.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGM0007.md",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
     public static DiagnosticDescriptor Find(string id) =>
         id == TypeCannotBeMocked.Id ? TypeCannotBeMocked : MemberCannotBeMocked;
 }
