@@ -132,7 +132,7 @@ A file path and span for a diagnostic travel as strings and integers, not as a `
 
 ### Required changes to CSharpAuthor
 
-These four changes ship in a CSharpAuthor minor release. Generator work does not wait for it. It starts on CSharpAuthor 2.0.0 with the rules above, which describe 2.0.0. Each change is filed as an issue in `ipjohnson/CSharpAuthor`. Once the changes land, the generators use them and drop the workarounds.
+These four changes ship in a CSharpAuthor minor release. Generator work does not wait for it. It starts on CSharpAuthor 2.0.0 with the rules above, which describe 2.0.0. Each change is filed as an issue in `ipjohnson/CSharpAuthor`. The issue drafts and their status are in [CSharpAuthor issue drafts](csharpauthor-issues.md). Once the changes land, the generators use them and drop the workarounds.
 
 1. **`OutputContext.Reset()`.** It clears the output and the derived type references and keeps the buffer, so a generator reuses one context for many small files such as interceptors. Replaces one context per file.
 2. **A cache for `TypeDefinition.Get(Type)`, keyed by `Type`.** It must be thread-safe, because Roslyn runs generators in parallel. Replaces our own cache of BCL types. Our `KnownTypes` for runtime types stay, because those are named by string.
