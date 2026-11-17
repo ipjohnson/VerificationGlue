@@ -127,7 +127,7 @@ public partial class TypedSurface
 
         Assert.Equal(9, calc.Echo(1));
         Assert.Equal("b", calc.Echo("a"));
-        Assert.Null(calc.Echo("c"));
+        Assert.Equal("", calc.Echo("c"));
         Assert.True(calc.Calls().Echo(Arg<int>.Any()) == 1);
         Assert.True(calc.Calls().Echo(Arg<string>.Any()) == 2);
     }

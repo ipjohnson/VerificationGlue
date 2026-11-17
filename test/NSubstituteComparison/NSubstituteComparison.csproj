@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The bounded comparison of VerificationGlue.Mocks with NSubstitute. This library holds what both
+    case assemblies share: the case attributes, the observation log and the runner. The cases in
+    Cases/ are compiled twice, by NSubstituteComparison.Glue and NSubstituteComparison.NSubstitute,
+    and test/NSubstituteComparison.Specs compares the two runs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Cases/**" />
+    <None Include="Cases/**" />
+  </ItemGroup>
+</Project>

@@ -37,6 +37,10 @@
     <Project Path="test/Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
     <Project Path="test/Generator.Harness.Specs/Generator.Harness.Specs.csproj" />
     <Project Path="test/MockSweep/MockSweep.csproj" />
+    <Project Path="test/NSubstituteComparison/NSubstituteComparison.csproj" />
+    <Project Path="test/NSubstituteComparison.Glue/NSubstituteComparison.Glue.csproj" />
+    <Project Path="test/NSubstituteComparison.NSubstitute/NSubstituteComparison.NSubstitute.csproj" />
+    <Project Path="test/NSubstituteComparison.Specs/NSubstituteComparison.Specs.csproj" />
     <Project Path="test/Shared.Generator.Specs/Shared.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Generator.Specs/VerificationGlue.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Mocks.Generator.Specs/VerificationGlue.Mocks.Generator.Specs.csproj" />

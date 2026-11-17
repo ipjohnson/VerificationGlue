@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The comparison cases compiled against NSubstitute. Only the usings and Mock.Of differ from
+    NSubstituteComparison.Glue, so NSubstitute's answer is the expected one for each case.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../NSubstituteComparison/Cases/**/*.cs" LinkBase="Cases" />
+    <Using Include="NSubstituteComparison" />
+    <Using Include="NSubstitute" />
+    <Using Include="NSubstitute.ExceptionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NSubstituteComparison/NSubstituteComparison.csproj" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+</Project>

@@ -14,8 +14,8 @@ namespace VerificationGlue.Mocks;
 /// Each <c>Call</c> method takes the generated member ID, the member name, the type arguments of a
 /// generic method or null, and the arguments. Generated code writes <c>ref</c> and <c>out</c>
 /// values back from the argument array after the call. An unconfigured call returns the auto-value
-/// for its return type: <c>default</c>, a completed <see cref="Task"/> or <see cref="ValueTask"/>,
-/// or a recursive mock from <see cref="CallMock{TResult}"/>.
+/// for its return type: an empty string, <c>default</c>, a completed <see cref="Task"/> or
+/// <see cref="ValueTask"/> holding that value, or a recursive mock from <see cref="CallMock{TResult}"/>.
 /// </remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class MockAdapter
@@ -53,7 +53,7 @@ public sealed class MockAdapter
 
     /// <summary>A call to a member that returns a value.</summary>
     public TResult Call<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
-        Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : default!;
+        Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : AutoValue<TResult>();
 
     /// <summary>
     /// A call to a member whose return type has a generated mock. An unconfigured call returns a
@@ -93,7 +93,7 @@ public sealed class MockAdapter
     /// <summary>A call to a member that returns by reference. The reference points at a new location holding the response or the auto-value.</summary>
     public ref TResult CallRef<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments)
     {
-        var value = Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : default!;
+        var value = Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : AutoValue<TResult>();
         return ref new StrongBox<TResult>(value).Value!;
     }
 
@@ -105,7 +105,7 @@ public sealed class MockAdapter
     public Task<TResult> CallTask<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
         Dispatch(memberId, name, typeArguments, arguments, out var result) && result is Task<TResult> task
             ? task
-            : Task.FromResult<TResult>(default!);
+            : Task.FromResult(AutoValue<TResult>());
 
     /// <summary>A call to a member that returns <see cref="ValueTask"/>.</summary>
     public ValueTask CallValueTask(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
@@ -115,7 +115,7 @@ public sealed class MockAdapter
     public ValueTask<TResult> CallValueTask<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
         Dispatch(memberId, name, typeArguments, arguments, out var result) && result is ValueTask<TResult> task
             ? task
-            : new ValueTask<TResult>(default(TResult)!);
+            : new ValueTask<TResult>(AutoValue<TResult>());
 
     /// <summary>
     /// A property or indexer setter. The recorded arguments are the index arguments followed by the
@@ -229,6 +229,9 @@ public sealed class MockAdapter
             _callbacks.Add((spec, callback));
         }
     }
+
+    /// <summary>The value of an unconfigured call: an empty string for <see cref="string"/>, and <c>default</c> otherwise.</summary>
+    private static TResult AutoValue<TResult>() => typeof(TResult) == typeof(string) ? (TResult)(object)"" : default!;
 
     private bool Dispatch(int memberId, string name, Type[]? typeArguments, object?[] arguments, out object? result) =>
         Dispatch(memberId, name, typeArguments, arguments, out result, out _);

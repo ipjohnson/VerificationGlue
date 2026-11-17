@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Runs every comparison case under VerificationGlue.Mocks and under NSubstitute, and checks
+    docs/guide/nsubstitute-differences.md against the run. The two case assemblies hold the same
+    type names, so each is referenced under its own alias.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../NSubstituteComparison/NSubstituteComparison.csproj" />
+    <ProjectReference Include="../NSubstituteComparison.Glue/NSubstituteComparison.Glue.csproj" Aliases="Glue" />
+    <ProjectReference Include="../NSubstituteComparison.NSubstitute/NSubstituteComparison.NSubstitute.csproj" Aliases="NSub" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+</Project>

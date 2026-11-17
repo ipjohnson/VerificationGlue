@@ -38,7 +38,7 @@ public class Matching
         calc.Echo(Arg.Is("a")).Returns("matched");
 
         Assert.Equal("matched", calc.Echo("a"));
-        Assert.Null(calc.Echo("b"));
+        Assert.Equal("", calc.Echo("b"));
     }
 
     [Fact]

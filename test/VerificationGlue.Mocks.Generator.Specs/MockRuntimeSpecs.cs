@@ -39,9 +39,9 @@ public class MockRuntimeSpecs
         Assert.True(calculator.ComputeAsync(5).IsCompletedSuccessfully);
         Assert.Equal(0, await calculator.ComputeAsync(5));
         Assert.True(calculator.FlushAsync().IsCompletedSuccessfully);
-        Assert.Null(calculator.Name);
+        Assert.Equal("", calculator.Name);
         Assert.Equal(0, calculator[3]);
-        Assert.Null(calculator.Echo<string>("x"));
+        Assert.Equal("", calculator.Echo<string>("x"));
         calculator.Slot(0) = 4;
         Assert.Equal(0, calculator.Slot(0));
     }
