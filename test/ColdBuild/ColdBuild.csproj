@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The cold-build benchmark from docs/design/verification-glue.md Phase 0. Program.cs lists its options. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ColdBuild.Runtime/ColdBuild.Runtime.csproj" />
+    <ProjectReference Include="../ColdBuild.Generator/ColdBuild.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="ColdBuildGenerator" />
+  </ItemGroup>
+  <Target Name="CopyColdBuildGenerator" AfterTargets="Build">
+    <Copy SourceFiles="@(ColdBuildGenerator)" DestinationFolder="$(OutDir)generator" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

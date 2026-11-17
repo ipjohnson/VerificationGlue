@@ -223,10 +223,23 @@ CSharpAuthor use:
 
 ## Performance
 
-Figures from the spike, on a loaded machine with a generator that was not incremental. The real targets come from phase 0.
+The phase 0 cold-build benchmark adds 53.9 s at 100,000 calls for tier 2 alone and 42.7 s for tier 3 with redirects. The CI job `cold-build` measures it on every push and pull request and uploads `report.md`.
 
-- 2000 `[Verify]` methods with 6000 calls: 2.5 s without the generator, 6.6 s with it. About 0.7 ms per call.
-- At 100,000 calls that is about 70 s of total build time across all assemblies.
+The benchmark is `test/ColdBuild`. It writes 10,000 `[VerifyTest]` methods with 10 `Verify` calls each into three assemblies. Each test class also has one `[Verify]` helper that every test in it calls, which gives tier 3 a call to redirect. That makes 101,002 calls, and added seconds are scaled to 100,000. Each configuration is a cold rebuild of all three assemblies with build servers off, run three times in rotating order. The table gives the median of the summed build times.
+
+The generator it times is `test/ColdBuild.Generator`. It is an incremental generator on CSharpAuthor with the three pipelines above. It is not the product generator, so the benchmark runs again once Phases 1 and 2 build the real one.
+
+First run, on macOS 27.0.1 Arm64 with 11 logical processors and .NET SDK 10.0.403, on 2026-11-17:
+
+| Build | Median seconds | Added seconds at 100,000 calls | Ratio to generator off | Interceptors | Copies | Redirects |
+|---|---:|---:|---:|---:|---:|---:|
+| Generator off | 7.1 | 0 | 1.00 | 0 | 0 | 0 |
+| Tier 2 alone | 61.5 | 53.9 | 8.67 | 101,002 | 0 | 0 |
+| Tier 3 with redirects | 50.2 | 42.7 | 7.08 | 1,002 | 11,002 | 10,000 |
+
+Tier 3 costs less than tier 2 alone. Under tier 3 the 100,000 calls in test bodies get no interceptor, because the runner calls the copies. One interceptor per call is the main cost of tier 2.
+
+The assertion spike measured about 0.7 ms per call with a generator that was not incremental, about 70 s at 100,000 calls. The benchmark replaces that figure.
 
 Budgets, with the numbers set by the phase 0 benchmark:
 
@@ -262,8 +275,15 @@ The criteria in this list are fixed before the spikes run. A result does not cha
 - [ ] An IDE that fails is named in `docs/research/ide-report.md` and on the IDE setup page, with the property that switches tier 3 as the documented way to change it there.
 - [ ] Debugging spike on pinned .NET 10 SDK, MTP 3, IDE and IDE-plugin versions: breakpoints bind in the original source and hit the executing copy, and stepping stays in original source without exposing capture scaffolding, in every advertised IDE (Visual Studio, Rider and VS Code). Record Hot Reload separately; its limitations alone do not block the default.
 - [ ] Record the combined results in `docs/research/ide-report.md`, alongside the Tests discovery, UID-filtered execution, navigation/debugging and warning-free AOT run on the same pinned stack. MTP 2.5.3 evidence is historical only; record supported limitations before release promises.
-- [ ] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3 including the redirect pipeline, with an incremental generator built on CSharpAuthor.
-- [ ] Keep tier 3 opt-in unless every advertised IDE passes breakpoint binding and stepping and the separately user-approved total added cold-build budget passes at 100,000 calls; report the matched-baseline ratio too. Missing budget approval is not a pass. Record the evidence and resulting default explicitly.
+- [x] Cold-build benchmark: 10,000 tests with 10 calls each across three assemblies, measured for tier 2 alone and for tier 3 including the redirect pipeline, with an incremental generator built on CSharpAuthor.
+- [x] Keep tier 3 opt-in unless every advertised IDE passes breakpoint binding and stepping and the separately user-approved total added cold-build budget passes at 100,000 calls; report the matched-baseline ratio too. Missing budget approval is not a pass. Record the evidence and resulting default explicitly.
+
+Result: tier 3 stays opt-in. Two gates fail.
+
+- No total added cold-build budget has user approval. The measured cost is 42.7 s at 100,000 calls with a ratio of 7.08 for tier 3, and 53.9 s with a ratio of 8.67 for tier 2 alone. See [Performance](#performance).
+- Rider passes breakpoint binding and stepping. Visual Studio and VS Code have no debugging result, as recorded in `docs/research/ide-report.md`.
+
+Tier 3 can become the default only after the user approves a budget that the CI job `cold-build` meets, and Visual Studio and VS Code pass the debugging checks.
 
 ### Phase 1: messages from source text and shape
 

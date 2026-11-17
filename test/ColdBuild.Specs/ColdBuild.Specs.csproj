@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../ColdBuild/ColdBuild.csproj" />
+    <ProjectReference Include="../ColdBuild.Generator/ColdBuild.Generator.csproj" />
+    <ProjectReference Include="../ColdBuild.Runtime/ColdBuild.Runtime.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+  </ItemGroup>
+</Project>
