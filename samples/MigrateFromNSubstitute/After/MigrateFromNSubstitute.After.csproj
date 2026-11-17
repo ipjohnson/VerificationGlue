@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The VerificationGlue.Mocks side of docs/guide/migrate-from-nsubstitute.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../../Billing/Billing.csproj" />
+  </ItemGroup>
+</Project>

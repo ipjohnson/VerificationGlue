@@ -50,6 +50,7 @@ expect_entry VerificationGlue.Mocks "lib/net10.0/VerificationGlue.Mocks.dll"
 expect_entry VerificationGlue.Mocks "analyzers/dotnet/cs/VerificationGlue.Mocks.Generator.dll"
 expect_entry VerificationGlue.Mocks "buildTransitive/VerificationGlue.Mocks.props"
 expect_entry VerificationGlue.Mocks "buildTransitive/VerificationGlue.Mocks.targets"
+expect_entry VerificationGlue.Mocks "README.md"
 expect_entry VerificationGlue.Tests "lib/net10.0/VerificationGlue.Tests.dll"
 expect_entry VerificationGlue.Tests "analyzers/dotnet/cs/VerificationGlue.Tests.Generator.dll"
 

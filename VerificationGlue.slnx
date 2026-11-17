@@ -16,7 +16,10 @@
     <Project Path="samples/Messages/Messages.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/After/MigrateFromXunitAssert.After.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/Before/MigrateFromXunitAssert.Before.csproj" />
+    <Project Path="samples/MigrateFromNSubstitute/After/MigrateFromNSubstitute.After.csproj" />
+    <Project Path="samples/MigrateFromNSubstitute/Before/MigrateFromNSubstitute.Before.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/Store/Store.csproj" />
+    <Project Path="samples/MocksGuide/MocksGuide.csproj" />
     <Project Path="samples/MocksInMSTest/MocksInMSTest.csproj" />
     <Project Path="samples/MocksInNUnit/MocksInNUnit.csproj" />
     <Project Path="samples/MocksInTUnit/MocksInTUnit.csproj" />

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The examples in the mock guides under docs/guide. Each example is a test that runs in CI. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+  <!-- begin-snippet: mocks-recursion-depth -->
+  <PropertyGroup>
+    <VerificationGlueMocksRecursionDepth>2</VerificationGlueMocksRecursionDepth>
+  </PropertyGroup>
+  <!-- end-snippet -->
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+</Project>

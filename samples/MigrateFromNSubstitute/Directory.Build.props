@@ -1,0 +1,7 @@
+<Project>
+  <!-- Both sides use xunit Assert, so only the mock lines differ between them. -->
+  <PropertyGroup>
+    <UseVerificationGlue>false</UseVerificationGlue>
+  </PropertyGroup>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+</Project>
