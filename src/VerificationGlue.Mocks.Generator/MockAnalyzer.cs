@@ -37,7 +37,8 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
         context.RegisterCompilationStartAction(start =>
         {
             var depth = RecursiveMocks.ReadDepth(start.Options.AnalyzerConfigOptionsProvider.GlobalOptions);
-            var state = new CompilationState(start.Compilation, depth);
+            var hostAttributes = MockDiscovery.ReadMockAttributes(start.Options.AnalyzerConfigOptionsProvider.GlobalOptions);
+            var state = new CompilationState(start.Compilation, depth, hostAttributes);
             start.RegisterOperationAction(operation => AnalyzeInvocation(operation, state), OperationKind.Invocation);
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, state), SyntaxKind.Attribute);
             start.RegisterCompilationEndAction(end =>
@@ -120,14 +121,12 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (name != MockDiscovery.MockAttribute || attribute.Parent?.Parent is not { } target)
+        if ((name != MockDiscovery.MockAttribute && !state.HostAttributes.Contains(name)) || !MockDiscovery.IsAttributeOnMockTarget(attribute))
         {
             return;
         }
 
-        var symbol = target is FieldDeclarationSyntax field
-            ? field.Declaration.Variables.Select(variable => context.SemanticModel.GetDeclaredSymbol(variable, context.CancellationToken)).FirstOrDefault()
-            : context.SemanticModel.GetDeclaredSymbol(target, context.CancellationToken);
+        var symbol = MockDiscovery.TargetOf(attribute, context.SemanticModel, context.CancellationToken);
         if (MockDiscovery.TypeOfTarget(symbol) is { } targetType && !MockDiscovery.ContainsTypeParameter(targetType))
         {
             state.Discover(targetType, attribute.GetLocation(), context.ReportDiagnostic);
@@ -192,8 +191,11 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
     private sealed record GenericCall(IMethodSymbol Definition, ImmutableArray<ITypeSymbol> TypeArguments, Location Location);
 
     /// <summary>What one compilation's analysis has seen, for VGM0004 and VGM0007 at its end.</summary>
-    private sealed class CompilationState(Compilation compilation, int depth)
+    private sealed class CompilationState(Compilation compilation, int depth, CSharpAuthor.Collections.EquatableArray<string> hostAttributes)
     {
+        /// <summary>The <c>VerificationGlueMockAttribute</c> names, which mark a mock like <c>[Mock]</c>.</summary>
+        public CSharpAuthor.Collections.EquatableArray<string> HostAttributes { get; } = hostAttributes;
+
         private readonly ConcurrentDictionary<ITypeSymbol, MockModel> _models = new(SymbolEqualityComparer.Default);
 
         private readonly ConcurrentBag<(string MockName, Location Location)> _sites = new();

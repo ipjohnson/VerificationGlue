@@ -23,7 +23,7 @@ The spike behind this design passed 28 of 28 checks in a Native AOT publish of 1
 
 The runtime and generator ship together because generated code calls `MockAdapter` directly. Rocks, Mockolate, Imposter and TUnit.Mocks all ship a single package for the same reason.
 
-Framework hooks for `[Mock]` parameters in xunit, NUnit, MSTest and TUnit are 7 to 12 lines each. They ship as documented snippets in the first release. They become packages only if users ask.
+Framework hooks for `[Mock]` parameters in xunit, NUnit, MSTest and TUnit are 9 to 13 lines each. They ship as documented snippets in the first release, taken from the test projects `samples/MocksInXunit`, `samples/MocksInNUnit`, `samples/MocksInMSTest` and `samples/MocksInTUnit`. They become packages only if users ask.
 
 ## Surface
 
@@ -190,12 +190,14 @@ A class mock calls the base member for every virtual member that has not been se
 |---|---|---|
 | `VerificationGlue.Tests` | Works | Built in |
 | DependencyModules | Works | One `IMockSupportAttribute` whose `ProvideMock(Type)` returns `MockRegistry.Create(type)`, and its `[Mock]` name in the `VerificationGlueMockAttribute` item |
-| xunit v3 | Works | A 12-line `DataAttribute` |
-| NUnit | Works | A 9-line `IParameterDataSource` on the parameter attribute, and that attribute's name in the `VerificationGlueMockAttribute` item |
-| MSTest | Works | A 12-line `ITestDataSource` |
-| TUnit | Works | A 7-line `UntypedDataSourceGeneratorAttribute` |
+| xunit v3 | Works | A `DataAttribute` |
+| NUnit | Works | An `IParameterDataSource` on the parameter attribute, and that attribute's name in the `VerificationGlueMockAttribute` item |
+| MSTest | Works | An `ITestDataSource` |
+| TUnit | Works | An `UntypedDataSourceGeneratorAttribute` |
 
-All eight combinations passed in the spike on the JIT. Native AOT inside xunit, NUnit, MSTest and TUnit was not tested. Their hooks read `ParameterInfo` through reflection, so `Mock.Of<T>()` is the recommended form in those frameworks.
+All eight combinations passed in the spike on the JIT, and the `samples/MocksIn*` test projects run them in CI. Each hook calls `RuntimeHelpers.RunModuleConstructor` on the test module first, because a framework can ask for data before the generated module initializer has run. Native AOT inside xunit, NUnit, MSTest and TUnit was not tested. Their hooks read `ParameterInfo` through reflection, so `Mock.Of<T>()` is the recommended form in those frameworks.
+
+`buildTransitive/VerificationGlue.Mocks.targets` joins the `VerificationGlueMockAttribute` items into the `VerificationGlueMockAttributes` property before the build writes its editorconfig, because items are not known when properties are evaluated. The generator and `MockAnalyzer` read that property. The generator resolves each attribute on a parameter, property or field to find the ones named there.
 
 ## Interface changes
 
@@ -280,7 +282,13 @@ Each case states one outcome: it passes, it reports a named diagnostic, or it is
 
 ### Comparison against NSubstitute
 
-The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix. This is untested. No file has been compiled against both yet. A bounded comparison is a first-release gate: it covers argument matching, setup precedence, response sequences, async results, last-call hazards and parallel use, including `Returns(await ...)` and a background caller during `Received()`. Each difference must be fixed or recorded as an intentional decision; a known NSubstitute defect is not the required behavior. The run generates the "Known differences from NSubstitute" page before the first release. Broad issue mining and exhaustive compatibility work remain in phase 2.
+The setup syntax mirrors NSubstitute, so one behaviour file can compile against either library with a `using` switch. NSubstitute on the JIT gives the expected answer. Every difference is either a bug or a recorded decision, such as the matcher position fix.
+
+The cases are in `test/NSubstituteComparison/Cases`. `NSubstituteComparison.Glue` and `NSubstituteComparison.NSubstitute` compile them, and differ only in their global usings and a `Mock.Of<T>()` that calls `Substitute.For<T>()`. Each case records labelled observations, and `test/NSubstituteComparison.Specs` fails when the two runs differ and the case has no `[Difference]` with its reason, or when a recorded difference no longer differs. It also writes `docs/guide/nsubstitute-differences.md` from the run and fails when the committed page differs. Each case runs on a new thread, because NSubstitute keeps its last call per thread and a reused thread would carry one case's last call into the next.
+
+The first run against NSubstitute 6.2.0 found two bugs, both fixed: an unconfigured `string` returned null instead of an empty string, and a `params` argument did not match a later call with the same values. It recorded 8 differences in 48 cases, from the matcher positions, the async-local `MockContext`, array arguments and exception types. A review then found that the empty-string fix also replaced a configured `Returns(null)` with an empty string. A configured response now wins even when it is null, and a case covers it.
+
+A bounded comparison is a first-release gate: it covers argument matching, setup precedence, response sequences, async results, last-call hazards and parallel use, including `Returns(await ...)` and a background caller during `Received()`. Each difference must be fixed or recorded as an intentional decision; a known NSubstitute defect is not the required behavior. The run generates the "Known differences from NSubstitute" page before the first release. Broad issue mining and exhaustive compatibility work remain in phase 2.
 
 ### Case format
 
@@ -354,7 +362,7 @@ The phase is built in this order, and each preview ships when its items are done
    - [x] Pipeline layer of the conformance suite, including the stale-model regression test.
    - [x] Generator time and compile time budgets set from a benchmark and enforced in CI.
 
-   The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour`, the diagnostics and pipeline layers in `test/VerificationGlue.Mocks.Generator.Specs`, and `samples/MocksAot` runs each feature under Native AOT in `eng/pack-and-consume.sh`. Not yet done: the `VerificationGlueMockAttribute` MSBuild item for other `[Mock]` attributes, and the auto-values for `string` and collections, which still return `default`.
+   The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour`, the diagnostics and pipeline layers in `test/VerificationGlue.Mocks.Generator.Specs`, and `samples/MocksAot` runs each feature under Native AOT in `eng/pack-and-consume.sh`. The first release added the `VerificationGlueMockAttribute` MSBuild item and the auto-value for `string`. Not yet done: the auto-values for arrays and collections, which still return `default`.
 2. Preview B: typed surface.
    - [x] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
 
@@ -364,9 +372,11 @@ The phase is built in this order, and each preview ships when its items are done
 
    The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs`, the generator cases in `RecursiveMockSpecs`, and the VGM0007 cases in `MockAnalyzerSpecs`. The sweep compiles every swept mock with its recursive members and writes the depth table to its report.
 4. First release.
-   - [ ] Framework hook snippets in the README, each tested in CI.
-   - [ ] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
-   - [ ] Pages: README, `docs/guide/getting-started-mocks.md` with a section per host framework, the guides "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks" and "Mock a type from a generic helper", the migration guide from NSubstitute, the "Known differences from NSubstitute" page, `docs/diagnostics/VGM0001.md` to `VGM0005.md` and `VGM0007.md`, and the generated-code page.
+   - [x] Framework hook snippets in the README, each tested in CI.
+   - [x] Bounded NSubstitute behavior comparison covering matching, precedence, sequences, async results, last-call hazards and parallel use; all differences fixed or recorded, and the generated "Known differences from NSubstitute" page checked in CI before the first release.
+   - [x] Pages: README, `docs/guide/getting-started-mocks.md` with a section per host framework, the guides "Choose a setup style", "Mock async members", "Arguments and matchers", "Recursive mocks" and "Mock a type from a generic helper", the migration guide from NSubstitute, the "Known differences from NSubstitute" page, `docs/diagnostics/VGM0001.md` to `VGM0005.md` and `VGM0007.md`, and the generated-code page.
+
+   The hooks are in `samples/MocksIn*`, and `src/VerificationGlue.Mocks/README.md` and `getting-started-mocks.md` take them as snippets. The comparison is described under "Comparison against NSubstitute" above. The guides take their code from `samples/MocksGuide` and the migration guide from `samples/MigrateFromNSubstitute`. `docs/guide/generated/mocks.md` shows the snapshots of `GeneratedCodeSpecs` in `test/VerificationGlue.Mocks.Generator.Specs`.
 
 ### Phase 2: comparison and mining
 

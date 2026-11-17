@@ -306,15 +306,66 @@ public class MockAnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
+    [Fact]
+    public void An_attribute_named_in_VerificationGlueMockAttribute_marks_a_mock_like_Mock()
+    {
+        var diagnostics = Analyze("""
+            namespace Hooks;
+
+            public sealed class MockAttribute : Attribute;
+
+            public class Tests
+            {
+                public void Run([Mock] ICalculator calc, [Mock] Point point)
+                {
+                    calc.Setup().Add(1, 2).Returns(3);
+                }
+            }
+            """, generate: true, attributes: "Other.MockAttribute; Hooks.MockAttribute;");
+
+        Assert.Equal(["Error VGM0001 line 7 'Mock': 'Point' cannot be mocked: it is a struct"], diagnostics);
+    }
+
+    [Fact]
+    public void An_attribute_not_named_in_VerificationGlueMockAttribute_marks_nothing()
+    {
+        var diagnostics = Analyze("""
+            namespace Hooks;
+
+            public sealed class MockAttribute : Attribute;
+
+            public class Tests
+            {
+                public void Run([Mock] Point point)
+                {
+                }
+            }
+            """, attributes: "Other.MockAttribute");
+
+        Assert.Empty(diagnostics);
+    }
+
     /// <summary>
     /// Each diagnostic as "ID line N 'text at its location': message", with lines counted in
     /// <paramref name="source"/>. With <paramref name="generate"/> the generator runs first, so the
     /// source can use the typed <c>Setup()</c> and <c>Calls()</c> surface, and each line starts with
     /// the severity. <paramref name="depth"/> is the <c>VerificationGlueMocksRecursionDepth</c> property, unset when null.
+    /// <paramref name="attributes"/> is the <c>VerificationGlueMockAttributes</c> property, unset when null.
     /// </summary>
-    private static List<string> Analyze(string source, bool generate = false, string? depth = null)
+    private static List<string> Analyze(string source, bool generate = false, string? depth = null, string? attributes = null)
     {
-        var options = new BuildProperties(depth is null ? [] : new() { ["VerificationGlueMocksRecursionDepth"] = depth });
+        var properties = new Dictionary<string, string>();
+        if (depth is not null)
+        {
+            properties["VerificationGlueMocksRecursionDepth"] = depth;
+        }
+
+        if (attributes is not null)
+        {
+            properties["VerificationGlueMockAttributes"] = attributes;
+        }
+
+        var options = new BuildProperties(properties);
         var parseOptions = MockCompiler.ParseOptions.WithFeatures([new("InterceptorsNamespaces", "VerificationGlue.Mocks.Generated")]);
         var tree = CSharpSyntaxTree.ParseText(source, parseOptions, "Tests.cs");
         Compilation compilation = CSharpCompilation.Create(

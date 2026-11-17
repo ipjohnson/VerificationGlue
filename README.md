@@ -35,6 +35,28 @@ Verify failed: order.Total == 30
 
 [Getting started with Verify](docs/guide/getting-started-verify.md) shows the setup for xunit, NUnit, MSTest and TUnit, and every message shape. The package README is [`src/VerificationGlue/README.md`](src/VerificationGlue/README.md).
 
+## Mocks
+
+The `VerificationGlue.Mocks` package generates mocks at build time, with NSubstitute-style setup and a typed setup surface. They work under any test framework and under Native AOT. It is a preview.
+
+<!-- snippet: mocks-style-typed -->
+<a id='snippet-mocks-style-typed'></a>
+```cs
+var calc = Mock.Of<ICalculator>();
+calc.Setup().Add(1, Arg<int>.Any()).Returns(3);
+calc.Setup().Divide(Arg<int>.Any(), 0).Throws(new DivideByZeroException());
+calc.Setup().Mode.Returns(Mode.Scientific);
+
+var sum = calc.Add(1, 2);
+
+Verify(calc.Calls().Add(1, 2) == 1);
+Verify(calc.Calls().Reset() == 0);
+```
+<sup><a href='/samples/MocksGuide/SetupStyles.cs#L31-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-style-typed' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+[Getting started with mocks](docs/guide/getting-started-mocks.md) shows the setup for xunit, NUnit, MSTest and TUnit, with the hook each one needs for `[Mock]` test parameters. The package README is [`src/VerificationGlue.Mocks/README.md`](src/VerificationGlue.Mocks/README.md). [Migrate from NSubstitute](docs/guide/migrate-from-nsubstitute.md) and [Known differences from NSubstitute](docs/guide/nsubstitute-differences.md) cover a move from NSubstitute.
+
 ## Building
 
 The SDK version and the test runner are pinned in `global.json`.
@@ -48,7 +70,7 @@ eng/pack-and-consume.sh --no-build
 
 `eng/pack-and-consume.sh` packs the three packages into a local feed. It checks their layout and shared version, and publishes `samples/PackageConsumer` and `samples/VerifyAot` with Native AOT. `samples/VerifyAot` runs and checks its failure messages. The script also checks that a mismatched `VerificationGlue` version fails with VGT0007. CI runs the same four commands.
 
-The samples under `samples/VerifyIn*` are test projects in xunit, NUnit, MSTest and TUnit. They are in the solution, so `dotnet test` runs them with the specs.
+The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries.
 
 ## Generator harnesses
 

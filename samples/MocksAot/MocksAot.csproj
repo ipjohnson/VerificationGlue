@@ -13,9 +13,11 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <!-- begin-snippet: install-verificationglue-mocks -->
   <ItemGroup>
     <PackageReference Include="VerificationGlue.Mocks" Version="$(VerificationGlueVersion)" />
   </ItemGroup>
+  <!-- end-snippet -->
 
   <!-- Rooting the runtime makes the Native AOT publish analyze all of its code, not only what this sample calls. -->
   <ItemGroup>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace VerificationGlue.Mocks;
@@ -14,11 +15,12 @@ internal interface IArgMatcher
     bool IsDefaultOfMatchedType(object? value);
 }
 
+/// <summary>An exact argument. Arrays, such as a <c>params</c> argument, match when their elements are equal.</summary>
 internal sealed class EqualsMatcher(object? expected) : IArgMatcher
 {
     public int Position => -1;
 
-    public bool Matches(object? value) => Equals(expected, value);
+    public bool Matches(object? value) => StructuralComparisons.StructuralEqualityComparer.Equals(expected, value);
 
     public bool IsDefaultOfMatchedType(object? value) => false;
 
