@@ -52,6 +52,8 @@ public class InterceptorSpecs
             public static void MultiLine() => Verify(
                 order.Total
                     == 40);
+            public static void MultiLineOperand() => Verify(present == @"y
+        z");
             public static void WithMessage() => Verify(order.Total == 40, $"order total {order.Total}");
             public static void ThrowsNothing() => Throws<InvalidOperationException>(() => order.ToString());
             public static void ThrowsOther() => Throws<InvalidOperationException>(() => throw new FormatException("bad digit"));
@@ -130,6 +132,14 @@ public class InterceptorSpecs
         var failure = Fail("MultiLine");
 
         Assert.EndsWith($"\n  expected order.Total to equal 40\n  at Tests/Shapes.cs:{LineOf("MultiLine")}", failure.Message);
+    }
+
+    [Fact]
+    public void An_operand_on_several_lines_gives_no_shape_line()
+    {
+        var failure = Fail("MultiLineOperand");
+
+        Assert.Equal($"Verify failed: present == @\"y\nz\"\n  at Tests/Shapes.cs:{LineOf("MultiLineOperand")}", failure.Message);
     }
 
     [Fact]

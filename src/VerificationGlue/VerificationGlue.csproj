@@ -4,10 +4,12 @@
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Verify and Check assertions with generated failure messages that work under Native AOT.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VerificationGlue.Generator/VerificationGlue.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
     <None Include="buildTransitive/VerificationGlue.props" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

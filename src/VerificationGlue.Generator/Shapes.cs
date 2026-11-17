@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -10,32 +8,39 @@ namespace VerificationGlue.Generator;
 /// <summary>The tier 2 message for a call, from the shape of its argument.</summary>
 internal static class Shapes
 {
-    /// <summary>The message for a <c>Verify</c> condition, or null when its shape has none.</summary>
+    /// <summary>
+    /// The message for a <c>Verify</c> condition, or null when its shape has none. A shape whose
+    /// operand spans several lines, such as a raw string, also has none, because the first line of
+    /// the failure already shows the whole condition.
+    /// </summary>
     public static string? Condition(ExpressionSyntax condition, SemanticModel model, CancellationToken token)
     {
         condition = Unwrap(condition);
         switch (condition)
         {
             case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.NotEqualsExpression) && NullComparand(binary) is { } operand:
-                return $"{OneLine(operand)} can not be null";
+                return Say("{0} can not be null", operand);
             case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.EqualsExpression) && NullComparand(binary) is { } operand:
-                return $"expected {OneLine(operand)} to be null";
+                return Say("expected {0} to be null", operand);
             case BinaryExpressionSyntax binary when Relation(binary.Kind()) is { } relation:
-                return $"expected {OneLine(binary.Left)} {relation} {OneLine(binary.Right)}";
+                return Say("expected {0} " + relation + " {1}", binary.Left, binary.Right);
             case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.IsExpression):
-                return $"expected {OneLine(binary.Left)} to be of type {OneLine(binary.Right)}";
+                return Say("expected {0} to be of type {1}", binary.Left, binary.Right);
             case IsPatternExpressionSyntax pattern:
                 return Pattern(pattern);
             case PrefixUnaryExpressionSyntax not when not.IsKind(SyntaxKind.LogicalNotExpression):
-                return $"expected {OneLine(not.Operand)} to be false";
+                return Say("expected {0} to be false", not.Operand);
             case InvocationExpressionSyntax invocation when model.GetTypeInfo(invocation, token).Type?.SpecialType == SpecialType.System_Boolean:
-                return $"expected {OneLine(invocation)} to return true";
+                return Say("expected {0} to return true", invocation);
             default:
                 return null;
         }
     }
 
-    /// <summary>The message for a <c>Throws</c> or <c>ThrowsAsync</c> call, or null when the exception type is a type parameter.</summary>
+    /// <summary>
+    /// The message for a <c>Throws</c> or <c>ThrowsAsync</c> call, or null when the exception type
+    /// is a type parameter or the action spans several lines.
+    /// </summary>
     public static string? Throws(ExpressionSyntax action, ITypeSymbol exceptionType)
     {
         if (exceptionType is ITypeParameterSymbol)
@@ -44,30 +49,45 @@ internal static class Shapes
         }
 
         var body = Unwrap(action) is LambdaExpressionSyntax { ExpressionBody: { } expressionBody } ? expressionBody : action;
-        return $"expected {OneLine(body)} to throw {exceptionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}";
+        return Say("expected {0} to throw " + exceptionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat), body);
     }
 
-    public static string OneLine(SyntaxNode node) =>
-        string.Join(" ", node.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(part => part.Trim()));
-
-    private static string Pattern(IsPatternExpressionSyntax pattern)
+    private static string? Pattern(IsPatternExpressionSyntax pattern)
     {
-        var subject = OneLine(pattern.Expression);
+        var subject = pattern.Expression;
         switch (pattern.Pattern)
         {
             case ConstantPatternSyntax constant when IsNull(constant.Expression):
-                return $"expected {subject} to be null";
+                return Say("expected {0} to be null", subject);
             case UnaryPatternSyntax { Pattern: ConstantPatternSyntax notConstant } not when not.IsKind(SyntaxKind.NotPattern) && IsNull(notConstant.Expression):
-                return $"{subject} can not be null";
+                return Say("{0} can not be null", subject);
             case RecursivePatternSyntax { Type: null, Designation: null, PositionalPatternClause: null, PropertyPatternClause.Subpatterns.Count: 0 }:
-                return $"{subject} can not be null";
+                return Say("{0} can not be null", subject);
             case TypePatternSyntax type:
-                return $"expected {subject} to be of type {OneLine(type.Type)}";
+                return Say("expected {0} to be of type {1}", subject, type.Type);
             case DeclarationPatternSyntax declaration:
-                return $"expected {subject} to be of type {OneLine(declaration.Type)}";
+                return Say("expected {0} to be of type {1}", subject, declaration.Type);
             default:
-                return $"expected {subject} to match {OneLine(pattern.Pattern)}";
+                return Say("expected {0} to match {1}", subject, pattern.Pattern);
         }
+    }
+
+    /// <summary>Fills the format with the source text of each node, or returns null when a node spans several lines.</summary>
+    private static string? Say(string format, params SyntaxNode[] nodes)
+    {
+        var texts = new object[nodes.Length];
+        for (var i = 0; i < nodes.Length; i++)
+        {
+            var text = nodes[i].ToString();
+            if (text.IndexOf('\n') >= 0)
+            {
+                return null;
+            }
+
+            texts[i] = text;
+        }
+
+        return string.Format(System.Globalization.CultureInfo.InvariantCulture, format, texts);
     }
 
     private static ExpressionSyntax Unwrap(ExpressionSyntax expression)

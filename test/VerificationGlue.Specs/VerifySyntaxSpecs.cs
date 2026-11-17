@@ -17,11 +17,13 @@ public class VerifySyntaxSpecs
     [Fact]
     public void Verify_reports_the_source_text()
     {
+        #region tier-1-message
         var count = 2;
 
         var failure = Assert.Throws<VerifyException>(() => Verify(count == 3));
 
         Assert.Equal("Verify failed: count == 3", failure.Message);
+        #endregion
     }
 
     [Fact]

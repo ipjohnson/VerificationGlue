@@ -23,7 +23,7 @@ public class VerifyAnalyzerSpecs
     }
 
     [Theory]
-    [InlineData("var i = 0; Verify(i++ == 0);", "i++")]
+    [InlineData("var attempts = 0; Verify(attempts++ == 0);", "attempts++")]
     [InlineData("var i = 0; Verify(--i == -1);", "--i")]
     [InlineData("var i = 0; Verify((i = 2) == 2);", "i = 2")]
     [InlineData("var i = 0; Verify((i += 2) == 2);", "i += 2")]
@@ -38,7 +38,7 @@ public class VerifyAnalyzerSpecs
     }
 
     [Theory]
-    [InlineData("double d = 0.1 + 0.2; Verify(d == 0.3);", "d == 0.3", "double", "==")]
+    [InlineData("double total = 0.1 + 0.2; Verify(total == 0.3);", "total == 0.3", "double", "==")]
     [InlineData("float f = 1f; Verify(f != 2);", "f != 2", "float", "!=")]
     [InlineData("var items = new List<double> { 1 }; Verify(items[0] == 1 && items.Count == 1);", "items[0] == 1", "double", "==")]
     public void VG0004_reports_an_exact_floating_point_comparison(string body, string comparison, string type, string op)
@@ -54,8 +54,8 @@ public class VerifyAnalyzerSpecs
     [InlineData("var count = 3; Verify(count == 3);")]
     [InlineData("var count = 3; Verify(count == 3, $\"count {count}\");")]
     [InlineData("var items = new List<int> { 1 }; var sum = 0; Verify(items.All(item => { sum += item; return item > 0; }));")]
-    [InlineData("double d = 0.3; Verify(System.Math.Abs(d - 0.3) < 0.001);")]
-    [InlineData("var i = 0; i++; Verify(i == 1);")]
+    [InlineData("double total = 0.1 + 0.2; Verify(System.Math.Abs(total - 0.3) < 0.000001);")]
+    [InlineData("var attempts = 0; attempts++; Verify(attempts == 1);")]
     public void Plain_conditions_report_nothing(string body)
     {
         Assert.Empty(Analyze(body));
