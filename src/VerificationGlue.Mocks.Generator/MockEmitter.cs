@@ -73,7 +73,7 @@ internal static class MockEmitter
         }
 
         header.Append("#nullable enable\n#pragma warning disable\n");
-        return header + context.Output();
+        return header + context.Output() + "\n" + SurfaceEmitter.Emit(model);
     }
 
     private static void Constrain(ConstraintDefinition constraint, TypeParameterModel parameter)
@@ -329,12 +329,12 @@ internal static class MockEmitter
 
     private static string Explicit(ITypeDefinition contract, string name) => Render(contract) + "." + Escape(name);
 
-    private static string Escape(string name) =>
+    internal static string Escape(string name) =>
         SyntaxFacts.GetKeywordKind(name) != SyntaxKind.None || SyntaxFacts.GetContextualKeywordKind(name) == SyntaxKind.FieldKeyword
             ? "@" + name
             : name;
 
-    private static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
+    internal static string Literal(string text) => SymbolDisplay.FormatLiteral(text, quote: true);
 
     internal static string Render(ITypeDefinition type)
     {

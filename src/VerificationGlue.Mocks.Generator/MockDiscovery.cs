@@ -106,7 +106,11 @@ internal static class MockDiscovery
         return named.ContainingType != null && ContainsTypeParameter(named.ContainingType);
     }
 
-    private static bool IsRuntimeType(INamedTypeSymbol? type, string name) =>
+    /// <summary>True for <c>Arg&lt;T&gt;</c>, the parameter type of every typed <c>Setup()</c> and <c>Calls()</c> member.</summary>
+    public static bool IsTypedArg(ITypeSymbol? type) => type is INamedTypeSymbol named && IsRuntimeType(named, "Arg", arity: 1);
+
+    private static bool IsRuntimeType(INamedTypeSymbol? type, string name, int arity = 0) =>
         type is { ContainingNamespace: { Name: "Mocks", ContainingNamespace: { Name: "VerificationGlue", ContainingNamespace.IsGlobalNamespace: true } } } &&
-        type.Name == name;
+        type.Name == name &&
+        type.Arity == arity;
 }

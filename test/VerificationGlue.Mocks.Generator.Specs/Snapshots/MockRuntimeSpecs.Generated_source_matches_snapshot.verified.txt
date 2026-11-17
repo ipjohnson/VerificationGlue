@@ -92,3 +92,92 @@ namespace VerificationGlue.Mocks.Generated
         }
     }
 }
+
+namespace VerificationGlue.Mocks.Generated
+{
+    internal sealed class VerificationGlue_Mocks_Generator_Specs_ICalculator_Setup
+    {
+        private readonly global::VerificationGlue.Mocks.MockAdapter __adapter;
+
+        internal VerificationGlue_Mocks_Generator_Specs_ICalculator_Setup(global::VerificationGlue.Mocks.MockAdapter adapter)
+        {
+            this.__adapter = adapter;
+        }
+
+        public global::VerificationGlue.Mocks.MockSetup<int> Add(global::VerificationGlue.Mocks.Arg<int> a, global::VerificationGlue.Mocks.Arg<int> b)
+            => this.__adapter.SetupCall<int>(0, "Add", null, new object?[] { a, b });
+
+        public global::VerificationGlue.Mocks.MockSetup<bool> TryParse(global::VerificationGlue.Mocks.Arg<string> text, global::VerificationGlue.Mocks.Arg<int> value)
+            => this.__adapter.SetupCall<bool>(1, "TryParse", null, new object?[] { text, value });
+
+        public global::VerificationGlue.Mocks.MockSetup Reset()
+            => this.__adapter.SetupVoidCall(2, "Reset", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.MockSetup<global::System.Threading.Tasks.Task<int>> ComputeAsync(global::VerificationGlue.Mocks.Arg<int> value)
+            => this.__adapter.SetupCall<global::System.Threading.Tasks.Task<int>>(3, "ComputeAsync", null, new object?[] { value });
+
+        public global::VerificationGlue.Mocks.MockSetup<global::System.Threading.Tasks.ValueTask> FlushAsync()
+            => this.__adapter.SetupCall<global::System.Threading.Tasks.ValueTask>(4, "FlushAsync", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.MockSetup<T> Echo<T>(global::VerificationGlue.Mocks.Arg<T> value)
+            => this.__adapter.SetupCall<T>(5, "Echo", new global::System.Type[] { typeof(T) }, new object?[] { value });
+
+        public global::VerificationGlue.Mocks.MockSetup<int> Slot(global::VerificationGlue.Mocks.Arg<int> index)
+            => this.__adapter.SetupCall<int>(6, "Slot", null, new object?[] { index });
+
+        public global::VerificationGlue.Mocks.MockSetup<string?> Name
+            => this.__adapter.SetupCall<string?>(7, "get_Name", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.MockSetup<int> this[global::VerificationGlue.Mocks.Arg<int> index]
+            => this.__adapter.SetupCall<int>(9, "get_Item", null, new object?[] { index });
+    }
+
+    internal sealed class VerificationGlue_Mocks_Generator_Specs_ICalculator_Calls
+    {
+        private readonly global::VerificationGlue.Mocks.MockAdapter __adapter;
+
+        internal VerificationGlue_Mocks_Generator_Specs_ICalculator_Calls(global::VerificationGlue.Mocks.MockAdapter adapter)
+        {
+            this.__adapter = adapter;
+        }
+
+        public global::VerificationGlue.Mocks.CallCount Add(global::VerificationGlue.Mocks.Arg<int> a, global::VerificationGlue.Mocks.Arg<int> b)
+            => this.__adapter.CountCalls(0, "Add", null, new object?[] { a, b });
+
+        public global::VerificationGlue.Mocks.CallCount TryParse(global::VerificationGlue.Mocks.Arg<string> text, global::VerificationGlue.Mocks.Arg<int> value)
+            => this.__adapter.CountCalls(1, "TryParse", null, new object?[] { text, value });
+
+        public global::VerificationGlue.Mocks.CallCount Reset()
+            => this.__adapter.CountCalls(2, "Reset", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.CallCount ComputeAsync(global::VerificationGlue.Mocks.Arg<int> value)
+            => this.__adapter.CountCalls(3, "ComputeAsync", null, new object?[] { value });
+
+        public global::VerificationGlue.Mocks.CallCount FlushAsync()
+            => this.__adapter.CountCalls(4, "FlushAsync", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.CallCount Echo<T>(global::VerificationGlue.Mocks.Arg<T> value)
+            => this.__adapter.CountCalls(5, "Echo", new global::System.Type[] { typeof(T) }, new object?[] { value });
+
+        public global::VerificationGlue.Mocks.CallCount Slot(global::VerificationGlue.Mocks.Arg<int> index)
+            => this.__adapter.CountCalls(6, "Slot", null, new object?[] { index });
+
+        public global::VerificationGlue.Mocks.CallCount Name
+            => this.__adapter.CountCalls(7, "get_Name", null, global::System.Array.Empty<object?>());
+
+        public global::VerificationGlue.Mocks.CallCount this[global::VerificationGlue.Mocks.Arg<int> index]
+            => this.__adapter.CountCalls(9, "get_Item", null, new object?[] { index });
+    }
+}
+
+namespace VerificationGlue.Mocks
+{
+    internal static class VerificationGlue_Mocks_Generator_Specs_ICalculator_MockExtensions
+    {
+        public static global::VerificationGlue.Mocks.Generated.VerificationGlue_Mocks_Generator_Specs_ICalculator_Setup Setup(this global::VerificationGlue.Mocks.Generator.Specs.ICalculator mock)
+            => new(global::VerificationGlue.Mocks.MockAdapter.Of(mock));
+
+        public static global::VerificationGlue.Mocks.Generated.VerificationGlue_Mocks_Generator_Specs_ICalculator_Calls Calls(this global::VerificationGlue.Mocks.Generator.Specs.ICalculator mock)
+            => new(global::VerificationGlue.Mocks.MockAdapter.Of(mock));
+    }
+}

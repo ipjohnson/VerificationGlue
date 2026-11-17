@@ -92,6 +92,10 @@ internal sealed class CallSpec
         return MemberName + typeArguments + "(" + string.Join(", ", (object[])_matchers) + ")";
     }
 
+    /// <summary>A spec with one matcher per argument, each already in its place, as the typed surface gives them.</summary>
+    public static CallSpec FromMatchers(int memberId, string memberName, Type[]? typeArguments, IArgMatcher[] matchers) =>
+        new(memberId, memberName, typeArguments ?? Type.EmptyTypes, matchers);
+
     /// <summary>
     /// Gives each queued matcher an argument. A matcher with a position from a generated
     /// interceptor takes that argument. The others take the free arguments in order when there is

@@ -24,6 +24,7 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(
         MockDiagnostics.TypeCannotBeMocked,
         MockDiagnostics.MatcherWithoutPosition,
+        MockDiagnostics.MatcherInTypedSurface,
         MockDiagnostics.MemberCannotBeMocked,
         MockDiagnostics.TypeNotDiscovered,
         MockDiagnostics.SetupWithoutMockCall);
@@ -63,9 +64,17 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
             state.GenericCalls.Add(new GenericCall(method.OriginalDefinition, method.TypeArguments, invocation.Syntax.GetLocation()));
         }
 
-        if (MockDiscovery.ArgKindOf(method) is not null && !IsMockArgument(invocation))
+        if (MockDiscovery.ArgKindOf(method) is { } kind)
         {
-            context.ReportDiagnostic(Diagnostic.Create(MockDiagnostics.MatcherWithoutPosition, invocation.Syntax.GetLocation(), invocation.Syntax.ToString()));
+            if (ArgumentOf(invocation) is IArgumentOperation { Parameter: { } parameter } && MockDiscovery.IsTypedArg(parameter.Type))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MockDiagnostics.MatcherInTypedSurface, invocation.Syntax.GetLocation(), invocation.Syntax.ToString(), TypedReplacement(invocation, kind)));
+            }
+            else if (!IsMockArgument(invocation))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(MockDiagnostics.MatcherWithoutPosition, invocation.Syntax.GetLocation(), invocation.Syntax.ToString()));
+            }
         }
 
         if (MockDiscovery.IsSetup(method) && invocation.Arguments.FirstOrDefault()?.Value is { } receiver && !IsMockCall(Unwrap(receiver)))
@@ -119,8 +128,10 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    /// <summary>True when the matcher is passed directly to a mock member, or assigned directly to a mock property.</summary>
-    private static bool IsMockArgument(IOperation matcher)
+    /// <summary>The operation that takes the matcher's value, past implicit conversions such as the one to <c>Arg&lt;T&gt;</c>.</summary>
+    private static IOperation? ArgumentOf(IOperation matcher) => Outermost(matcher).Parent;
+
+    private static IOperation Outermost(IOperation matcher)
     {
         var current = matcher;
         while (current.Parent is IConversionOperation { IsImplicit: true } conversion)
@@ -128,6 +139,22 @@ public sealed class MockAnalyzer : DiagnosticAnalyzer
             current = conversion;
         }
 
+        return current;
+    }
+
+    /// <summary>The <c>Arg&lt;T&gt;</c> form of an NSubstitute-style matcher, such as <c>Arg&lt;int&gt;.Any()</c> for <c>Arg.Any&lt;int&gt;()</c>.</summary>
+    private static string TypedReplacement(IInvocationOperation invocation, ArgKind kind)
+    {
+        var type = "Arg<" + invocation.TargetMethod.TypeArguments[0].ToDisplayString(MessageFormat) + ">";
+        return kind == ArgKind.Any
+            ? type + ".Any()"
+            : type + ".Is(" + invocation.Arguments[0].Syntax + ")";
+    }
+
+    /// <summary>True when the matcher is passed directly to a mock member, or assigned directly to a mock property.</summary>
+    private static bool IsMockArgument(IOperation matcher)
+    {
+        var current = Outermost(matcher);
         return current.Parent switch
         {
             IArgumentOperation { Parameter: { } parameter } => MockDiscovery.IsMockableMember(parameter.ContainingSymbol),

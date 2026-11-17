@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace VerificationGlue.Mocks;
@@ -14,15 +13,7 @@ public static class MockSyntax
     public static void Returns<T>(this T call, T value) => Bind(_ => value);
 
     /// <summary>Makes the mock call before this one return each value in turn, repeating the last.</summary>
-    public static void Returns<T>(this T call, T first, params T[] then)
-    {
-        var index = -1;
-        Bind(_ =>
-        {
-            var next = Interlocked.Increment(ref index);
-            return next == 0 || then.Length == 0 ? first : then[Math.Min(next - 1, then.Length - 1)];
-        });
-    }
+    public static void Returns<T>(this T call, T first, params T[] then) => Bind(Responses.Sequence(first, then));
 
     /// <summary>Makes the mock call before this one return the result of <paramref name="factory"/>, which can also set <c>out</c> and <c>ref</c> arguments.</summary>
     public static void Returns<T>(this T call, Func<CallInfo, T> factory) => Bind(info => factory(info));
@@ -92,10 +83,7 @@ public static class MockSyntax
         return mock;
     }
 
-    private static MockAdapter AdapterOf(object mock) =>
-        mock is IMock generated
-            ? generated.Adapter
-            : throw new ArgumentException($"{mock.GetType()} is not a generated mock. Create one with Mock.Of<T>().", nameof(mock));
+    private static MockAdapter AdapterOf(object mock) => MockAdapter.Of(mock);
 }
 
 /// <summary>A call selected with <see cref="MockSyntax.When{T}"/>.</summary>

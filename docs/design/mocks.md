@@ -138,11 +138,12 @@ Verify(calc.Calls().Reset() == 0);
 
 How it works:
 
-- `Setup()` and `Calls()` are generated extension methods on the mocked type, for example `ICalculator`. They return `ICalculator_Setup` and `ICalculator_Calls`, generated in the mock's file.
-- Each member on those types takes `Arg<T>` for each parameter. `Arg<T>` is a struct with an implicit conversion from `T`, so `1` becomes an exact match and `Arg<int>.Any()` becomes a wildcard. Each matcher arrives as its own argument, so its position is known with no interceptor.
-- `Setup()` members return a typed builder, `MockSetup<int>` for `Add`, with `Returns`, `Throws` and `Does`. The value type is checked at compile time.
-- `Calls()` members return the number of matching recorded calls, as a type that compares with `int` through `==`, `!=`, `<`, `<=`, `>` and `>=`, so verification is a plain `Verify`. Its `ToString` lists up to 10 recorded calls to that member, so a failed `Verify` shows what the mock did receive. The failure text is checked through `samples/Messages` before the type is frozen in `PublicAPI.Shipped.txt`.
-- The typed matchers are static members of the `Arg<T>` struct: `Arg<int>.Any()` and `Arg<int>.Is(x => x > 10)`. They return `Arg<T>` and queue nothing. `Arg.Any<T>()` cannot serve both styles, because C# does not overload on return type, and two `Any<T>()` methods that differ only in return type fail with CS0111.
+- `Setup()` and `Calls()` are generated extension methods on the mocked type, for example `ICalculator`, in the `VerificationGlue.Mocks` namespace. They return classes named after the mock class, such as `Contracts_ICalculator_Setup` and `Contracts_ICalculator_Calls`, generated in the mock's file.
+- Each member on those types takes `Arg<T>` for each parameter. `Arg<T>` is a struct with an implicit conversion from `T`, so `1` becomes an exact match and `Arg<int>.Any()` becomes a wildcard. Each matcher arrives as its own argument, so its position is known with no interceptor. C# applies no user-defined conversion from an interface type, so an exact match on an interface-typed parameter is written `Arg<IClock>.Is(clock)`.
+- The surface has a member for each method, and for each property and indexer with a getter. It leaves out events, members that throw (VGM0003), and a member whose C# signature an earlier one already has, such as `M(int)` after `M(out int)`.
+- `Setup()` members return a typed builder, `MockSetup<int>` for `Add`, with `Returns`, `Throws` and `Does`. A `void` member returns `MockSetup`, with `Throws` and `Does`. The value type is checked at compile time, and `Returns(25)` on a `Task<int>` member wraps the value.
+- `Calls()` members return `CallCount`, the number of matching recorded calls, which compares with `int` through `==`, `!=`, `<`, `<=`, `>` and `>=`, so verification is a plain `Verify`. Its `ToString` lists up to 10 recorded calls to that member, such as `0 (Add received 2 calls: Add(3, 4), Add(5, 6))`, so a failed tier 3 `Verify` shows what the mock did receive. The failure text is checked through `samples/Messages` before the type is frozen in `PublicAPI.Shipped.txt`.
+- The typed matchers are static members of the `Arg<T>` struct: `Arg<int>.Any()`, `Arg<int>.Is(x => x > 10)` and `Arg<int>.Is(5)`. They return `Arg<T>` and queue nothing. `Arg.Any<T>()` cannot serve both styles, because C# does not overload on return type, and two `Any<T>()` methods that differ only in return type fail with CS0111.
 - An NSubstitute-style `Arg.Any<int>()` passed to a `Setup()` or `Calls()` parameter still compiles through the implicit conversion. It becomes an exact match on `0` and leaves a matcher queued, so VGM0002 reports it as an error. The diagnostics layer has a case through `Setup()` and one through `Calls()`.
 
 The typed surface is the recommended style for new code and for libraries. The NSubstitute style stays for teams moving from NSubstitute.
@@ -237,7 +238,9 @@ Phase 1 figures, the median of 5 runs on an Apple silicon Mac, for 500 interface
 | Generator run after an unrelated edit | 210 to 250 ms | 1,000 ms |
 | Compile of the input and the generated code | 941 to 1,238 ms | 4,500 ms |
 
-The budgets are about four times the local figures, because CI runners are slower. The `Check generator budgets` step in CI runs `test/Generator.Benchmarks` with `budget test/Generator.Benchmarks/mock-budgets.json` and fails when a median is over its budget. `MockGeneratorBenchmarks` gives the same scenarios through BenchmarkDotNet.
+The budgets are about four times the local figures, because CI runners are slower. On CI the compile median before Preview B was 2,629 ms.
+
+The typed surface of Preview B adds about a third to the compile time. In alternating runs on the same Mac, the compile median was 1,170 to 1,445 ms without it and 1,715 to 1,764 ms with it. The generator run times did not change beyond the noise. The `Check generator budgets` step in CI runs `test/Generator.Benchmarks` with `budget test/Generator.Benchmarks/mock-budgets.json` and fails when a median is over its budget. `MockGeneratorBenchmarks` gives the same scenarios through BenchmarkDotNet.
 
 Every mock call allocates an argument array and boxes value types. That is acceptable for tests. A typed fast path for calls with no matchers can come later if the benchmark shows a need.
 
@@ -346,7 +349,9 @@ The phase is built in this order, and each preview ships when its items are done
 
    The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour`, the diagnostics and pipeline layers in `test/VerificationGlue.Mocks.Generator.Specs`, and `samples/MocksAot` runs each feature under Native AOT in `eng/pack-and-consume.sh`. Not yet done: the `VerificationGlueMockAttribute` MSBuild item for other `[Mock]` attributes, and the auto-values for `string` and collections, which still return `default`.
 2. Preview B: typed surface.
-   - [ ] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
+   - [x] The typed `Setup()` and `Calls()` surface, with `Arg<T>.Any()`, `Arg<T>.Is(...)` and the call-count type.
+
+   The behaviour cases are in `test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs`, including a tier 3 `Verify` failure, and the VGM0002 error cases in `MockAnalyzerSpecs`. Not yet done: the `CallCount` case in `samples/Messages`, which is needed before `CallCount` is frozen.
 3. Preview C: recursive mocks.
    - [ ] Recursive mocks with `VerificationGlueMocksRecursionDepth`, its default set from the Phase 0 sweep, and analyzer VGM0007.
 4. First release.

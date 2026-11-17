@@ -9,4 +9,14 @@
     <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- VerificationGlue with tier 3, so the specs check what Verify(calc.Calls()...) reports. -->
+  <Import Project="../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <PropertyGroup>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
 </Project>
