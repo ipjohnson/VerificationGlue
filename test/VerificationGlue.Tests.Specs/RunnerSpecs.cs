@@ -1,5 +1,3 @@
-using System.Xml.Linq;
-
 namespace VerificationGlue.Tests.Specs;
 
 /// <summary>
@@ -8,7 +6,7 @@ namespace VerificationGlue.Tests.Specs;
 /// </summary>
 public class RunnerSpecs
 {
-    private static readonly string[] Passing =
+    internal static readonly string[] Passing =
     [
         "A_creates_an_instance",
         "B_sees_the_first_instance_disposed",
@@ -18,15 +16,35 @@ public class RunnerSpecs
         "Sees_its_attributes",
         "Static_test",
         "Uses_a_mock",
+        "Class_provider_supplies_the_parameter",
+        "Constructor_gets_the_mock_and_the_service",
+        "Is_cancelled_while_its_container_is_created",
+        "Is_created_by_the_container",
+        "Listener_override_reaches_the_service",
+        "Mock_reaches_the_assembly_scoped_service",
+        "Mock_reaches_the_class_scoped_service",
+        "Mock_reaches_the_test_scoped_service",
+        "Narrowest_provider_wins",
+        "Next_test_shares_the_class_database",
+        "Other_class_shares_the_assembly_database",
+        "Passes_on_the_second_attempt",
+        "Service_without_a_mock_gets_the_registered_clock",
+        "Starts_with_no_failed_checks",
+        "Writes_its_output_in_order",
     ];
 
-    private static readonly string[] Failing =
+    internal static readonly string[] Failing =
     [
         "Fails_in_the_original",
         "Fails_in_the_rewritten_copy",
         "Has_an_attribute_that_throws",
         "Needs_a_service",
         "Throws",
+        "Broken_class_first",
+        "Broken_class_second",
+        "Fails_before_the_test_runs",
+        "Keeps_every_failure",
+        "Reports_every_failed_check",
     ];
 
     [Fact]
@@ -138,33 +156,5 @@ public class RunnerSpecs
         return "{ \"sdk\": " + sdk + " }";
     }
 
-    private static Dictionary<string, TrxResult> Trx()
-    {
-        var directory = Directory.CreateTempSubdirectory("vg-trx-");
-        try
-        {
-            var result = Fixture.Run("--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", directory.FullName);
-            Assert.True(result.ExitCode == 2, result.Output);
-
-            XNamespace trx = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
-            var document = XDocument.Load(Path.Combine(directory.FullName, "fixture.trx"));
-            var classes = document.Descendants(trx + "UnitTest").ToDictionary(
-                test => test.Attribute("id")!.Value,
-                test => test.Element(trx + "TestMethod")!.Attribute("className")!.Value);
-
-            return document.Descendants(trx + "UnitTestResult").ToDictionary(
-                test => test.Attribute("testName")!.Value,
-                test => new TrxResult(
-                    test.Attribute("outcome")!.Value,
-                    classes[test.Attribute("testId")!.Value],
-                    test.Descendants(trx + "Message").FirstOrDefault()?.Value ?? "",
-                    test.Descendants(trx + "StackTrace").FirstOrDefault()?.Value ?? ""));
-        }
-        finally
-        {
-            directory.Delete(recursive: true);
-        }
-    }
-
-    private sealed record TrxResult(string Outcome, string ClassName, string Message, string StackTrace);
+    private static Dictionary<string, TrxResult> Trx() => TrxReport.Run();
 }

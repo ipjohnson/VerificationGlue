@@ -26,23 +26,42 @@ internal static class Fixture
     public static string Executable => Path.Combine(OutputDirectory, OperatingSystem.IsWindows() ? "VerificationGlue.Tests.Fixture.exe" : "VerificationGlue.Tests.Fixture");
 
     /// <summary>Runs the fixture executable with <paramref name="arguments"/>.</summary>
-    public static ProcessResult Run(params string[] arguments) => Process(Executable, OutputDirectory, arguments);
+    public static ProcessResult Run(params string[] arguments) => Process(Executable, OutputDirectory, new Dictionary<string, string>(), arguments);
+
+    /// <summary>
+    /// Runs the fixture executable with <paramref name="arguments"/> and <c>VG_FIXTURE_LOG</c> set to a
+    /// new file, and returns the lines the fixture logged with the result.
+    /// </summary>
+    public static (ProcessResult Result, string[] Log) RunLogged(IReadOnlyDictionary<string, string> environment, params string[] arguments)
+    {
+        var log = Path.Combine(Path.GetTempPath(), "vg-fixture-" + Guid.NewGuid().ToString("N") + ".log");
+        try
+        {
+            var variables = new Dictionary<string, string>(environment) { ["VG_FIXTURE_LOG"] = log };
+            var result = Process(Executable, OutputDirectory, variables, arguments);
+            return (result, File.Exists(log) ? File.ReadAllLines(log) : []);
+        }
+        finally
+        {
+            File.Delete(log);
+        }
+    }
 
     /// <summary>Runs <c>dotnet</c> with <paramref name="arguments"/> in <paramref name="directory"/>.</summary>
     public static ProcessResult Dotnet(string directory, params string[] arguments)
     {
         _ = Built.Value;
-        return Process("dotnet", directory, arguments);
+        return Process("dotnet", directory, new Dictionary<string, string>(), arguments);
     }
 
     private static string Build()
     {
-        var build = Process("dotnet", RepositoryRoot, "build", ProjectPath, "-c", Configuration);
+        var build = Process("dotnet", RepositoryRoot, new Dictionary<string, string>(), "build", ProjectPath, "-c", Configuration);
         Assert.True(build.ExitCode == 0, "dotnet build of the fixture failed:\n" + build.Output);
         return Path.Combine(RepositoryRoot, "test", "VerificationGlue.Tests.Fixture", "bin", Configuration, "net10.0");
     }
 
-    private static ProcessResult Process(string fileName, string directory, params string[] arguments)
+    private static ProcessResult Process(string fileName, string directory, IReadOnlyDictionary<string, string> environment, params string[] arguments)
     {
         var start = new ProcessStartInfo(fileName)
         {
@@ -63,6 +82,10 @@ internal static class Fixture
 
         start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
         start.Environment["NO_COLOR"] = "1";
+        foreach (var (name, value) in environment)
+        {
+            start.Environment[name] = value;
+        }
 
         using var process = System.Diagnostics.Process.Start(start)!;
         var output = new StringBuilder();

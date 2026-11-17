@@ -154,8 +154,37 @@ internal static class AttributeMaterializer
         return false;
     }
 
+    /// <summary>
+    /// The default value of <paramref name="parameter"/> as a C# expression of type <c>object?</c>,
+    /// or null when it has none or it cannot be written.
+    /// </summary>
+    public static string? WriteDefault(IParameterSymbol parameter)
+    {
+        if (!parameter.HasExplicitDefaultValue)
+        {
+            return null;
+        }
+
+        var type = Name(parameter.Type);
+        var underlying = parameter.Type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
+            ? nullable.TypeArguments[0]
+            : parameter.Type;
+        var value = parameter.ExplicitDefaultValue;
+        if (value is null)
+        {
+            return $"(object?)default({type})";
+        }
+
+        var literal = underlying.TypeKind == TypeKind.Enum
+            ? $"({Name(underlying)})({Convert.ToString(value, CultureInfo.InvariantCulture)})"
+            : value is decimal number
+                ? number.ToString(CultureInfo.InvariantCulture) + "M"
+                : Primitive(value, underlying.SpecialType);
+        return literal is null ? null : $"(object?)({type})({literal})";
+    }
+
     /// <summary>A typed constant written as a C# expression of the same type, or null when it cannot be.</summary>
-    private static string? Write(TypedConstant constant, Compilation compilation)
+    public static string? Write(TypedConstant constant, Compilation compilation)
     {
         if (constant.Kind == TypedConstantKind.Error || constant.Type is not { } type)
         {
