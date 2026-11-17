@@ -55,8 +55,8 @@ jobs:
         run: eng/pack-and-consume.sh --no-build
 
   # Times cold builds with the generator off, tier 2 alone and tier 3 in this one job, so the
-  # ratios compare builds on the same machine. It reports and does not fail on a budget, because no
-  # budget is approved yet.
+  # ratios compare builds on the same machine. Fails when a configuration is over a limit in
+  # test/ColdBuild/budgets.json. docs/design/verification-glue.md, Performance, has the figures.
   cold-build:
     runs-on: ubuntu-latest
     steps:
@@ -70,7 +70,9 @@ jobs:
         run: dotnet build test/ColdBuild -c Release
 
       - name: Run the cold-build benchmark
-        run: dotnet run --project test/ColdBuild -c Release --no-build -- --repeat 3 --output artifacts/cold-build
+        run: >
+          dotnet run --project test/ColdBuild -c Release --no-build --
+          --repeat 3 --output artifacts/cold-build --budget test/ColdBuild/budgets.json
 
       - name: Upload the report
         if: always()

@@ -49,6 +49,18 @@ public sealed class TestSources(string assemblyName, int tests, int callsPerTest
 
             """);
 
+        // Stands in for [VerifyTest] from VerificationGlue.Tests, whose runner always calls the copy.
+        yield return ("VerifyTestAttribute.cs", $$"""
+            namespace {{assemblyName}};
+
+            [VerificationGlue.VerifyRewrite]
+            [System.AttributeUsage(System.AttributeTargets.Method)]
+            public sealed class VerifyTestAttribute : System.Attribute
+            {
+            }
+
+            """);
+
         for (var index = 0; index < Classes; index++)
         {
             var first = index * TestsPerClass;

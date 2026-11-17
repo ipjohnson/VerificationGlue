@@ -33,6 +33,7 @@ internal sealed class CopyBuilder
     private readonly HashSet<InvocationExpressionSyntax> _wholeEdits = new();
     private readonly string _methodName;
     private int _sites;
+    private string? _linePath;
 
     private CopyBuilder(SemanticModel model, MethodDeclarationSyntax declaration, CancellationToken token)
     {
@@ -156,12 +157,18 @@ internal sealed class CopyBuilder
         return text.Append("\n#line default").ToString();
     }
 
-    /// <summary>A <c>#line</c> directive for the next line, then spaces up to the original column.</summary>
-    private static string LineDirective(LinePosition position, string fallbackPath, Location location)
+    /// <summary>
+    /// A <c>#line</c> directive for the next line, then spaces up to the original column when
+    /// <paramref name="indent"/> is true. The file name is written only when it changes, because a
+    /// directive without one keeps the last.
+    /// </summary>
+    private string LineDirective(LinePosition position, string fallbackPath, Location location, bool indent = true)
     {
         var mapped = location.GetMappedLineSpan();
         var path = mapped.HasMappedPath ? mapped.Path : fallbackPath;
-        return $"\n#line {(position.Line + 1).ToString(CultureInfo.InvariantCulture)} {Literal(path)}\n" + new string(' ', position.Character);
+        var file = path == _linePath ? "" : " " + Literal(path);
+        _linePath = path;
+        return $"\n#line {(position.Line + 1).ToString(CultureInfo.InvariantCulture)}{file}\n" + (indent ? new string(' ', position.Character) : "");
     }
 
     private static bool ReturnsNothing(IMethodSymbol method) =>
@@ -188,12 +195,13 @@ internal sealed class CopyBuilder
                 _edits.Add(new Edit(name.Span, () => name.ValueText + VerifyRewriteRules.Suffix));
             }
 
-            if (_model.GetOperation(invocation, _token) is IInvocationOperation operation)
+            if (target.Parameters.Length > invocation.ArgumentList.Arguments.Count &&
+                target.Parameters.Any(parameter => parameter.IsOptional && IsCallerMemberName(parameter)) &&
+                _model.GetOperation(invocation, _token) is IInvocationOperation operation)
             {
                 foreach (var argument in operation.Arguments)
                 {
-                    if (argument.ArgumentKind == ArgumentKind.DefaultValue && argument.Parameter is { } parameter &&
-                        parameter.GetAttributes().Any(attribute => attribute.AttributeClass?.ToDisplayString() == "System.Runtime.CompilerServices.CallerMemberNameAttribute"))
+                    if (argument.ArgumentKind == ArgumentKind.DefaultValue && argument.Parameter is { } parameter && IsCallerMemberName(parameter))
                     {
                         var close = invocation.ArgumentList.CloseParenToken.SpanStart;
                         var separator = invocation.ArgumentList.Arguments.Count > 0 ? ", " : "";
@@ -209,6 +217,13 @@ internal sealed class CopyBuilder
             ? left.Span.Start.CompareTo(right.Span.Start)
             : right.Span.Length.CompareTo(left.Span.Length));
     }
+
+    private static bool IsCallerMemberName(IParameterSymbol parameter) =>
+        parameter.GetAttributes().Any(attribute => attribute.AttributeClass is
+        {
+            Name: "CallerMemberNameAttribute",
+            ContainingNamespace: { Name: "CompilerServices", ContainingNamespace: { Name: "Runtime", ContainingNamespace.Name: "System" } },
+        });
 
     private static SyntaxToken? CalledName(InvocationExpressionSyntax invocation) => invocation.Expression switch
     {
@@ -264,6 +279,8 @@ internal sealed class CopyBuilder
         var callLine = call.GetLocation().GetMappedLineSpan();
         var mappedPath = callLine.HasMappedPath ? callLine.Path : path;
         var embedded = statement is ExpressionStatementSyntax && statement.Parent is not (BlockSyntax or SwitchSectionSyntax);
+        var indent = new string(' ', start.StartLinePosition.Character);
+        var next = "\n" + indent + "        .";
 
         var failure = new StringBuilder(Runtime)
             .Append(kind == CallKind.Check ? ".StartCheck(" : ".Start(")
@@ -271,7 +288,7 @@ internal sealed class CopyBuilder
             .Append((callLine.StartLinePosition.Line + 1).ToString(CultureInfo.InvariantCulture)).Append(')');
         foreach (var row in rewritten.Rows)
         {
-            failure.Append('\n').Append(row.Capture is null ? ".NotCaptured(" : ".Value(").Append(Literal(row.Label));
+            failure.Append(next).Append(row.Capture is null ? "NotCaptured(" : "Value(").Append(Literal(row.Label));
             if (row.Capture is not null)
             {
                 failure.Append(", ").Append(row.Capture);
@@ -287,28 +304,30 @@ internal sealed class CopyBuilder
 
         if (kind == CallKind.VerifyWithMessage && VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) is { } message)
         {
-            failure.Append("\n.Message(global::System.String.Create(global::System.Globalization.CultureInfo.InvariantCulture, ")
+            failure.Append(next).Append("Message(global::System.String.Create(global::System.Globalization.CultureInfo.InvariantCulture, ")
                 .Append(Render(message.Span)).Append("))");
         }
 
         if (VerifyCalls.ChainedName(call) is { } chained && call.Parent!.Parent is InvocationExpressionSyntax chain)
         {
-            failure.Append("\n.").Append(chained).Append('(').Append(string.Join(", ", chain.ArgumentList.Arguments.Select(argument => Render(argument.Expression.Span)))).Append(')');
+            failure.Append(next).Append(chained).Append('(').Append(string.Join(", ", chain.ArgumentList.Arguments.Select(argument => Render(argument.Expression.Span)))).Append(')');
         }
 
         var text = new StringBuilder();
         text.Append(embedded ? "{" : "").Append("\n#line hidden\n");
         foreach (var local in rewritten.Locals)
         {
-            text.Append(local.Declaration).Append('\n');
+            text.Append(indent).Append(local.Declaration).Append('\n');
         }
 
-        text.Append(LineDirective(start.StartLinePosition, path, statement.GetLocation()))
+        text.Append(LineDirective(start.StartLinePosition, path, statement.GetLocation()).TrimStart('\n'))
             .Append("if (!(").Append(rewritten.Text).Append("))\n")
-            .Append("#line hidden\n{\n")
-            .Append(kind == CallKind.Check ? "" : "throw ").Append(failure).Append(kind == CallKind.Check ? ".Report();" : ".Build();")
-            .Append("\n}\n").Append(embedded ? "}\n" : "");
-        text.Append(LineDirective(start.EndLinePosition, path, statement.GetLocation()));
+            .Append("#line hidden\n").Append(indent).Append("{\n")
+            .Append(indent).Append("    ").Append(kind == CallKind.Check ? "" : "throw ")
+            .Append(failure)
+            .Append(kind == CallKind.Check ? ".Report();" : ".Build();")
+            .Append('\n').Append(indent).Append("}\n").Append(embedded ? "}\n" : "");
+        text.Append(LineDirective(start.EndLinePosition, path, statement.GetLocation(), indent: false).TrimStart('\n'));
         return text.ToString();
     }
 

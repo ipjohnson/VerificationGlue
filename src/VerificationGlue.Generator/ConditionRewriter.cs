@@ -204,14 +204,14 @@ internal sealed class ConditionRewriter
                 return Receiver(access.Expression, access, guard) + "." + _render(access.Name);
 
             case ElementAccessExpressionSyntax element:
-                return Receiver(element.Expression, element, guard) + Arguments(element.ArgumentList.Arguments, "[", "]", guard);
+                return Receiver(element.Expression, element, guard) + Arguments(element, element.ArgumentList.Arguments, "[", "]", guard);
 
             case InvocationExpressionSyntax invocation when !_keepWhole(invocation):
             {
                 var callee = invocation.Expression is MemberAccessExpressionSyntax access && access.IsKind(SyntaxKind.SimpleMemberAccessExpression)
                     ? Receiver(access.Expression, invocation, guard) + "." + _render(access.Name)
                     : _render(invocation.Expression);
-                return callee + Arguments(invocation.ArgumentList.Arguments, "(", ")", guard);
+                return callee + Arguments(invocation, invocation.ArgumentList.Arguments, "(", ")", guard);
             }
         }
 
@@ -250,11 +250,18 @@ internal sealed class ConditionRewriter
         return text;
     }
 
-    private string Arguments(SeparatedSyntaxList<ArgumentSyntax> arguments, string open, string close, string? guard)
+    private string Arguments(ExpressionSyntax call, SeparatedSyntaxList<ArgumentSyntax> arguments, string open, string close, string? guard)
     {
-        var texts = new List<string>(arguments.Count);
-        foreach (var argument in arguments)
+        var parameters = _model.GetSymbolInfo(call, _token).Symbol switch
         {
+            IMethodSymbol method => method.Parameters,
+            IPropertySymbol indexer => indexer.Parameters,
+            _ => default,
+        };
+        var texts = new List<string>(arguments.Count);
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            var argument = arguments[index];
             var prefix = argument.NameColon is null ? "" : _render(argument.NameColon) + " ";
             if (!argument.RefKindKeyword.IsKind(SyntaxKind.None))
             {
@@ -262,11 +269,38 @@ internal sealed class ConditionRewriter
                 continue;
             }
 
-            var byValue = _model.GetOperation(argument, _token) is Microsoft.CodeAnalysis.Operations.IArgumentOperation { Parameter.RefKind: RefKind.None };
-            texts.Add(prefix + Visit(argument.Expression, guard, capture: byValue).Text);
+            texts.Add(prefix + Visit(argument.Expression, guard, capture: ByValue(parameters, argument, index)).Text);
         }
 
         return open + string.Join(", ", texts) + close;
+    }
+
+    /// <summary>
+    /// Whether the argument binds to a parameter taken by value. Capturing an argument to an
+    /// <c>in</c> parameter would pass a copy in place of the variable.
+    /// </summary>
+    private static bool ByValue(System.Collections.Immutable.ImmutableArray<IParameterSymbol> parameters, ArgumentSyntax argument, int index)
+    {
+        if (parameters.IsDefaultOrEmpty)
+        {
+            return false;
+        }
+
+        IParameterSymbol? parameter = null;
+        if (argument.NameColon is { } name)
+        {
+            parameter = parameters.FirstOrDefault(candidate => candidate.Name == name.Name.Identifier.ValueText);
+        }
+        else if (index < parameters.Length)
+        {
+            parameter = parameters[index];
+        }
+        else if (parameters[parameters.Length - 1].IsParams)
+        {
+            parameter = parameters[parameters.Length - 1];
+        }
+
+        return parameter is { RefKind: RefKind.None };
     }
 
     /// <summary>

@@ -31,4 +31,33 @@ public class ReportSpecs
         Assert.Equal(40, tier3.AddedSecondsAt100000Calls);
         Assert.Contains("| Tier 3 with redirects | 42.0 | 20.0 | 40.0 | 1.91 |", report.ToMarkdown(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void A_configuration_over_either_limit_fails_the_budget()
+    {
+        Run[] runs =
+        [
+            new(Tier.GeneratorOff, 0, [10]),
+            new(Tier.Tier2, 0, [60]),
+            new(Tier.Tier3, 0, [30]),
+        ];
+        var generated = Enum.GetValues<Tier>().ToDictionary(tier => tier, _ => new GeneratedCounts(0, 0, 0));
+        var report = new Report(1, 1_000, 100_000, runs, generated, "");
+        var budgets = new Budgets(new TierBudget(160, 5), new TierBudget(120, 7));
+
+        var checks = budgets.Check(report);
+
+        Assert.Equal(
+            [(Tier.Tier2, "Added seconds at 100,000 calls", true), (Tier.Tier2, "Ratio to generator off", false), (Tier.Tier3, "Added seconds at 100,000 calls", true), (Tier.Tier3, "Ratio to generator off", true)],
+            checks.Select(check => (check.Tier, check.Measure, check.Passed)));
+        Assert.Contains("| Tier 2 alone | Ratio to generator off | 5.00 | 6.00 | Over budget |", Budgets.ToMarkdown(checks), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_committed_budget_is_the_approved_one()
+    {
+        var budgets = Budgets.Load(Path.Combine(AppContext.BaseDirectory, "budgets.json"));
+
+        Assert.Equal(new Budgets(new TierBudget(160, 8.5), new TierBudget(120, 7.0)), budgets);
+    }
 }

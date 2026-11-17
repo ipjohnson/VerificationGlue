@@ -13,11 +13,12 @@ namespace ColdBuild;
 
 /// <summary>
 /// Writes the benchmark assemblies, rebuilds each one cold with the generator off, with tier 2 alone
-/// and with tier 3, and reports the added seconds and the ratio to the generator-off build.
+/// and with tier 3, and reports the added seconds and the ratio to the generator-off build. With
+/// <c>--budget</c>, it exits with 1 when a configuration is over a limit in the budget file.
 /// </summary>
 /// <remarks>
 /// Options: <c>--tests</c> (10000), <c>--calls-per-test</c> (10), <c>--assemblies</c> (3),
-/// <c>--repeat</c> (3) and <c>--output</c> (artifacts/cold-build).
+/// <c>--repeat</c> (3), <c>--output</c> (artifacts/cold-build) and <c>--budget</c> (none).
 /// </remarks>
 public static class Program
 {
@@ -34,8 +35,8 @@ public static class Program
         Directory.CreateDirectory(work);
         var lib = Path.Combine(work, "lib");
         Directory.CreateDirectory(lib);
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "ColdBuild.Runtime.dll"), Path.Combine(lib, "ColdBuild.Runtime.dll"));
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "generator", "ColdBuild.Generator.dll"), Path.Combine(lib, "ColdBuild.Generator.dll"));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "VerificationGlue.dll"), Path.Combine(lib, "VerificationGlue.dll"));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "generator", "VerificationGlue.Generator.dll"), Path.Combine(lib, "VerificationGlue.Generator.dll"));
 
         // Keeps the repository's props, targets and central package versions out of the benchmark projects.
         foreach (var name in new[] { "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props" })
@@ -85,6 +86,12 @@ public static class Program
         var report = new Report(options.Assemblies, options.Tests, calls, runs, generated, Describe());
         Check(report);
         var markdown = report.ToMarkdown();
+        IReadOnlyList<BudgetCheck> checks = options.Budget is null ? [] : Budgets.Load(options.Budget).Check(report);
+        if (checks.Count > 0)
+        {
+            markdown += Budgets.ToMarkdown(checks);
+        }
+
         Console.WriteLine();
         Console.WriteLine(markdown);
         File.WriteAllText(Path.Combine(output, "report.md"), markdown);
@@ -104,6 +111,7 @@ public static class Program
                 result.Generated,
             }),
             Runs = report.Runs.Select(run => new { Build = Report.Name(run.Tier), Run = run.Repeat + 1, run.AssemblySeconds, run.TotalSeconds }),
+            Budget = checks.Select(check => new { Build = Report.Name(check.Tier), check.Measure, check.Limit, check.Measured, check.Passed }),
         }, new JsonSerializerOptions { WriteIndented = true }));
 
         if (System.Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY") is { Length: > 0 } summary)
@@ -111,7 +119,13 @@ public static class Program
             File.AppendAllText(summary, markdown);
         }
 
-        return 0;
+        var over = checks.Where(check => !check.Passed).ToArray();
+        foreach (var check in over)
+        {
+            Console.Error.WriteLine($"{Report.Name(check.Tier)} is over budget: {check.Measure} is {check.Measured.ToString("F2", CultureInfo.InvariantCulture)}, and the limit is {check.Limit.ToString("F2", CultureInfo.InvariantCulture)}.");
+        }
+
+        return over.Length == 0 ? 0 : 1;
     }
 
     private const string ProjectFile = """
@@ -121,12 +135,12 @@ public static class Program
             <Nullable>enable</Nullable>
             <LangVersion>latest</LangVersion>
             <InterceptorsNamespaces>$(InterceptorsNamespaces);VerificationGlue.Generated</InterceptorsNamespaces>
-            <ColdBuildRewrite Condition="'$(ColdBuildTier)' == 'Tier3'">true</ColdBuildRewrite>
+            <VerificationGlueRewrite Condition="'$(ColdBuildTier)' == 'Tier3'">true</VerificationGlueRewrite>
           </PropertyGroup>
           <ItemGroup>
-            <Reference Include="ColdBuild.Runtime" HintPath="../lib/ColdBuild.Runtime.dll" />
-            <Analyzer Include="../lib/ColdBuild.Generator.dll" Condition="'$(ColdBuildTier)' != 'GeneratorOff'" />
-            <CompilerVisibleProperty Include="ColdBuildRewrite" />
+            <Reference Include="VerificationGlue" HintPath="../lib/VerificationGlue.dll" />
+            <Analyzer Include="../lib/VerificationGlue.Generator.dll" Condition="'$(ColdBuildTier)' != 'GeneratorOff'" />
+            <CompilerVisibleProperty Include="VerificationGlueRewrite" />
           </ItemGroup>
         </Project>
 
@@ -211,11 +225,11 @@ public static class Program
         return text;
     }
 
-    private sealed record Options(int Tests, int CallsPerTest, int Assemblies, int Repeat, string Output)
+    private sealed record Options(int Tests, int CallsPerTest, int Assemblies, int Repeat, string Output, string? Budget)
     {
         public static Options Parse(string[] args)
         {
-            var options = new Options(10_000, 10, 3, 3, Path.Combine("artifacts", "cold-build"));
+            var options = new Options(10_000, 10, 3, 3, Path.Combine("artifacts", "cold-build"), null);
             for (var index = 0; index < args.Length; index += 2)
             {
                 if (index + 1 >= args.Length)
@@ -231,6 +245,7 @@ public static class Program
                     "--assemblies" => options with { Assemblies = int.Parse(value, CultureInfo.InvariantCulture) },
                     "--repeat" => options with { Repeat = int.Parse(value, CultureInfo.InvariantCulture) },
                     "--output" => options with { Output = value },
+                    "--budget" => options with { Budget = value },
                     _ => throw new ArgumentException($"Unknown option {args[index]}."),
                 };
             }
