@@ -98,4 +98,16 @@ public static class Precedence
         calc.Mode = 2;
         observe.Record("Mode after the set", calc.Mode);
     }
+
+    [Case("Returns null on a string member wins over the empty-string auto-value")]
+    public static async Task Returns_null_for_a_string(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Describe("x").Returns((string?)null);
+        calc.NameAsync().Returns((string)null!);
+
+        observe.Record("Describe(\"x\") is null", calc.Describe("x") is null);
+        observe.Record("Describe(\"y\")", calc.Describe("y"));
+        observe.Record("NameAsync() result is null", await calc.NameAsync() is null);
+    }
 }

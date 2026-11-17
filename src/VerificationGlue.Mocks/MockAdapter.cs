@@ -53,7 +53,7 @@ public sealed class MockAdapter
 
     /// <summary>A call to a member that returns a value.</summary>
     public TResult Call<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
-        Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : AutoValue<TResult>();
+        Answer<TResult>(Dispatch(memberId, name, typeArguments, arguments, out var result), result);
 
     /// <summary>
     /// A call to a member whose return type has a generated mock. An unconfigured call returns a
@@ -93,7 +93,7 @@ public sealed class MockAdapter
     /// <summary>A call to a member that returns by reference. The reference points at a new location holding the response or the auto-value.</summary>
     public ref TResult CallRef<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments)
     {
-        var value = Dispatch(memberId, name, typeArguments, arguments, out var result) && result is TResult typed ? typed : AutoValue<TResult>();
+        var value = Answer<TResult>(Dispatch(memberId, name, typeArguments, arguments, out var result), result);
         return ref new StrongBox<TResult>(value).Value!;
     }
 
@@ -232,6 +232,10 @@ public sealed class MockAdapter
 
     /// <summary>The value of an unconfigured call: an empty string for <see cref="string"/>, and <c>default</c> otherwise.</summary>
     private static TResult AutoValue<TResult>() => typeof(TResult) == typeof(string) ? (TResult)(object)"" : default!;
+
+    /// <summary>The response when a configured response answered the call, including a null response, and the auto-value otherwise.</summary>
+    private static TResult Answer<TResult>(bool answered, object? result) =>
+        !answered ? AutoValue<TResult>() : result is TResult typed ? typed : default!;
 
     private bool Dispatch(int memberId, string name, Type[]? typeArguments, object?[] arguments, out object? result) =>
         Dispatch(memberId, name, typeArguments, arguments, out result, out _);
