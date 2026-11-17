@@ -14,5 +14,7 @@
   <ItemGroup>
     <Compile Include="../src/**/*.cs" />
     <PackageReference Include="Microsoft.Testing.Platform" Version="2.5.3" />
+    <!-- Rider's Testing Platform provider treats a project as MTP only when it references this package. -->
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.3" />
   </ItemGroup>
 </Project>

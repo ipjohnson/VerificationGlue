@@ -17,8 +17,8 @@ Each claim below is marked **(verified)** when a run on the pinned stack showed 
 | Component | Version | Where it is pinned |
 |---|---|---|
 | .NET SDK | 10.0.403, osx-arm64 | `spikes/ide/global.json`, with `rollForward` set to `disable` |
-| Microsoft.Testing.Platform | 2.5.3 | `spikes/ide/Mtp2/Mtp2.csproj` |
-| Microsoft.Testing.Platform | 3.0.0-preview.26566.9 | `spikes/ide/Mtp3/Mtp3.csproj`, from the dnceng `test-tools` feed in `spikes/ide/NuGet.config`. nuget.org has no 3.x build. |
+| Microsoft.Testing.Platform and Microsoft.Testing.Platform.MSBuild | 2.5.3 | `spikes/ide/Mtp2/Mtp2.csproj` |
+| Microsoft.Testing.Platform and Microsoft.Testing.Platform.MSBuild | 3.0.0-preview.26566.9 | `spikes/ide/Mtp3/Mtp3.csproj`, from the dnceng `test-tools` feed in `spikes/ide/NuGet.config`. nuget.org has no 3.x build. |
 | JetBrains Rider | 2026.2.0.2 (macOS) | Installed on the spike machine |
 | Visual Studio Code | 1.144.0 (macOS) | Installed on the spike machine |
 | C# Dev Kit for VS Code | 11.11.98 | Current marketplace version on 2026-11-16 |
@@ -115,6 +115,15 @@ The MTP 2.5.3 column is historical comparison only, as the north star says. It s
 ## IDE results
 
 A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS.
+
+### What Rider needs to discover an MTP project
+
+Rider 2026.2.0.2 needs two things before it shows any test from the spike **(verified)**:
+
+- **Enable Testing Platform support** under Settings > Build, Execution, Deployment > Unit Testing > Testing Platform. Rider ships it turned off. `spikes/ide/IdeSpike.slnx.DotSettings` turns it on for the spike solution.
+- A package reference to `Microsoft.Testing.Platform.MSBuild`. Rider's Testing Platform provider looks for this package, or the older `Microsoft.Testing.Extensions.MSBuild`, and skips any project without it. A project that references only `Microsoft.Testing.Platform` is logged as `Exploration finished for <Mtp3,net10.0,Testing Platform>: Skipped (Not supported by provider)`.
+
+`VerificationGlue.Tests` must therefore depend on `Microsoft.Testing.Platform.MSBuild`, as xunit.v3, MSTest and TUnit do. The IDE setup page must tell Rider users to turn on Testing Platform support. Adding the package to the spike changed no host result in the table above, and the AOT publish still has no warnings.
 
 ### Discovery, run and navigation
 
