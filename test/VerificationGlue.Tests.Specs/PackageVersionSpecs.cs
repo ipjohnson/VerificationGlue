@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 
 namespace VerificationGlue.Tests.Specs;
@@ -10,9 +11,10 @@ public class PackageVersionSpecs
     [InlineData("VerificationGlue.Tests")]
     public void Runtimes_share_one_version(string assemblyName)
     {
-        Assert.Equal(VersionOf(typeof(PackageVersionSpecs).Assembly), VersionOf(Assembly.Load(assemblyName)));
-    }
+        var expected = typeof(PackageVersionSpecs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
-    private static string? VersionOf(Assembly assembly) =>
-        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var actual = FileVersionInfo.GetVersionInfo(Path.Combine(Fixture.OutputDirectory, assemblyName + ".dll")).ProductVersion;
+
+        Assert.Equal(expected, actual);
+    }
 }

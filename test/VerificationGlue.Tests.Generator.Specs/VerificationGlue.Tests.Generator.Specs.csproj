@@ -2,5 +2,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
   </ItemGroup>
 </Project>

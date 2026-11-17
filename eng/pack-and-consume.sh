@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Packs the three packages into a local feed and checks them as a user would see them:
 #   1. the package layout, one version for all three, and exact dependencies from VerificationGlue.Tests;
-#   2. a sample that references only VerificationGlue.Tests builds, publishes under Native AOT with
-#      warnings as errors, and runs;
+#   2. samples/PackageConsumer, a test project that references VerificationGlue.Tests, builds, runs and
+#      publishes under Native AOT with warnings as errors without the global.json runner setting. dotnet test
+#      fails with VGT1001 without the setting and runs the tests with it. The Native AOT binary runs every
+#      test, lists them, runs one by UID and writes TRX, and the script records how long the runs take;
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line;
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
@@ -53,6 +55,9 @@ expect_entry VerificationGlue.Mocks "buildTransitive/VerificationGlue.Mocks.targ
 expect_entry VerificationGlue.Mocks "README.md"
 expect_entry VerificationGlue.Tests "lib/net10.0/VerificationGlue.Tests.dll"
 expect_entry VerificationGlue.Tests "analyzers/dotnet/cs/VerificationGlue.Tests.Generator.dll"
+expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.props"
+expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.targets"
+expect_entry VerificationGlue.Tests "README.md"
 
 nuspec="$(unzip -p "$feed/VerificationGlue.Tests.$version.nupkg" VerificationGlue.Tests.nuspec)"
 for dependency in VerificationGlue VerificationGlue.Mocks; do
@@ -76,6 +81,7 @@ write_sample() {
     <clear />
     <add key="local" value="$feed" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="test-tools" value="https://pkgs.dev.azure.com/dnceng/public/_packaging/test-tools/nuget/v3/index.json" />
   </packageSources>
   <packageSourceMapping>
     <packageSource key="local">
@@ -84,6 +90,11 @@ write_sample() {
     </packageSource>
     <packageSource key="nuget.org">
       <package pattern="*" />
+      <!-- The stable Microsoft.Testing.* versions the samples need are on nuget.org; the MTP 3 previews are on test-tools. -->
+      <package pattern="Microsoft.Testing.*" />
+    </packageSource>
+    <packageSource key="test-tools">
+      <package pattern="Microsoft.Testing.*" />
     </packageSource>
   </packageSourceMapping>
   <config>
@@ -93,14 +104,61 @@ write_sample() {
 CONFIG
 }
 
-echo "== Consume and publish with Native AOT"
+now_ms() { python3 -I -c 'import time; print(int(time.time() * 1000))'; }
+
+echo "== Consume as a test project without the global.json runner setting"
 sample="$work/sample"
 write_sample "$sample"
-dotnet publish "$sample/PackageConsumer.csproj" -c Release -warnaserror \
-  -p:VerificationGlueVersion="$version" -o "$sample/publish"
+python3 -I -c 'import json, sys; g = json.load(open(sys.argv[1])); g.pop("test", None); json.dump(g, open(sys.argv[2], "w"), indent=2)' \
+  "$root/global.json" "$sample/global.json"
+grep -q '"runner"' "$sample/global.json" && fail "the sample's global.json still selects a test runner"
+mtp_version="$(sed -n 's/.*Include="Microsoft.Testing.Platform" Version="\([^"]*\)".*/\1/p' "$root/Directory.Packages.props")"
+grep -q "Include=\"Microsoft.Testing.Extensions.TrxReport\" Version=\"$mtp_version\"" "$sample/PackageConsumer.csproj" \
+  || fail "samples/PackageConsumer does not reference Microsoft.Testing.Extensions.TrxReport $mtp_version, the MTP version in Directory.Packages.props"
+
+cd "$sample"
+# The publish comes first, because it restores for the runtime identifier and a later restore without one keeps working.
+dotnet publish PackageConsumer.csproj -c Release -warnaserror -p:VerificationGlueVersion="$version" -o "$sample/publish"
 [ -x "$sample/publish/PackageConsumer" ] || [ -f "$sample/publish/PackageConsumer.exe" ] \
   || fail "the Native AOT publish produced no executable"
-"$sample/publish/PackageConsumer"
+dotnet build PackageConsumer.csproj -c Release -warnaserror -p:VerificationGlueVersion="$version"
+dotnet run --project PackageConsumer.csproj -c Release --no-build --property:VerificationGlueVersion="$version"
+
+set +e
+output="$(dotnet test PackageConsumer.csproj -c Release --no-build -p:VerificationGlueVersion="$version" 2>&1)"
+status=$?
+set -e
+echo "$output"
+[ $status -ne 0 ] || fail "dotnet test without the runner setting succeeded"
+echo "$output" | grep -q "error VGT1001" || fail "dotnet test without the runner setting failed, but not with VGT1001"
+echo "dotnet test without the runner setting failed with VGT1001"
+
+echo "== Run the tests under Native AOT"
+"$sample/publish/PackageConsumer" || fail "the tests failed under Native AOT"
+"$sample/publish/PackageConsumer" --list-tests | grep -q "found 5 test(s)" || fail "the Native AOT binary did not list 5 tests"
+"$sample/publish/PackageConsumer" --filter-uid "PackageConsumer.AotTests.Runs_a_test()" | grep -q "total: 1" \
+  || fail "--filter-uid did not select exactly one test under Native AOT"
+"$sample/publish/PackageConsumer" --report-trx --report-trx-filename aot.trx --results-directory "$sample/results" > /dev/null
+[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "5" ] \
+  || fail "the TRX report from the Native AOT binary does not show 5 passed tests"
+
+# Timed after the runs above, so the first launch of each binary is not part of the figure.
+"$sample/bin/Release/net10.0/PackageConsumer" > /dev/null || fail "the tests failed before the Native AOT publish"
+jit_start="$(now_ms)"
+"$sample/bin/Release/net10.0/PackageConsumer" > /dev/null
+jit_ms=$(( $(now_ms) - jit_start ))
+aot_start="$(now_ms)"
+"$sample/publish/PackageConsumer" > /dev/null
+aot_ms=$(( $(now_ms) - aot_start ))
+
+summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 5 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
+echo "$summary"
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
+
+echo "== dotnet test with the runner setting"
+cp "$root/global.json" "$sample/global.json"
+dotnet test --project PackageConsumer.csproj -c Release --no-build -p:VerificationGlueVersion="$version"
+cd "$root"
 
 echo "== Verify messages under Native AOT"
 aot="$work/verify-aot"

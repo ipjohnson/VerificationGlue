@@ -45,7 +45,10 @@ The example uses a `partial` class so it is eligible for tier 3. Rewriting remai
 
 - `OutputType=Exe` and `IsTestingPlatformApplication=true`.
 - One `TestingPlatformBuilderHook` item, so the MTP MSBuild package generates an entry point that registers this framework.
-- `InterceptorsNamespaces` for the generated code.
+
+The registrations call test methods directly, so they need no `InterceptorsNamespaces` entry. A project that publishes with Native AOT must also set `OutputType=Exe` itself: restore evaluates the project before the package props are imported, so without it the restore has no runtime identifier and the publish fails with NETSDK1047.
+
+The MTP 3 previews are published only on the dnceng `test-tools` feed. The repository's `NuGet.config` maps `Microsoft.Testing.*` to that feed and to nuget.org, so the xunit specs keep MTP 2 from nuget.org.
 
 `build/VerificationGlue.Tests.targets` checks `global.json` for `"test": {"runner": "Microsoft.Testing.Platform"}` only when `dotnet test` runs in VSTest mode, in a target that runs before the `VSTest` target and before MTP's own `_MTPBeforeVSTest` check. When the setting is missing there, it fails with VGT1001 and prints the exact JSON to add. It never fails `dotnet build`, `dotnet run` or `dotnet publish`, which do not need the setting. A package cannot set this itself, because the `dotnet` CLI reads `global.json` before it evaluates any project. `dotnet run` on the test project works without it, because the project is an executable.
 
@@ -351,14 +354,14 @@ When done, a user marks methods `[VerifyTest]`, runs `dotnet test`, filters by U
 
 Needs: Phase 0, and "Repository foundation" in the north star. The calls to `__Verified` need `verification-glue.md` Phase 2, which holds the tier 3 rewrite and `WillRewrite`.
 
-- [ ] Runtime adapter for discovery and execution, built against the current MTP 3 preview.
-- [ ] Generator for registration, UIDs and attribute materialisation, built on CSharpAuthor.
-- [ ] The props and targets, including VGT1001, with acceptance cases: build, run and AOT publish succeed without the `global.json` setting, and `dotnet test` without it prints the guidance on the chosen MTP stack.
-- [ ] Exact-version dependencies on `VerificationGlue` and `VerificationGlue.Mocks`, and VGT0007.
-- [ ] Calls to `__Verified` through `WillRewrite`.
-- [ ] Analyzers VGT0001 and VGT0004.
-- [ ] A Native AOT test project in CI, with startup time recorded.
-- [ ] Pages: README, `docs/guide/getting-started-tests.md`, the guide "Running under Native AOT", `docs/diagnostics/VGT0001.md`, `VGT0004.md`, `VGT0006.md`, `VGT0007.md` and `VGT1001.md`, and the generated-code page.
+- [x] Runtime adapter for discovery and execution, built against the current MTP 3 preview. It pins 3.0.0-preview.26566.9, the version Phase 0 checked. It runs the selected tests one at a time until Phase 3 adds schedule groups. MTP 3 has no cancelled state, so a cancelled test is reported as an error.
+- [x] Generator for registration, UIDs and attribute materialisation, built on CSharpAuthor. `CancellationToken` and `TestContext` are the built-in parameters; any other parameter fails its test until Phase 2.
+- [x] The props and targets, including VGT1001, with acceptance cases: build, run and AOT publish succeed without the `global.json` setting, and `dotnet test` without it prints the guidance on the chosen MTP stack. `eng/pack-and-consume.sh` runs these on `samples/PackageConsumer`.
+- [x] Exact-version dependencies on `VerificationGlue` and `VerificationGlue.Mocks`, and VGT0007.
+- [x] Calls to `__Verified` through `WillRewrite`.
+- [x] Analyzers VGT0001 and VGT0004, and VGT0006 for the attributes the registration leaves out.
+- [x] A Native AOT test project in CI, with startup time recorded in the job summary.
+- [x] Pages: README, `docs/guide/getting-started-tests.md`, the guide "Running under Native AOT" (`docs/guide/run-tests-under-native-aot.md`), `docs/diagnostics/VGT0001.md`, `VGT0004.md`, `VGT0006.md`, `VGT0007.md` and `VGT1001.md`, and the generated-code page (`docs/guide/generated/test-registrations.md`).
 
 ### Phase 2: scopes and containers
 

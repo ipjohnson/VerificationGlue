@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    Makes a project that references VerificationGlue.Tests directly a test application:
+    Microsoft.Testing.Platform.MSBuild generates its entry point, which calls the hook below.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestingPlatformApplication>true</IsTestingPlatformApplication>
+    <IsTestProject Condition="'$(IsTestProject)' == ''">true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <TestingPlatformBuilderHook Include="4F1A3E0B-6C2D-4B6E-9D47-5A1F0C8E2B91">
+      <DisplayName>VerificationGlue.Tests</DisplayName>
+      <TypeFullName>VerificationGlue.Tests.TestingPlatformBuilderHook</TypeFullName>
+    </TestingPlatformBuilderHook>
+  </ItemGroup>
+</Project>

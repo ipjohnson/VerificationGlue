@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    dotnet test runs the VSTest target only when global.json does not select the Microsoft.Testing.Platform
+    runner. The CLI reads global.json before it evaluates a project, so a package cannot set it. This target
+    runs before MTP's own _MTPBeforeVSTest check and prints the line to add. dotnet build, dotnet run and
+    dotnet publish never run the VSTest target, so they do not need the setting.
+  -->
+  <Target Name="_VerificationGlueTestsRequireMtpRunner" BeforeTargets="VSTest;_MTPBeforeVSTest" Condition="'$(IsTestingPlatformApplication)' == 'true'">
+    <Error Code="VGT1001"
+           HelpLink="https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT1001.md"
+           Text="dotnet test needs the Microsoft.Testing.Platform runner for a VerificationGlue.Tests project. Add this to the global.json next to the solution: &quot;test&quot;: { &quot;runner&quot;: &quot;Microsoft.Testing.Platform&quot; }" />
+  </Target>
+</Project>

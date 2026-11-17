@@ -8,6 +8,34 @@ internal static class Diagnostics
 
     private const string HelpLinkBase = "https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/";
 
+    public static readonly DiagnosticDescriptor DuplicateUid = new(
+        id: "VGT0001",
+        title: "Two tests have the same ID",
+        messageFormat: "The test ID '{0}' is also the ID of another test. Each test ID must be unique.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0001.md",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor NotRunnable = new(
+        id: "VGT0004",
+        title: "A [VerifyTest] method cannot run",
+        messageFormat: "The [VerifyTest] method '{0}' {1}, so the runner does not register it",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0004.md");
+
+    public static readonly DiagnosticDescriptor AttributeNotMaterialized = new(
+        id: "VGT0006",
+        title: "An attribute is not passed to extension points",
+        messageFormat: "The attribute '{0}' is not passed to extension points, because {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0006.md");
+
     public static readonly DiagnosticDescriptor VersionMismatch = new(
         id: "VGT0007",
         title: "VerificationGlue version does not match VerificationGlue.Tests",

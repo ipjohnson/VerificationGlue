@@ -42,9 +42,30 @@ public class DiagnosticPageSpecs
     }
 
     [Fact]
+    public void Build_errors_are_found()
+    {
+        Assert.Contains(BuildErrors(), error => error.Id == "VGT1001");
+    }
+
+    [Fact]
+    public void Every_build_error_has_a_page_and_links_to_it()
+    {
+        var problems = BuildErrors()
+            .SelectMany(error => new[]
+            {
+                File.Exists(PagePath(error.Id)) ? null : $"{error.Id} in {error.File} has no page at docs/diagnostics/{error.Id}.md",
+                error.HelpLink == HelpLinkBase + error.Id + ".md" ? null : $"{error.Id} in {error.File} has HelpLink '{error.HelpLink}'",
+            })
+            .OfType<string>()
+            .ToList();
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
     public void Every_page_has_a_descriptor()
     {
-        var ids = Descriptors().Select(descriptor => descriptor.Id).ToHashSet();
+        var ids = Descriptors().Select(descriptor => descriptor.Id).Concat(BuildErrors().Select(error => error.Id)).ToHashSet();
 
         var orphans = Pages()
             .Select(Path.GetFileNameWithoutExtension)
@@ -88,6 +109,14 @@ public class DiagnosticPageSpecs
     }
 
     private static string PagePath(string id) => Path.Combine(DiagnosticsDirectory, id + ".md");
+
+    /// <summary>The <c>Error</c> tasks with a VG code in the packages' MSBuild files, such as VGT1001.</summary>
+    private static List<(string Id, string HelpLink, string File)> BuildErrors() =>
+        Directory.GetFiles(Path.Combine(RepositoryRoot.Path, "src"), "*.targets", SearchOption.AllDirectories)
+            .SelectMany(file => System.Xml.Linq.XDocument.Load(file).Descendants()
+                .Where(element => element.Name.LocalName == "Error" && (element.Attribute("Code")?.Value.StartsWith("VG", StringComparison.Ordinal) ?? false))
+                .Select(element => (element.Attribute("Code")!.Value, element.Attribute("HelpLink")?.Value ?? "", Path.GetRelativePath(RepositoryRoot.Path, file))))
+            .ToList();
 
     private static IEnumerable<string> Pages() =>
         Directory.Exists(DiagnosticsDirectory) ? Directory.GetFiles(DiagnosticsDirectory, "*.md") : [];
