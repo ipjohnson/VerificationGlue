@@ -4,5 +4,6 @@
     <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
+    <ProjectReference Include="../../samples/Messages/Messages.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The xunit Assert side of docs/guide/migrate-from-xunit-assert.md. It does not reference VerificationGlue. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../Store/Store.csproj" />
+  </ItemGroup>
+</Project>

@@ -42,7 +42,9 @@ expect_entry() {
 }
 expect_entry VerificationGlue "lib/net10.0/VerificationGlue.dll"
 expect_entry VerificationGlue "analyzers/dotnet/cs/VerificationGlue.Generator.dll"
+expect_entry VerificationGlue "analyzers/dotnet/cs/VerificationGlue.CodeFixes.dll"
 expect_entry VerificationGlue "buildTransitive/VerificationGlue.props"
+expect_entry VerificationGlue "llms.txt"
 expect_entry VerificationGlue.Mocks "lib/net10.0/VerificationGlue.Mocks.dll"
 expect_entry VerificationGlue.Mocks "analyzers/dotnet/cs/VerificationGlue.Mocks.Generator.dll"
 expect_entry VerificationGlue.Mocks "buildTransitive/VerificationGlue.Mocks.props"

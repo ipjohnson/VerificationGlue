@@ -37,7 +37,7 @@ These were written before any IDE check ran. They say what the docs promise for 
 | Rider | The docs support that version through `dotnet test`, the test executable, and a run configuration that starts the test executable. The unit test window is listed as unsupported. | The docs say that the unit test window cannot open the test source in that version. | The setup page names Rider and documents the same property. Tier 3 stays opt-in. |
 | VS Code with C# Dev Kit | The docs support `dotnet test` in the terminal and a `launch.json` that starts the test executable. The Testing view is listed as unsupported. | The docs say that the Testing view cannot open the test source in that version. | The setup page names VS Code and documents the same property. Tier 3 stays opt-in. |
 
-`verification-glue.md` does not name the property that switches tier 3 yet. The setup page uses the name that Phase 2 gives it.
+The property that switches tier 3 is `VerificationGlueRewrite`, from `verification-glue.md` Phase 2. The setup page that `tests.md` Phase 1 adds documents that name.
 
 Hot Reload has its own section in the results. A Hot Reload failure is documented as a limitation and does not block the default.
 

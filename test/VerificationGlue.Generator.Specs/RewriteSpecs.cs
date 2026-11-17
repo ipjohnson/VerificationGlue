@@ -530,13 +530,13 @@ public class RewriteSpecs
     [Fact]
     public void The_rewritten_check_maps_to_its_original_line()
     {
-        var copy = CopyTree("Values");
-        var statement = copy.GetRoot(TestContext.Current.CancellationToken).DescendantNodes().OfType<IfStatementSyntax>().First();
+        var copy = CopyTree("Checks");
+        var statements = copy.GetRoot(TestContext.Current.CancellationToken).DescendantNodes().OfType<IfStatementSyntax>().ToArray();
 
-        var mapped = statement.GetLocation().GetMappedLineSpan();
+        var mapped = statements.Select(statement => statement.GetLocation().GetMappedLineSpan()).ToArray();
 
-        Assert.Equal(Path, mapped.Path);
-        Assert.Equal(LineOf("s.StartsWith(\"x\") && s.Length < 10"), mapped.StartLinePosition.Line + 1);
+        Assert.All(mapped, span => Assert.Equal(Path, span.Path));
+        Assert.Equal([LineOf("Check(x > 1)"), LineOf("Check(x > 2)")], mapped.Select(span => span.StartLinePosition.Line + 1));
     }
 
     [Fact]

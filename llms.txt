@@ -1,0 +1,13 @@
+# VerificationGlue repository
+
+> Three .NET packages for tests: `VerificationGlue` for assertions with generated failure messages, `VerificationGlue.Mocks` for source-generated mocks, and `VerificationGlue.Tests` for a test runner. Each package carries its own `llms.txt`.
+
+## Packages
+
+- [VerificationGlue](src/VerificationGlue/llms.txt): `Verify`, `Check`, `Throws` and `VerifyScope`. The agent guide for writing checks.
+
+## Rules
+
+- Write test code against the docs under `docs/guide/`. Every code block there comes from a project under `samples/` that CI builds and runs.
+- A diagnostic ID such as VG0003 has a page at `docs/diagnostics/<ID>.md` with the cause and the fix.
+- Design documents under `docs/design/` describe planned work. Check the phase checklists there before relying on a feature that a guide does not show.

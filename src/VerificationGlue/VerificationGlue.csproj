@@ -12,5 +12,6 @@
     <ProjectReference Include="../VerificationGlue.CodeFixes/VerificationGlue.CodeFixes.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
     <None Include="buildTransitive/VerificationGlue.props" Pack="true" PackagePath="buildTransitive/" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="llms.txt" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
