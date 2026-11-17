@@ -12,7 +12,8 @@ namespace VerificationGlue.Mocks.Generator;
 
 /// <summary>
 /// Generates a mock class for each type named in <c>Mock.Of&lt;T&gt;()</c>, <c>[Mock]</c> or
-/// <c>[assembly: GenerateMock(typeof(T))]</c>, a module initializer that registers them, and one
+/// <c>[assembly: GenerateMock(typeof(T))]</c> and for the recursive mocks their members return up to
+/// <c>VerificationGlueMocksRecursionDepth</c>, a module initializer that registers them, and one
 /// file of <c>Arg</c> interceptors per source file. Diagnostics come from <see cref="MockAnalyzer"/>,
 /// so no model here holds a location.
 /// </summary>
@@ -50,10 +51,18 @@ public sealed class MockGenerator : IIncrementalGenerator
             .SelectMany(static (models, _) => models)
             .WithTrackingName(DiscoveryStep);
 
+        var depth = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) => RecursiveMocks.ReadDepth(options.GlobalOptions));
+
         var mocks = calls.Collect()
             .Combine(attributed.Collect())
             .Combine(assembly.Collect())
-            .SelectMany(static (all, _) => Distinct(all.Left.Left.Concat(all.Left.Right).Concat(all.Right)))
+            .Combine(depth)
+            .Combine(context.CompilationProvider)
+            .SelectMany(static (all, _) => WithRecursive(
+                all.Left.Left.Left.Left.Concat(all.Left.Left.Left.Right).Concat(all.Left.Left.Right),
+                all.Left.Right,
+                all.Right))
             .WithTrackingName(MocksStep);
 
         context.RegisterSourceOutput(mocks, static (output, model) => output.AddSource(model.MockName + ".g.cs", MockEmitter.Emit(model)));
@@ -113,14 +122,18 @@ public sealed class MockGenerator : IIncrementalGenerator
     private static MockModel? Build(ITypeSymbol? type, Compilation compilation) =>
         MockDiscovery.Closed(type) is { } closed ? MockModelBuilder.Build(closed, compilation) : null;
 
-    /// <summary>One model per mock class, in name order, without the refused types, which the analyzer reports.</summary>
-    private static ImmutableArray<MockModel> Distinct(IEnumerable<MockModel> models) =>
-        models
-            .Where(model => !model.IsRefused)
-            .GroupBy(model => model.MockName)
-            .Select(group => group.First())
+    /// <summary>
+    /// One model per mock class, for the discovered types and the recursive mocks their members
+    /// return, in name order. Refused types are left out, and the analyzer reports them.
+    /// </summary>
+    private static ImmutableArray<MockModel> WithRecursive(IEnumerable<MockModel> roots, int depth, Compilation compilation)
+    {
+        var walk = RecursiveMocks.Walk(roots, depth, compilation);
+        return walk.Nodes
+            .Select(walk.Finish)
             .OrderBy(model => model.MockName, System.StringComparer.Ordinal)
             .ToImmutableArray();
+    }
 
     private static (string Path, ArgSite Site)? FromArg(GeneratorSyntaxContext syntax, CancellationToken token)
     {

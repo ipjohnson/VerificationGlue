@@ -53,7 +53,9 @@ internal sealed record ParameterModel(
 /// One interface member. <see cref="Unsupported"/> holds the reason when the member compiles but
 /// throws, which the generator reports as VGM0003. <see cref="SurfaceKey"/> is equal for two
 /// members whose typed setup members would have the same C# signature, such as <c>M(string)</c> and
-/// <c>M(out string?)</c>, so the surface keeps only the first.
+/// <c>M(out string?)</c>, so the surface keeps only the first. <see cref="MockReturn"/> is the
+/// return type when a recursive mock could stand for it, and <see cref="ReturnsMock"/> is true when
+/// the generated member returns one.
 /// </summary>
 internal sealed record MockMemberModel(
     MemberKind Kind,
@@ -72,7 +74,16 @@ internal sealed record MockMemberModel(
     bool IsUnsafe,
     bool CanRaise,
     string? Unsupported,
-    string SurfaceKey);
+    string SurfaceKey,
+    MockReturnModel? MockReturn = null,
+    bool ReturnsMock = false);
+
+/// <summary>
+/// An interface return type outside the <c>System</c> namespaces that a recursive mock can stand
+/// for. <see cref="ReferenceId"/> and <see cref="Assembly"/> find its symbol again in a later
+/// compilation, because a model holds no symbol.
+/// </summary>
+internal sealed record MockReturnModel(string TypeName, string MockName, string ReferenceId, string Assembly);
 
 internal sealed record DiagnosticModel(string Id, EquatableArray<string> Arguments);
 

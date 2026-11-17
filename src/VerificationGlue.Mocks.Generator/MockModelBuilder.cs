@@ -258,7 +258,8 @@ internal sealed class MockModelBuilder
             isUnsafe,
             false,
             unsupported,
-            "M:" + method.Name + "`" + method.Arity + "(" + ParameterKeys(method.Parameters) + ")"));
+            "M:" + method.Name + "`" + method.Arity + "(" + ParameterKeys(method.Parameters) + ")",
+            returnKind == ReturnKind.Value && unsupported == null ? MockReturn(method.ReturnType) : null));
         return null;
     }
 
@@ -297,7 +298,8 @@ internal sealed class MockModelBuilder
             isUnsafe,
             false,
             unsupported,
-            property.IsIndexer ? "I:" + ParameterKeys(property.Parameters) : "P:" + property.MetadataName));
+            property.IsIndexer ? "I:" + ParameterKeys(property.Parameters) : "P:" + property.MetadataName,
+            returnKind == ReturnKind.Value && unsupported == null && property.GetMethod != null ? MockReturn(property.Type) : null));
         _nextId += 2;
         return null;
     }
@@ -450,6 +452,31 @@ internal sealed class MockModelBuilder
         }
 
         return (ReturnKind.Value, null);
+    }
+
+    /// <summary>The return type as a recursive mock target: a closed, accessible interface outside the <c>System</c> namespaces.</summary>
+    private MockReturnModel? MockReturn(ITypeSymbol type)
+    {
+        if (MockDiscovery.Closed(type) is not { TypeKind: TypeKind.Interface } named ||
+            IsInSystem(named.ContainingNamespace) ||
+            named.ContainingAssembly is not { } assembly ||
+            !_compilation.IsSymbolAccessibleWithin(named, _compilation.Assembly) ||
+            DocumentationCommentId.CreateReferenceId(named) is not { Length: > 0 } id)
+        {
+            return null;
+        }
+
+        return new MockReturnModel(named.ToDisplayString(MessageFormat), MockName(named), id, assembly.Identity.GetDisplayName());
+    }
+
+    private static bool IsInSystem(INamespaceSymbol? ns)
+    {
+        while (ns is { ContainingNamespace.IsGlobalNamespace: false })
+        {
+            ns = ns.ContainingNamespace;
+        }
+
+        return ns is { Name: "System" };
     }
 
     private string? ValueProblem(ITypeSymbol type, string what)

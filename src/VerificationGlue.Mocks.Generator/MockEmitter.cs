@@ -296,6 +296,7 @@ internal static class MockEmitter
             ReturnKind.ValueTask => head + "CallValueTask" + tail,
             ReturnKind.ValueTaskOfT => head + "CallValueTask<" + Render(member.AwaitedType!) + ">" + tail,
             ReturnKind.Ref => head + "CallRef<" + Render(member.Type!) + ">" + tail,
+            ReturnKind.Value when member.ReturnsMock => head + "CallMock<" + Render(member.Type!) + ">" + tail,
             _ => head + "Call<" + Render(member.Type!) + ">" + tail,
         };
     }

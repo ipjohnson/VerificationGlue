@@ -38,6 +38,7 @@ var compilation = CSharpCompilation.Create(
     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable, allowUnsafe: true));
 
 var groups = new List<SourceResult>();
+var swept = new List<INamedTypeSymbol>();
 foreach (var source in input.SweptSources)
 {
     var watch = Stopwatch.StartNew();
@@ -50,6 +51,7 @@ foreach (var source in input.SweptSources)
         .SelectMany(a => PublicInterfaces(a.GlobalNamespace))
         .OrderBy(t => t.ToDisplayString(), StringComparer.Ordinal)
         .ToList();
+    swept.AddRange(interfaces);
     var outcomes = MockCompiler.Compile(compilation, interfaces, out var otherErrors, out _);
     groups.Add(new SourceResult(source, assemblies.Select(a => a.Name).Order().ToList(), outcomes, otherErrors, watch.Elapsed));
     Console.WriteLine($"{source}: {interfaces.Count} interfaces, {outcomes.Count(o => o.Failed)} failed, {watch.Elapsed.TotalSeconds:F1}s");
@@ -69,9 +71,14 @@ foreach (var failed in groups.SelectMany(g => g.Outcomes).Where(o => o.Failed))
     File.WriteAllText(Path.Combine(failedDirectory, failed.MockName + ".g.cs"), failed.Source);
 }
 
-File.WriteAllText(Path.Combine(output, "report.md"), report.Markdown());
+var depthWatch = Stopwatch.StartNew();
+var depths = RecursionDepths.Markdown(RecursionDepths.Measure(compilation, swept));
+File.WriteAllText(Path.Combine(output, "report.md"), report.Markdown() + Environment.NewLine + depths);
 File.WriteAllText(Path.Combine(output, "report.json"), report.Json());
 
+Console.WriteLine();
+Console.WriteLine(depths);
+Console.WriteLine($"Recursion depths measured in {depthWatch.Elapsed.TotalSeconds:F1}s.");
 Console.WriteLine();
 Console.WriteLine(report.Summary());
 foreach (var failure in groups.SelectMany(g => g.Outcomes.Where(o => o.Failed).Select(o => (g.Source, o))))
