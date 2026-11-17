@@ -23,6 +23,7 @@
     <Project Path="test/ColdBuild.Generator/ColdBuild.Generator.csproj" />
     <Project Path="test/ColdBuild.Runtime/ColdBuild.Runtime.csproj" />
     <Project Path="test/ColdBuild.Specs/ColdBuild.Specs.csproj" />
+    <Project Path="test/Contract.Specs/Contract.Specs.csproj" />
     <Project Path="test/Docs.Specs/Docs.Specs.csproj" />
     <Project Path="test/Generator.Benchmarks/Generator.Benchmarks.csproj" />
     <Project Path="test/Generator.Harness/Generator.Harness.csproj" />
