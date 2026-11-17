@@ -102,9 +102,74 @@ failed A_failing_test_shows_the_app_log (19ms)
     [Information] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://localhost/orders - 200 - application/json;+charset=utf-8 6.7520ms
 ```
 
+## Entry point shapes
+
+The second spike is under `spikes/aspnet/Shapes`. It builds one app for each shape of entry point, and `EntryGenerator` in the test project writes the entry type for each app. Every shape starts on the JIT and under Native AOT, and the test's `[Mock]` reaches the app in each one **(verified)**.
+
+The test marks a partial class with the app's assembly name, and the generator fills in `ApplicationName` and `Run`:
+
+```csharp
+[WebAppEntry("TaskIntApp")]
+public sealed partial class TaskIntAppEntry;
+
+[WebApp<TaskIntAppEntry>]
+public partial class TaskIntAppTests { /* ... */ }
+```
+
+### Results
+
+All of these are **(verified)**. Each app maps `GET /now` to its `IClock`, and each test checks that the app answers with the mocked time.
+
+| Shape | App | Method the generated entry type calls in a build | JIT | Native AOT |
+|---|---|---|---|---|
+| Top-level statements that return `void` | `VoidApp` | `void Program.<Main>$(string[])` | passes | passes |
+| Top-level statements that return `int` | `IntApp` | `int Program.<Main>$(string[])` | passes | passes |
+| Top-level statements that return `Task` | `TaskApp` | `void Program.<Main>(string[])` | passes | passes |
+| Top-level statements that return `Task<int>` | `TaskIntApp` | `int Program.<Main>(string[])` | passes | passes |
+| An explicit `private static async Task<int> Main` in the static class `MainApp.Server` | `MainApp` | `int MainApp.Server.<Main>(string[])` | passes | passes |
+| Top-level statements with `internal partial class Program` | `InternalApp` | `void Program.<Main>$(string[])` | passes | passes |
+| The same, with `InternalsVisibleTo` for the test project | `InternalIvtApp` | `void Program.<Main>$(string[])` | passes | passes |
+| `Host.CreateDefaultBuilder` with `ConfigureWebHostDefaults` and a `Startup` class | `StartupApp` | `void Program.<Main>$(string[])` | passes | passes when hosts build one at a time |
+
+The evidence:
+
+- On the JIT, the test project runs 13 of 13 tests in 148 to 227 ms over three runs.
+- `dotnet publish -c Release` of `Shapes.Aot.Tests` has no warnings and takes 22 s. The binary is 18.8 MB, and a run takes 29 to 32 ms.
+- With `WEBAPP_SERIAL_BUILD=1` the bootstrap builds one host at a time. Then all 13 native tests pass in 20 of 20 runs.
+- Without it, 12 of 20 native runs fail the test that starts many apps at once. In each of those runs the `Startup` test fails next with the same `NullReferenceException` in `ActivatorUtilities.CreateInstance`. In the other 8 runs the `Startup` test passes.
+
+The `Startup` test on its own does not fail under Native AOT. The failure comes from hosts that build at the same time.
+
+### What a generator in the test project can read
+
+A generator sees the app through one of three kinds of reference. `SymbolProbe` compiles each shape and prints what a referencing compilation sees of the entry type **(verified)**:
+
+| Reference | Default import | With `MetadataImportOptions.All` |
+|---|---|---|
+| `CompilationReference`, which the IDE uses for a project reference | `<Main>$` or `Main` with its signature | the same |
+| Reference assembly, which `dotnet build` passes to the compiler | no private method | the PE entry point only |
+| Full assembly | no private method | `<Main>$` or `Main`, and `<Main>` for an async entry point |
+
+The PE entry point is the method the runtime starts. For `void` and `int` it is `<Main>$` itself. For an `async` entry point the compiler adds a private method named `<Main>` that returns `void` or `int` and blocks on the task. A reference assembly keeps that one private method and drops the others.
+
+So a generator can write the entry type for every shape, after it switches the compilation's import to `MetadataImportOptions.All`. `EntryGenerator` does that with `compilation.WithOptions(...)` and looks for a static method named `Main`, `<Main>` or `<Main>$` with an entry point signature **(verified)**.
+
+- For an async shape the IDE and the build give the generator different methods. In the IDE it writes an accessor for `Task <Main>$`, and in the build for `void <Main>`. Both methods exist in the app at run time, so either accessor works **(verified)**.
+- The generated accessor names the app's type as a string through `UnsafeAccessorType`, such as `"Program, InternalApp"`. An internal `Program` and a static class need no `InternalsVisibleTo` **(verified)**.
+- A hand-written entry type that names an internal `Program` without `InternalsVisibleTo` fails with CS0122. With `InternalsVisibleTo` it builds and passes **(verified)**.
+- A static class cannot be the type of an accessor's parameter, so an entry type for `MainApp.Server` has to name it as a string **(inference)**.
+- The cost of `MetadataImportOptions.All` on each edit in the IDE was not measured.
+
+### An entry type that does not know the shape
+
+`ProbingTaskIntAppEntry` has one accessor for each shape and calls them in turn. A call to an accessor whose method does not exist throws `MissingMethodException`, on the JIT with `Method not found: 'Program.<Main>$'.` and under Native AOT with `Method not found: '<Main>$'.`. The type catches it and tries the next accessor, and the test passes on both **(verified)**. This fallback is not needed, because the generator can read the shape.
+
+### Recommendation
+
+A generator in the test project should write the entry type. It reads the shape from the reference, it needs no `InternalsVisibleTo`, and the test author writes one attribute. An analyzer that checks a hand-written entry type would need to read the same private method, so it would do the generator's work and still leave the code to the user.
+
 ## Not covered
 
-- **The entry point's shape.** `ShopApiEntry` is written by hand and matches a `Program.cs` with no `await`, whose entry point returns `void`. A `Program.cs` with `await` or a `return` has another signature. A generator should write the entry type, and the spike did not check that a generator can read the signature of a private method in a referenced assembly.
 - **Parallel tests.** The bootstrap finds its host through an `AsyncLocal` set on the app's thread, so two apps that start at once should not mix **(inference)**. The runner runs one test at a time until `tests.md` Phase 3.
 - **Heavier apps.** The spike's app has three services. An app with EF Core, hosted services or a slow startup was not measured.
 - **Per-test configuration.** The spike passes fixed command-line arguments. It has no way for a test to set a configuration value or the environment name.
