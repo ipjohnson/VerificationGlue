@@ -15,22 +15,17 @@ namespace VerificationGlue.Tests.Generated
                 "TestsGettingStarted",
                 "CartTests",
                 "Total_adds_the_line_prices",
-                global::System.Array.Empty<string>(),
                 "System.Void",
                 "CartTests.cs",
                 31,
-                static () => [.. global::VerificationGlue.Tests.Generated.AssemblyAttributes.Create(), new global::VerificationGlue.Tests.VerifyTestAttribute()],
-                static async context =>
+                static () => [],
+                static () => [new global::VerificationGlue.Tests.VerifyTestAttribute()],
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                static context => new global::TestsGettingStarted.CartTests(),
+                static async (context, instance) =>
                 {
-                    var instance = new global::TestsGettingStarted.CartTests();
-                    try
-                    {
-                        instance.Total_adds_the_line_prices__Verified();
-                    }
-                    finally
-                    {
-                        await global::VerificationGlue.Tests.TestRuntime.DisposeAsync(instance);
-                    }
+                    ((global::TestsGettingStarted.CartTests)instance!).Total_adds_the_line_prices__Verified();
                 }));
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Checkout_empties_the_cart(System.Threading.CancellationToken)",
@@ -39,22 +34,20 @@ namespace VerificationGlue.Tests.Generated
                 "TestsGettingStarted",
                 "CartTests",
                 "Checkout_empties_the_cart",
-                new string[] { "System.Threading.CancellationToken" },
                 "System.Threading.Tasks.Task",
                 "CartTests.cs",
                 45,
-                static () => [.. global::VerificationGlue.Tests.Generated.AssemblyAttributes.Create(), new global::VerificationGlue.Tests.VerifyTestAttribute()],
-                static async context =>
+                static () => [],
+                static () => [new global::VerificationGlue.Tests.VerifyTestAttribute()],
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                new global::VerificationGlue.Tests.TestParameter[]
                 {
-                    var instance = new global::TestsGettingStarted.CartTests();
-                    try
-                    {
-                        await instance.Checkout_empties_the_cart__Verified(context.CancellationToken);
-                    }
-                    finally
-                    {
-                        await global::VerificationGlue.Tests.TestRuntime.DisposeAsync(instance);
-                    }
+                    new("cancellationToken", typeof(global::System.Threading.CancellationToken), "System.Threading.CancellationToken", 0, false, static () => [], null, null, false, null),
+                },
+                static context => new global::TestsGettingStarted.CartTests(),
+                static async (context, instance) =>
+                {
+                    await ((global::TestsGettingStarted.CartTests)instance!).Checkout_empties_the_cart__Verified((global::System.Threading.CancellationToken)global::VerificationGlue.Tests.TestRuntime.Argument(context, 0)!);
                 }));
         }
     }

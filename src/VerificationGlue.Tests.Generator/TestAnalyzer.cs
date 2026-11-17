@@ -9,13 +9,14 @@ namespace VerificationGlue.Tests.Generator;
 
 /// <summary>
 /// Reports the <c>[VerifyTest]</c> methods the runner cannot call (VGT0004), the attributes the
-/// registration leaves out (VGT0006), and test IDs that two tests share (VGT0001).
+/// registration leaves out (VGT0006), test IDs that two tests share (VGT0001), and tests with
+/// <c>[Mock]</c> parameters under a shared container that cannot take overrides (VGT0008).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TestAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [Diagnostics.DuplicateUid, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized];
+        [Diagnostics.DuplicateUid, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized, Diagnostics.SharedContainerWithoutChildOverrides];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -49,7 +50,25 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
 
                 uids.Add((TestDiscovery.Uid(method), location));
                 var compilation = symbol.Compilation;
+                if (TestDiscovery.SharedContainerWithoutChildOverrides(method, compilation) is { } shared)
+                {
+                    symbol.ReportDiagnostic(Diagnostic.Create(Diagnostics.SharedContainerWithoutChildOverrides, location, method.Name, shared.Bootstrap, shared.Scope));
+                }
+
                 Check(method.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                foreach (var parameter in method.Parameters)
+                {
+                    Check(parameter.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                }
+
+                if (TestDiscovery.Constructor(method, compilation) is { } constructor)
+                {
+                    foreach (var parameter in constructor.Parameters)
+                    {
+                        Check(parameter.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                    }
+                }
+
                 Check(method.ContainingType.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
                 if (Interlocked.Exchange(ref assemblyChecked, 1) == 0)
                 {

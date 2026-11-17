@@ -74,15 +74,36 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
                     break;
 
                 case RunTestExecutionRequest run:
-                    var runFilter = Filter(run.Filter);
-                    foreach (var test in _tests.Where(runFilter))
+                    var selected = _tests.Where(Filter(run.Filter)).ToArray();
+                    var runner = new TestRunner(selected, context.CancellationToken);
+                    try
                     {
-                        await Publish(context, run.Session.SessionUid, test, InProgressTestNodeStateProperty.CachedInstance, null);
-                        var start = DateTimeOffset.UtcNow;
-                        var watch = Stopwatch.StartNew();
-                        var (state, failure) = await RunAsync(test, context.CancellationToken);
-                        var timing = new TimingProperty(new TimingInfo(start, start + watch.Elapsed, watch.Elapsed));
-                        await Publish(context, run.Session.SessionUid, test, state, failure, timing);
+                        foreach (var test in selected)
+                        {
+                            if (context.CancellationToken.IsCancellationRequested)
+                            {
+                                break;
+                            }
+
+                            await Publish(context, run.Session.SessionUid, test, InProgressTestNodeStateProperty.CachedInstance, null);
+                            var start = DateTimeOffset.UtcNow;
+                            var watch = Stopwatch.StartNew();
+                            var outcome = await runner.RunAsync(test);
+                            var timing = new TimingProperty(new TimingInfo(start, start + watch.Elapsed, watch.Elapsed));
+                            var (state, failure) = State(outcome.Failures);
+                            await Publish(context, run.Session.SessionUid, test, state, failure, timing, outcome.Output);
+                            if (await runner.CompleteAsync(test) is { } classFailure)
+                            {
+                                await PublishScope(context, run.Session.SessionUid, classFailure);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        foreach (var scopeFailure in await runner.DisposeAsync())
+                        {
+                            await PublishScope(context, run.Session.SessionUid, scopeFailure);
+                        }
                     }
 
                     break;
@@ -94,24 +115,41 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
         }
     }
 
-    private static async Task<(TestNodeStateProperty State, Exception? Failure)> RunAsync(TestDescriptor test, CancellationToken cancellationToken)
+    /// <summary>
+    /// Passed with no failures. Otherwise failed when the first failure is a <see cref="VerifyException"/>
+    /// and an error for any other exception. More than one failure is reported as one, with every message.
+    /// </summary>
+    private static (TestNodeStateProperty State, Exception? Failure) State(IReadOnlyList<Exception> failures)
     {
-        try
+        if (failures.Count == 0)
         {
-            await test.Invoke(new TestContext(test, cancellationToken));
             return (PassedTestNodeStateProperty.CachedInstance, null);
         }
-        catch (VerifyException failure)
-        {
-            return (new FailedTestNodeStateProperty(failure, failure.Message), failure);
-        }
-        catch (Exception error)
-        {
-            return (new ErrorTestNodeStateProperty(error, error.Message), error);
-        }
+
+        var failure = failures.Count == 1 ? failures[0] : new TestFailuresException(failures);
+        return failures[0] is VerifyException
+            ? (new FailedTestNodeStateProperty(failure, failure.Message), failure)
+            : (new ErrorTestNodeStateProperty(failure, failure.Message), failure);
     }
 
-    private Task Publish(ExecuteRequestContext context, SessionUid session, TestDescriptor test, TestNodeStateProperty state, Exception? failure, TimingProperty? timing = null)
+    /// <summary>Publishes a failed node for a class or assembly scope whose disposal failed.</summary>
+    private Task PublishScope(ExecuteRequestContext context, SessionUid session, ScopeFailure scopeFailure)
+    {
+        var (state, failure) = State(scopeFailure.Failures);
+        var scope = scopeFailure.Scope;
+        var properties = new PropertyBag(state!);
+        if (_trx.IsEnabled)
+        {
+            properties.Add(new TrxFullyQualifiedTypeNameProperty(scope.Uid));
+            properties.Add(new TrxExceptionProperty(failure!.Message, failure.StackTrace));
+        }
+
+        var kind = scope.Kind == TestScopeKind.Class ? "class" : "assembly";
+        var node = new TestNode { Uid = scope.Uid + "#" + kind + "-scope", DisplayName = $"Disposing the {kind} scope {scope.Uid}", Properties = properties };
+        return context.MessageBus.PublishAsync(this, new TestNodeUpdateMessage(session, node));
+    }
+
+    private Task Publish(ExecuteRequestContext context, SessionUid session, TestDescriptor test, TestNodeStateProperty state, Exception? failure, TimingProperty? timing = null, string? output = null)
     {
         var position = new LinePosition(test.Line, -1);
         var properties = new PropertyBag(
@@ -131,12 +169,22 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
             properties.Add(timing);
         }
 
+        if (!string.IsNullOrEmpty(output))
+        {
+            properties.Add(new StandardOutputProperty(output));
+        }
+
         if (_trx.IsEnabled)
         {
             properties.Add(new TrxFullyQualifiedTypeNameProperty(test.FullTypeName));
             if (failure is not null)
             {
                 properties.Add(new TrxExceptionProperty(failure.Message, failure.StackTrace));
+            }
+
+            if (!string.IsNullOrEmpty(output))
+            {
+                properties.Add(new TrxMessagesProperty([new StandardOutputTrxMessage(output)]));
             }
         }
 

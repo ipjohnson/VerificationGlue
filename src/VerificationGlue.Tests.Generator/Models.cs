@@ -11,8 +11,19 @@ internal sealed record AttributeModel(ITypeDefinition Type, EquatableArray<strin
 
 internal sealed record NamedArgumentModel(string Name, string Value);
 
-/// <summary>How the runner supplies one test parameter. A null <see cref="Expression"/> means no provider can.</summary>
-internal sealed record ParameterModel(string Name, string TypeName, string? Expression);
+/// <summary>
+/// One parameter of a test method or of its class's constructor. <see cref="Type"/> is the C# type
+/// for <c>typeof</c> and casts, and <see cref="TypeName"/> is the type as the test ID writes it.
+/// <see cref="ServiceKey"/> and <see cref="DefaultValue"/> are C# expressions, or null when absent.
+/// </summary>
+internal sealed record ParameterModel(
+    string Name,
+    string Type,
+    string TypeName,
+    bool IsMock,
+    string? ServiceKey,
+    string? DefaultValue,
+    EquatableArray<AttributeModel> Attributes);
 
 internal enum ReturnKind
 {
@@ -40,6 +51,7 @@ internal sealed record TestClassModel(
     string Namespace,
     string TypeName,
     bool CanConstruct,
+    EquatableArray<ParameterModel> ConstructorParameters,
     EquatableArray<AttributeModel> Attributes);
 
 /// <summary>A test method with its class, before the methods are grouped by class.</summary>

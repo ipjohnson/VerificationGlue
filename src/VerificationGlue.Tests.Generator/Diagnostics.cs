@@ -36,6 +36,15 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VGT0006.md");
 
+    public static readonly DiagnosticDescriptor SharedContainerWithoutChildOverrides = new(
+        id: "VGT0008",
+        title: "A test with [Mock] parameters uses a shared container that cannot take overrides",
+        messageFormat: "The test '{0}' has [Mock] parameters, but its container {1} is shared with Scope = {2} and {1} does not implement ISupportsChildOverrides, so the system under test would not receive the mocks",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0008.md");
+
     public static readonly DiagnosticDescriptor VersionMismatch = new(
         id: "VGT0007",
         title: "VerificationGlue version does not match VerificationGlue.Tests",

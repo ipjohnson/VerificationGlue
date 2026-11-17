@@ -58,3 +58,45 @@ public partial class AotTests
     }
 }
 #endregion
+
+public sealed class Stamp(IClock clock)
+{
+    public IClock Clock { get; } = clock;
+}
+
+// Builds a class container whose children return the test's overrides, with no reflection.
+public sealed class StampBootstrap : ITestContainerBootstrap, ISupportsChildOverrides
+{
+    public static ValueTask<ITestContainer> BuildAsync(TestContainerContext context) => new(new StampContainer([]));
+
+    private sealed class StampContainer(IReadOnlyList<TestOverride> overrides) : ITestContainer, IServiceProvider
+    {
+        public IServiceProvider Services => this;
+
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(Stamp) ? new Stamp((IClock)GetService(typeof(IClock))!) :
+            overrides.LastOrDefault(entry => entry.ServiceType == serviceType)?.Instance;
+
+        public bool TryResolve(TestParameter parameter, out object? value)
+        {
+            value = GetService(parameter.Type);
+            return value is not null;
+        }
+
+        public ValueTask<ITestContainer> CreateChildAsync(TestContainerContext context) => new(new StampContainer(context.Overrides));
+
+        public ValueTask DisposeAsync() => default;
+    }
+}
+
+[Container<StampBootstrap>(Scope = ContainerScope.Class)]
+public partial class AotContainerTests
+{
+    [VerifyTest]
+    public void Passes_the_mock_to_the_service([Mock] IClock clock, Stamp stamp)
+    {
+        clock.Now.Returns(new DateTime(2026, 11, 17));
+        Verify(ReferenceEquals(stamp.Clock, clock));
+        Verify(stamp.Clock.Now.Day == 17);
+    }
+}

@@ -3,8 +3,10 @@
 #pragma warning disable
 namespace VerificationGlue.Tests.Generated
 {
-    internal static class AssemblyAttributes
+    file static class AssemblyAttributes
     {
-        internal static global::System.Attribute[] Create() => [];
+        [global::System.Runtime.CompilerServices.ModuleInitializerAttribute]
+        internal static void Register() =>
+            global::VerificationGlue.Tests.TestRegistry.SetAssemblyAttributes(static () => []);
     }
 }

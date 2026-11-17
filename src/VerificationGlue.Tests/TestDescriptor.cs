@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace VerificationGlue.Tests;
@@ -19,12 +20,15 @@ public sealed class TestDescriptor
     /// <param name="namespace">The namespace of <paramref name="testClass"/>.</param>
     /// <param name="typeName">The type name without the namespace, with <c>+</c> between nested types.</param>
     /// <param name="methodName">The test method's name.</param>
-    /// <param name="parameterTypeNames">The full names of the parameter types.</param>
     /// <param name="returnTypeName">The full name of the return type.</param>
     /// <param name="filePath">The source file that declares the method.</param>
     /// <param name="line">The one-based line of the method name.</param>
-    /// <param name="createAttributes">Creates the attributes of the assembly, the class and the method, in that order.</param>
-    /// <param name="invoke">Runs the test.</param>
+    /// <param name="createClassAttributes">Creates the attributes of the class.</param>
+    /// <param name="createMethodAttributes">Creates the attributes of the method.</param>
+    /// <param name="constructorParameters">The parameters of the constructor that <paramref name="createInstance"/> calls.</param>
+    /// <param name="parameters">The parameters of the test method.</param>
+    /// <param name="createInstance">Creates the test class, or is null for a static test.</param>
+    /// <param name="invoke">Runs the test on the instance.</param>
     public TestDescriptor(
         string uid,
         string displayName,
@@ -32,12 +36,15 @@ public sealed class TestDescriptor
         string @namespace,
         string typeName,
         string methodName,
-        string[] parameterTypeNames,
         string returnTypeName,
         string filePath,
         int line,
-        Func<IReadOnlyList<Attribute>> createAttributes,
-        Func<TestContext, ValueTask> invoke)
+        Func<IReadOnlyList<Attribute>> createClassAttributes,
+        Func<IReadOnlyList<Attribute>> createMethodAttributes,
+        TestParameter[] constructorParameters,
+        TestParameter[] parameters,
+        Func<TestContext, object>? createInstance,
+        Func<TestContext, object?, ValueTask> invoke)
     {
         Uid = uid;
         DisplayName = displayName;
@@ -45,11 +52,14 @@ public sealed class TestDescriptor
         Namespace = @namespace;
         TypeName = typeName;
         MethodName = methodName;
-        ParameterTypeNames = parameterTypeNames;
         ReturnTypeName = returnTypeName;
         FilePath = filePath;
         Line = line;
-        CreateAttributes = createAttributes;
+        CreateClassAttributes = createClassAttributes;
+        CreateMethodAttributes = createMethodAttributes;
+        ConstructorParameters = constructorParameters;
+        Parameters = parameters;
+        CreateInstance = createInstance;
         Invoke = invoke;
     }
 
@@ -72,7 +82,7 @@ public sealed class TestDescriptor
     public string MethodName { get; }
 
     /// <summary>The full names of the parameter types.</summary>
-    public IReadOnlyList<string> ParameterTypeNames { get; }
+    public IReadOnlyList<string> ParameterTypeNames => Parameters.Select(parameter => parameter.TypeName).ToArray();
 
     /// <summary>The full name of the return type.</summary>
     public string ReturnTypeName { get; }
@@ -83,11 +93,23 @@ public sealed class TestDescriptor
     /// <summary>The one-based line of the method name.</summary>
     public int Line { get; }
 
-    /// <summary>Creates the attributes of the assembly, the class and the method, in that order. The runner calls it inside the test.</summary>
-    public Func<IReadOnlyList<Attribute>> CreateAttributes { get; }
+    /// <summary>Creates the attributes of the class. The runner calls it inside the class scope.</summary>
+    public Func<IReadOnlyList<Attribute>> CreateClassAttributes { get; }
 
-    /// <summary>Runs the test.</summary>
-    public Func<TestContext, ValueTask> Invoke { get; }
+    /// <summary>Creates the attributes of the method. The runner calls it inside the test.</summary>
+    public Func<IReadOnlyList<Attribute>> CreateMethodAttributes { get; }
+
+    /// <summary>The parameters of the constructor that <see cref="CreateInstance"/> calls.</summary>
+    public IReadOnlyList<TestParameter> ConstructorParameters { get; }
+
+    /// <summary>The parameters of the test method.</summary>
+    public IReadOnlyList<TestParameter> Parameters { get; }
+
+    /// <summary>Creates the test class when the container does not supply it, or is null for a static test.</summary>
+    public Func<TestContext, object>? CreateInstance { get; }
+
+    /// <summary>Runs the test on the instance, which is null for a static test.</summary>
+    public Func<TestContext, object?, ValueTask> Invoke { get; }
 
     /// <summary>The full name of <see cref="TestClass"/>, with <c>+</c> between nested types.</summary>
     internal string FullTypeName => Namespace.Length == 0 ? TypeName : Namespace + "." + TypeName;

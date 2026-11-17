@@ -6,6 +6,13 @@ internal static class KnownTypes
 {
     public const string VerifyTestAttribute = "VerificationGlue.Tests.VerifyTestAttribute";
     public const string GeneratedNamespace = "VerificationGlue.Tests.Generated";
+    public const string ContainerAttribute = "VerificationGlue.Tests.ContainerAttribute";
+    public const string ISupportsChildOverrides = "VerificationGlue.Tests.ISupportsChildOverrides";
+    public const string MockAttribute = "VerificationGlue.Mocks.MockAttribute";
+    public const string FromKeyedServicesAttribute = "Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute";
+
+    public static readonly ITypeDefinition TestParameter = TypeDefinition.Get("VerificationGlue.Tests", "TestParameter");
+    public static readonly ITypeDefinition Mock = TypeDefinition.Get("VerificationGlue.Mocks", "Mock");
 
     public static readonly ITypeDefinition TestRegistry = TypeDefinition.Get("VerificationGlue.Tests", "TestRegistry");
     public static readonly ITypeDefinition TestDescriptor = TypeDefinition.Get("VerificationGlue.Tests", "TestDescriptor");

@@ -13,9 +13,6 @@ namespace VerificationGlue.Tests.Generator;
 /// </summary>
 internal static class TestDiscovery
 {
-    private const string CancellationToken = "System.Threading.CancellationToken";
-    private const string TestContext = "VerificationGlue.Tests.TestContext";
-
     /// <summary>Why the runner cannot call <paramref name="method"/>, or null when it can.</summary>
     public static string? WhyNotRunnable(IMethodSymbol method)
     {
@@ -72,8 +69,88 @@ internal static class TestDiscovery
             return "has a ref, out or in parameter";
         }
 
+        if (method.Parameters.FirstOrDefault(parameter => !CanBox(parameter.Type)) is { } unboxable)
+        {
+            return $"has the parameter {unboxable.Name}, whose type cannot be passed as an object";
+        }
+
         return null;
     }
+
+    /// <summary>
+    /// The constructor the runner calls: the accessible one with the most parameters that it can
+    /// supply. Null when there is none, or the method is static and needs no instance.
+    /// </summary>
+    public static IMethodSymbol? Constructor(IMethodSymbol method, Compilation compilation) =>
+        method.IsStatic || method.ContainingType.IsStatic
+            ? null
+            : method.ContainingType.InstanceConstructors
+                .Where(constructor =>
+                    compilation.IsSymbolAccessibleWithin(constructor, compilation.Assembly) &&
+                    constructor.Parameters.All(parameter => parameter.RefKind == RefKind.None && CanBox(parameter.Type)))
+                .OrderByDescending(constructor => constructor.Parameters.Length)
+                .FirstOrDefault();
+
+    /// <summary>True for a <c>[Mock]</c> parameter whose type <c>Mock.Of&lt;T&gt;()</c> accepts.</summary>
+    public static bool IsMock(IParameterSymbol parameter) =>
+        parameter.Type is { IsReferenceType: true } and not ITypeParameterSymbol &&
+        parameter.GetAttributes().Any(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.MockAttribute);
+
+    /// <summary>
+    /// The bootstrap and scope of the class or assembly container of a test that has <c>[Mock]</c>
+    /// parameters, when the bootstrap does not implement <c>ISupportsChildOverrides</c> (VGT0008).
+    /// Null in every other case, including a <c>Scope</c> that a derived attribute sets in its own
+    /// constructor, which only the runner can see.
+    /// </summary>
+    public static (string Bootstrap, string Scope)? SharedContainerWithoutChildOverrides(IMethodSymbol method, Compilation compilation)
+    {
+        var parameters = method.Parameters.AsEnumerable();
+        if (Constructor(method, compilation) is { } constructor)
+        {
+            parameters = constructor.Parameters.Concat(parameters);
+        }
+
+        if (!parameters.Any(IsMock))
+        {
+            return null;
+        }
+
+        var container = FindContainer(method.GetAttributes()) ?? FindContainer(method.ContainingType.GetAttributes()) ?? FindContainer(compilation.Assembly.GetAttributes());
+        if (container is null || Bootstrap(container.AttributeClass) is not { } bootstrap)
+        {
+            return null;
+        }
+
+        var scope = container.NamedArguments.FirstOrDefault(pair => pair.Key == "Scope").Value.Value switch
+        {
+            1 => "Class",
+            2 => "Assembly",
+            _ => null,
+        };
+
+        return scope is not null && !bootstrap.AllInterfaces.Any(type => type.ToDisplayString() == KnownTypes.ISupportsChildOverrides)
+            ? (bootstrap.ToDisplayString(), scope)
+            : null;
+    }
+
+    private static AttributeData? FindContainer(IEnumerable<AttributeData> attributes) =>
+        attributes.LastOrDefault(attribute => Bootstrap(attribute.AttributeClass) is not null);
+
+    private static ITypeSymbol? Bootstrap(INamedTypeSymbol? attribute)
+    {
+        for (var type = attribute; type is not null; type = type.BaseType)
+        {
+            if (type is { IsGenericType: true, TypeArguments.Length: 1 } && type.ConstructedFrom.ToDisplayString() == KnownTypes.ContainerAttribute + "<T>")
+            {
+                return type.TypeArguments[0];
+            }
+        }
+
+        return null;
+    }
+
+    private static bool CanBox(ITypeSymbol type) =>
+        type is not (IPointerTypeSymbol or IFunctionPointerTypeSymbol) && !type.IsRefLikeType && type.SpecialType != SpecialType.System_Void;
 
     /// <summary>
     /// The test ID: the containing type, the method name and the parameter types, written with
@@ -108,17 +185,8 @@ internal static class TestDiscovery
     public static TestEntry Build(IMethodSymbol method, Compilation compilation)
     {
         var type = method.ContainingType;
-        var parameters = method.Parameters
-            .Select(parameter => new ParameterModel(
-                parameter.Name,
-                TypeName(parameter.Type),
-                parameter.Type.ToDisplayString() switch
-                {
-                    CancellationToken => "context.CancellationToken",
-                    TestContext => "context",
-                    _ => null,
-                }))
-            .ToArray();
+        var parameters = method.Parameters.Select(parameter => Parameter(parameter, compilation)).ToArray();
+        var constructor = Constructor(method, compilation);
 
         var location = method.Locations.FirstOrDefault(candidate => candidate.IsInSource);
         var span = location?.GetLineSpan();
@@ -127,7 +195,8 @@ internal static class TestDiscovery
             type.GetTypeDefinition(),
             type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString(),
             NestedName(type, '+'),
-            type.TypeKind == TypeKind.Struct || CanConstruct(type, compilation),
+            constructor is not null,
+            constructor?.Parameters.Select(parameter => Parameter(parameter, compilation)).ToArray() ?? [],
             AttributeMaterializer.Materialize(type.GetAttributes(), compilation));
 
         var testMethod = new TestMethodModel(
@@ -155,10 +224,23 @@ internal static class TestDiscovery
     private static string NestedName(INamedTypeSymbol type, char separator) =>
         type.ContainingType is { } outer ? NestedName(outer, separator) + separator + type.Name : type.Name;
 
-    private static bool CanConstruct(INamedTypeSymbol type, Compilation compilation) =>
-        !type.IsStatic && type.InstanceConstructors.Any(constructor =>
-            compilation.IsSymbolAccessibleWithin(constructor, compilation.Assembly) &&
-            constructor.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
+    private static ParameterModel Parameter(IParameterSymbol parameter, Compilation compilation)
+    {
+        var serviceKey = parameter.GetAttributes()
+            .FirstOrDefault(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.FromKeyedServicesAttribute && attribute.ConstructorArguments.Length == 1)
+            is { } keyed
+            ? AttributeMaterializer.Write(keyed.ConstructorArguments[0], compilation)
+            : null;
+
+        return new ParameterModel(
+            parameter.Name,
+            parameter.Type.TypeKind == TypeKind.Dynamic ? "object" : parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            TypeName(parameter.Type),
+            IsMock(parameter),
+            serviceKey,
+            AttributeMaterializer.WriteDefault(parameter),
+            AttributeMaterializer.Materialize(parameter.GetAttributes(), compilation));
+    }
 
     private static bool IsAwaitable(ITypeSymbol type) =>
         type is INamedTypeSymbol { ContainingNamespace: { Name: "Tasks", ContainingNamespace: { Name: "Threading", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } } named &&

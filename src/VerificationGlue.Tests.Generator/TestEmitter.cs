@@ -35,20 +35,15 @@ internal static class TestEmitter
             text.Append("                ").Append(Literal(testClass.Namespace)).Append(",\n");
             text.Append("                ").Append(Literal(testClass.TypeName)).Append(",\n");
             text.Append("                ").Append(Literal(method.Name)).Append(",\n");
-            text.Append("                ").Append(method.Parameters.Count == 0
-                ? "global::System.Array.Empty<string>()"
-                : "new string[] { " + string.Join(", ", method.Parameters.Select(parameter => Literal(parameter.TypeName))) + " }").Append(",\n");
             text.Append("                ").Append(Literal(method.ReturnTypeName)).Append(",\n");
             text.Append("                ").Append(Literal(method.FilePath)).Append(",\n");
             text.Append("                ").Append(method.Line).Append(",\n");
-            text.Append("                static () => [.. global::").Append(KnownTypes.GeneratedNamespace).Append('.').Append(AssemblyAttributesClass).Append(".Create()");
-            foreach (var attribute in testClass.Attributes.Concat(method.Attributes))
-            {
-                text.Append(", ").Append(New(attribute));
-            }
-
-            text.Append("],\n");
-            text.Append("                static async context =>\n                {\n");
+            text.Append("                ").Append(Attributes(testClass.Attributes)).Append(",\n");
+            text.Append("                ").Append(Attributes(method.Attributes)).Append(",\n");
+            text.Append("                ").Append(Parameters(method.IsStatic ? [] : testClass.ConstructorParameters, isConstructor: true)).Append(",\n");
+            text.Append("                ").Append(Parameters(method.Parameters, isConstructor: false)).Append(",\n");
+            text.Append("                ").Append(CreateInstance(testClass, method)).Append(",\n");
+            text.Append("                static async (context, instance) =>\n                {\n");
             AppendInvoke(text, testClass, method, rewrite);
             text.Append("                }));\n");
         }
@@ -57,56 +52,78 @@ internal static class TestEmitter
         return text.ToString();
     }
 
-    /// <summary>The assembly's attributes, which every test's attribute list starts with.</summary>
+    /// <summary>The assembly's attributes, which every scope's attribute list starts with.</summary>
     public static string EmitAssemblyAttributes(EquatableArray<AttributeModel> attributes)
     {
         var text = Header();
-        text.Append("    internal static class ").Append(AssemblyAttributesClass).Append("\n    {\n");
-        text.Append("        internal static ").Append(Render(KnownTypes.Attribute)).Append("[] Create() => [");
-        text.Append(string.Join(", ", attributes.Select(New)));
-        text.Append("];\n    }\n}\n");
+        text.Append("    file static class ").Append(AssemblyAttributesClass).Append("\n    {\n");
+        text.Append("        [").Append(Render(KnownTypes.ModuleInitializerAttribute)).Append("]\n");
+        text.Append("        internal static void Register() =>\n");
+        text.Append("            ").Append(Render(KnownTypes.TestRegistry)).Append(".SetAssemblyAttributes(").Append(Attributes(attributes)).Append(");\n");
+        text.Append("    }\n}\n");
         return text.ToString();
+    }
+
+    private static string Attributes(EquatableArray<AttributeModel> attributes) =>
+        "static () => [" + string.Join(", ", attributes.Select(New)) + "]";
+
+    private static string Parameters(EquatableArray<ParameterModel> parameters, bool isConstructor)
+    {
+        if (parameters.Count == 0)
+        {
+            return "global::System.Array.Empty<" + Render(KnownTypes.TestParameter) + ">()";
+        }
+
+        var text = new StringBuilder("new ").Append(Render(KnownTypes.TestParameter)).Append("[]\n                {\n");
+        var position = 0;
+        foreach (var parameter in parameters)
+        {
+            text.Append("                    new(").Append(Literal(parameter.Name))
+                .Append(", typeof(").Append(parameter.Type).Append(')')
+                .Append(", ").Append(Literal(parameter.TypeName))
+                .Append(", ").Append(position++)
+                .Append(", ").Append(isConstructor ? "true" : "false")
+                .Append(", ").Append(Attributes(parameter.Attributes))
+                .Append(", ").Append(parameter.IsMock ? "static () => " + Render(KnownTypes.Mock) + ".Of<" + parameter.Type + ">()" : "null")
+                .Append(", ").Append(parameter.ServiceKey ?? "null")
+                .Append(", ").Append(parameter.DefaultValue is null ? "false, null" : "true, " + parameter.DefaultValue)
+                .Append("),\n");
+        }
+
+        return text.Append("                }").ToString();
+    }
+
+    private static string CreateInstance(TestClassModel testClass, TestMethodModel method)
+    {
+        if (method.IsStatic)
+        {
+            return "null";
+        }
+
+        if (!testClass.CanConstruct)
+        {
+            return "static context => throw " + Render(KnownTypes.TestRuntime) + ".NoConstructor(" +
+                Literal(testClass.Namespace.Length == 0 ? testClass.TypeName : testClass.Namespace + "." + testClass.TypeName) + ")";
+        }
+
+        return "static context => new " + Render(testClass.Type) + "(" + Arguments(testClass.ConstructorParameters, "ConstructorArgument") + ")";
     }
 
     private static void AppendInvoke(StringBuilder text, TestClassModel testClass, TestMethodModel method, bool rewrite)
     {
         const string Indent = "                    ";
-        var missing = method.Parameters.FirstOrDefault(parameter => parameter.Expression is null);
-        if (missing is not null)
-        {
-            text.Append(Indent).Append("throw ").Append(Render(KnownTypes.TestRuntime)).Append(".NoValue(")
-                .Append(Literal(missing.Name)).Append(", ").Append(Literal(missing.TypeName)).Append(");\n");
-            return;
-        }
-
-        if (!method.IsStatic && !testClass.CanConstruct)
-        {
-            text.Append(Indent).Append("throw ").Append(Render(KnownTypes.TestRuntime)).Append(".NoConstructor(")
-                .Append(Literal(testClass.Namespace.Length == 0 ? testClass.TypeName : testClass.Namespace + "." + testClass.TypeName)).Append(");\n");
-            return;
-        }
-
         var target = method.Name + (rewrite && method.WillRewrite ? VerifyRewriteRules.Suffix : "");
-        var call = new StringBuilder(method.Return == ReturnKind.Awaitable ? "await " : "")
-            .Append(method.IsStatic ? Render(testClass.Type) : "instance")
+        text.Append(Indent)
+            .Append(method.Return == ReturnKind.Awaitable ? "await " : "")
+            .Append(method.IsStatic ? Render(testClass.Type) : "((" + Render(testClass.Type) + ")instance!)")
             .Append('.').Append(target).Append('(')
-            .Append(string.Join(", ", method.Parameters.Select(parameter => parameter.Expression)))
-            .Append(");")
-            .ToString();
-
-        if (method.IsStatic)
-        {
-            text.Append(Indent).Append(call).Append('\n');
-            return;
-        }
-
-        text.Append(Indent).Append("var instance = new ").Append(Render(testClass.Type)).Append("();\n");
-        text.Append(Indent).Append("try\n").Append(Indent).Append("{\n");
-        text.Append(Indent).Append("    ").Append(call).Append('\n');
-        text.Append(Indent).Append("}\n").Append(Indent).Append("finally\n").Append(Indent).Append("{\n");
-        text.Append(Indent).Append("    await ").Append(Render(KnownTypes.TestRuntime)).Append(".DisposeAsync(instance);\n");
-        text.Append(Indent).Append("}\n");
+            .Append(Arguments(method.Parameters, "Argument"))
+            .Append(");\n");
     }
+
+    private static string Arguments(EquatableArray<ParameterModel> parameters, string helper) =>
+        string.Join(", ", parameters.Select((parameter, position) =>
+            "(" + parameter.Type + ")" + Render(KnownTypes.TestRuntime) + "." + helper + "(context, " + position + ")!"));
 
     private static StringBuilder Header() =>
         new StringBuilder("// <auto-generated/>\n#nullable enable\n#pragma warning disable\n")

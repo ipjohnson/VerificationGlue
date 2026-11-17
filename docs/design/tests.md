@@ -369,15 +369,15 @@ When done, tests take services and mocks as parameters from a per-test container
 
 Needs: Phase 1. `Check` failures need `Check` and `VerifyScope` from `verification-glue.md` Phase 2. `[Mock]` parameters need `Mock.Of<T>()` from `mocks.md` Phase 1.
 
-- [ ] Assembly, class and test scopes with the order above.
-- [ ] `ITestContainerBootstrap`, `ITestContainer`, `[Container<T>]` with test, class and assembly scope.
-- [ ] `ISupportsChildOverrides`, VGT0008, and the same check before each test is invoked.
-- [ ] Parameter resolution order and its failure message.
-- [ ] `[Mock]` parameters through `Mock.Of<T>()` and overrides.
-- [ ] Middleware, scope listeners and test output during container build.
-- [ ] `Check` failures reported per test.
-- [ ] Lifecycle acceptance cases: exactly-once disposal for container-owned and runner-owned instances; cancellation during setup; invocation plus multiple cleanup and `Check` failures with all failures retained; lazy attribute-construction failure attributed to its owner while unrelated tests run; fresh per-attempt state and cleanup on retries.
-- [ ] Pages: the guides "Containers and scopes" and "Parameters and where they come from", the lifecycle page, `docs/diagnostics/VGT0008.md`, and the sections of `docs/guide/extending.md` for containers, parameter providers, middleware and scope listeners.
+- [x] Assembly, class and test scopes with the order above. The runner reads the narrowest `[Container<T>]`, the `[Use<T>]` middleware, and the attributes that implement `ITestScopeListener` or `ITestParameterProvider` from each scope's materialised attributes, so the generator emits no container binding. A class or assembly scope is published as a node of its own only when its disposal fails; a scope that fails to be created fails each of its tests with the scope named in the message.
+- [x] `ITestContainerBootstrap`, `ITestContainer`, `[Container<T>]` with test, class and assembly scope.
+- [x] `ISupportsChildOverrides`, VGT0008, and the same check before each test is invoked.
+- [x] Parameter resolution order and its failure message. The runner uses the accessible constructor with the most parameters.
+- [x] `[Mock]` parameters through `Mock.Of<T>()` and overrides. Parameters of the same type and key share one mock within a test.
+- [x] Middleware, scope listeners and test output during container build. `[Use<T>]` needs `T : new()`. Output reaches TRX through `TrxMessagesProperty`, because the MTP 3 preview's TRX report ignores `StandardOutputProperty`.
+- [x] `Check` failures reported per test.
+- [x] Lifecycle acceptance cases: exactly-once disposal for container-owned and runner-owned instances; cancellation during setup; invocation plus multiple cleanup and `Check` failures with all failures retained; lazy attribute-construction failure attributed to its owner while unrelated tests run; fresh per-attempt state and cleanup on retries. `test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs` runs them, the retries with `Microsoft.Testing.Extensions.Retry`.
+- [x] Pages: the guides "Containers and scopes" (`docs/guide/containers-and-scopes.md`) and "Parameters and where they come from" (`docs/guide/test-parameters.md`), the lifecycle page (`docs/guide/test-lifecycle.md`), `docs/diagnostics/VGT0008.md`, and the sections of `docs/guide/extending.md` for containers, parameter providers, middleware and scope listeners.
 
 ### Phase 3: data, naming and scheduling
 
