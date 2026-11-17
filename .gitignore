@@ -1,6 +1,7 @@
 bin/
 obj/
 artifacts/
+TestResults/
 *.received.txt
 BenchmarkDotNet.Artifacts/
 *.user

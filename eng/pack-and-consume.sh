@@ -3,7 +3,9 @@
 #   1. the package layout, one version for all three, and exact dependencies from VerificationGlue.Tests;
 #   2. a sample that references only VerificationGlue.Tests builds, publishes under Native AOT with
 #      warnings as errors, and runs;
-#   3. the same sample with a different VerificationGlue version fails with VGT0007.
+#   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
+#      warnings as errors and runs. It checks that each message has its shape, file and line;
+#   4. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
 # Extra arguments are passed to dotnet pack, for example -p:VersionSuffix=ci.42 or --no-build.
 set -euo pipefail
 
@@ -56,8 +58,9 @@ echo "Layout and dependencies are correct"
 # with the same version is never used, and the VerificationGlue packages come only from the feed.
 write_sample() {
   local dir="$1"
+  local name="${2:-PackageConsumer}"
   mkdir -p "$dir"
-  cp "$root/samples/PackageConsumer/"* "$dir/"
+  cp "$root/samples/$name/"* "$dir/"
   cp "$root/global.json" "$dir/"
   cat > "$dir/NuGet.config" <<CONFIG
 <?xml version="1.0" encoding="utf-8"?>
@@ -91,6 +94,15 @@ dotnet publish "$sample/PackageConsumer.csproj" -c Release -warnaserror \
 [ -x "$sample/publish/PackageConsumer" ] || [ -f "$sample/publish/PackageConsumer.exe" ] \
   || fail "the Native AOT publish produced no executable"
 "$sample/publish/PackageConsumer"
+
+echo "== Verify messages under Native AOT"
+aot="$work/verify-aot"
+write_sample "$aot" VerifyAot
+dotnet publish "$aot/VerifyAot.csproj" -c Release -warnaserror \
+  -p:VerificationGlueVersion="$version" -o "$aot/publish"
+[ -x "$aot/publish/VerifyAot" ] || [ -f "$aot/publish/VerifyAot.exe" ] \
+  || fail "the Native AOT publish of VerifyAot produced no executable"
+"$aot/publish/VerifyAot" || fail "VerifyAot reported a wrong message under Native AOT"
 
 echo "== Mismatched VerificationGlue version"
 # A separate artifacts path keeps this build from overwriting src/VerificationGlue/bin.

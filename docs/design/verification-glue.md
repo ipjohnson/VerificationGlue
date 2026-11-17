@@ -291,13 +291,13 @@ When done, a user on any test framework installs `VerificationGlue` and gets fil
 
 Needs: "Repository foundation" in the north star. Nothing from the other packages.
 
-- [ ] `VerifySyntax` with `Verify`, `Throws`, `ThrowsAsync` and the interpolated message form.
-- [ ] Tier 2 interceptors for every listed shape.
-- [ ] `buildTransitive/VerificationGlue.props` sets `InterceptorsNamespaces`.
-- [ ] Analyzers VG0002, VG0003 and VG0004.
-- [ ] A Native AOT sample in CI with no warnings.
-- [ ] Sample tests in xunit, NUnit, MSTest and TUnit in CI.
-- [ ] Pages: README, `docs/guide/getting-started-verify.md` with a section per host framework, `docs/diagnostics/VG0002.md` to `VG0004.md`, and the tier 2 part of the generated-code page.
+- [x] `VerifySyntax` with `Verify`, `Throws`, `ThrowsAsync` and the interpolated message form.
+- [x] Tier 2 interceptors for every listed shape.
+- [x] `buildTransitive/VerificationGlue.props` sets `InterceptorsNamespaces`.
+- [x] Analyzers VG0002, VG0003 and VG0004.
+- [x] A Native AOT sample in CI with no warnings: `samples/VerifyAot`, published and run by `eng/pack-and-consume.sh`.
+- [x] Sample tests in xunit, NUnit, MSTest and TUnit in CI: `samples/VerifyIn*`, run with the specs.
+- [x] Pages: README, `docs/guide/getting-started-verify.md` with a section per host framework, `docs/diagnostics/VG0002.md` to `VG0004.md`, and the tier 2 part of the generated-code page, `docs/guide/generated/interceptors.md`.
 
 ### Phase 2: values
 

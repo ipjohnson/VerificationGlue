@@ -1,0 +1,210 @@
+# Getting started with Verify
+
+At the end of this page you can write checks with `Verify`, `Throws` and `ThrowsAsync` in xunit, NUnit, MSTest or TUnit. You can also read the message a failed check gives, including under Native AOT.
+
+`VerificationGlue` is a preview. This page covers what the preview ships: messages built from the source text and the shape of each check. Captured values and `Check` come in a later preview.
+
+## Install
+
+Add the `VerificationGlue` package to the test project:
+
+<!-- snippet: install-verificationglue -->
+<a id='snippet-install-verificationglue'></a>
+```csproj
+<ItemGroup>
+  <PackageReference Include="VerificationGlue" Version="$(VerificationGlueVersion)" />
+</ItemGroup>
+```
+<sup><a href='/samples/VerifyAot/VerifyAot.csproj#L16-L20' title='Snippet source file'>snippet source</a> | <a href='#snippet-install-verificationglue' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The sample sets `VerificationGlueVersion` to the version it tests. A project writes the version number there.
+
+The package adds a source generator and needs no other setup. Its `buildTransitive/VerificationGlue.props` adds `VerificationGlue.Generated` to `InterceptorsNamespaces`, which the generated code needs.
+
+## Write checks
+
+Import the methods with `using static VerificationGlue.VerifySyntax;`. The checks are the same in every test framework. Only the test attribute changes.
+
+| Call | What it does |
+|---|---|
+| `Verify(condition)` | Throws a `VerifyException` when `condition` is false. |
+| `Verify(condition, $"...")` | Adds the interpolated message to the failure. Its holes run only when `condition` is false. |
+| `Throws<T>(action)` | Returns the exception that `action` throws. Fails when it throws nothing, or throws an exception that is not a `T` or derived from `T`. |
+| `ThrowsAsync<T>(action)` | Awaits `action` and does the same as `Throws<T>`. |
+
+### xunit
+
+<!-- snippet: verify-in-xunit -->
+<a id='snippet-verify-in-xunit'></a>
+```cs
+[Fact]
+public async Task Checkout_reports_an_empty_cart()
+{
+    var order = new Order(Id: 7, Total: 40);
+    Verify(order.Total == 40);
+    Verify(order.Id > 0, $"order {order.Id} has no id");
+
+    var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(error.Message == "The cart is empty.");
+
+    var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
+    Verify(timeout.Message.Contains("/orders/7"));
+}
+```
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+### NUnit
+
+<!-- snippet: verify-in-nunit -->
+<a id='snippet-verify-in-nunit'></a>
+```cs
+[Test]
+public async Task Checkout_reports_an_empty_cart()
+{
+    var order = new Order(Id: 7, Total: 40);
+    Verify(order.Total == 40);
+    Verify(order.Id > 0, $"order {order.Id} has no id");
+
+    var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(error.Message == "The cart is empty.");
+
+    var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
+    Verify(timeout.Message.Contains("/orders/7"));
+}
+```
+<sup><a href='/samples/VerifyInNUnit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-nunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+### MSTest
+
+<!-- snippet: verify-in-mstest -->
+<a id='snippet-verify-in-mstest'></a>
+```cs
+[TestMethod]
+public async Task Checkout_reports_an_empty_cart()
+{
+    var order = new Order(Id: 7, Total: 40);
+    Verify(order.Total == 40);
+    Verify(order.Id > 0, $"order {order.Id} has no id");
+
+    var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(error.Message == "The cart is empty.");
+
+    var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
+    Verify(timeout.Message.Contains("/orders/7"));
+}
+```
+<sup><a href='/samples/VerifyInMSTest/OrderTests.cs#L11-L25' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-mstest' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+### TUnit
+
+<!-- snippet: verify-in-tunit -->
+<a id='snippet-verify-in-tunit'></a>
+```cs
+[Test]
+public async Task Checkout_reports_an_empty_cart()
+{
+    var order = new Order(Id: 7, Total: 40);
+    Verify(order.Total == 40);
+    Verify(order.Id > 0, $"order {order.Id} has no id");
+
+    var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(error.Message == "The cart is empty.");
+
+    var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
+    Verify(timeout.Message.Contains("/orders/7"));
+}
+```
+<sup><a href='/samples/VerifyInTUnit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-tunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+Each sample runs in CI with the framework's own runner.
+
+## Read a failure
+
+This test makes a check fail on purpose and checks its message:
+
+<!-- snippet: failure-in-xunit -->
+<a id='snippet-failure-in-xunit'></a>
+```cs
+[Fact]
+public void A_failure_names_the_shape_file_and_line()
+{
+    var order = new Order(Id: 7, Total: 40);
+
+    var failure = Throws<VerifyException>(() => Verify(order.Total == 30));
+
+    Verify(failure.Message == """
+        Verify failed: order.Total == 30
+          expected order.Total to equal 30
+          at OrderTests.cs:32
+        """);
+}
+```
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L26-L40' title='Snippet source file'>snippet source</a> | <a href='#snippet-failure-in-xunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The first line names the call and shows the source text of its argument. The next line describes the failure from the shape of the condition. The last line gives the file, relative to the project directory, and the line of the call. A `Verify` call with a message adds the message before the file and line.
+
+The generator picks the second line from the shape of the condition:
+
+| Condition | Second line |
+|---|---|
+| `x != null`, `x is not null`, `x is { }` | `x can not be null` |
+| `x == null`, `x is null` | `expected x to be null` |
+| `a == b` | `expected a to equal b` |
+| `a != b` | `expected a to not equal b` |
+| `a < b`, `a <= b`, `a > b`, `a >= b` | `expected a to be less than b`, `to be at most b`, `to be greater than b`, `to be at least b` |
+| `x is T`, `x is T name` | `expected x to be of type T` |
+| `x is { Total: > 50 }` and other patterns | `expected x to match { Total: > 50 }` |
+| `!x` | `expected x to be false` |
+| A call that returns `bool` | `expected call to return true` |
+| `Throws<T>(() => call)`, `ThrowsAsync<T>(() => call)` | `expected call to throw T` |
+| Any other condition, or an operand written on several lines | No second line. The first line already shows the source text. |
+
+A `Throws` or `ThrowsAsync` failure adds a line that says what happened: `no exception was thrown`, or the type and message of the exception that was thrown. That exception is also the `InnerException` of the `VerifyException`.
+
+[`InterceptorSpecs.cs`](../../test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs) runs every row of the table. [Generated interceptors](generated/interceptors.md) shows the code the generator writes for the xunit sample.
+
+## Native AOT
+
+The file, the line and the second line are fixed at compile time, so a Native AOT build reports the same message. This holds even though stack traces under Native AOT carry no file or line.
+
+<!-- snippet: verify-under-native-aot -->
+<a id='snippet-verify-under-native-aot'></a>
+```cs
+var total = 40;
+var failure = Throws<VerifyException>(() => Verify(total == 30, $"total is {total}"));
+Console.WriteLine(failure.Message);
+```
+<sup><a href='/samples/VerifyAot/Program.cs#L4-L8' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-under-native-aot' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+`eng/pack-and-consume.sh` publishes this sample with Native AOT and warnings as errors, runs it, and checks each message it prints.
+
+## Without the generator
+
+When the generator does not run, `Verify` still fails with the source text of the condition. The message has no second line and no file or line:
+
+<!-- snippet: tier-1-message -->
+<a id='snippet-tier-1-message'></a>
+```cs
+var count = 2;
+
+var failure = Assert.Throws<VerifyException>(() => Verify(count == 3));
+
+Assert.Equal("Verify failed: count == 3", failure.Message);
+```
+<sup><a href='/test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#L20-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-tier-1-message' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+## Build warnings
+
+The package reports conditions that cannot check what they seem to check:
+
+- [VG0002](../diagnostics/VG0002.md): the condition is a constant.
+- [VG0003](../diagnostics/VG0003.md): the condition changes state.
+- [VG0004](../diagnostics/VG0004.md): the condition compares `float` or `double` values with `==` or `!=`.

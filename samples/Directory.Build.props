@@ -1,0 +1,18 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    The samples in the solution reference the projects, not the package. These lines add what the
+    VerificationGlue package adds: the runtime, the generator and buildTransitive/VerificationGlue.props.
+    samples/VerifyAot and samples/PackageConsumer use the packed packages instead.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>
