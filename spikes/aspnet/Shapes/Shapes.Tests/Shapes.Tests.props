@@ -1,0 +1,44 @@
+<Project>
+  <!-- Shared by Shapes.Tests and Shapes.Aot.Tests, which compile the same test files. -->
+  <Import Project="../../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+  <Import Project="../../../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <Import Project="../../../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Exe</OutputType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <DefineConstants Condition="'$(ShowFailure)' == 'true'">$(DefineConstants);SHOW_FAILURE</DefineConstants>
+    <DefineConstants Condition="'$(ShowCompileError)' == 'true'">$(DefineConstants);SHOW_COMPILE_ERROR</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Clock/Clock.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/VoidApp/VoidApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/IntApp/IntApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/TaskApp/TaskApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/TaskIntApp/TaskIntApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/MainApp/MainApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/InternalApp/InternalApp.csproj" Aliases="internalapp" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/InternalIvtApp/InternalIvtApp.csproj" Aliases="ivtapp" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/StartupApp/StartupApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/ThrowApp/ThrowApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../Apps/ReturnApp/ReturnApp.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../EntryGenerator/EntryGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Import Project="../../../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.targets" />
+  <Import Project="../../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>
