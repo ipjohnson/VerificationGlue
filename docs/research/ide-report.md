@@ -6,7 +6,7 @@ Research for VerificationGlue Phase 0 (`verification-glue.md` and `tests.md`). D
 
 The test host side passes on MTP 2.5.3 and on the MTP 3 preview. The same generated framework discovers 5 tests, runs a single test by UID, reports file and line for navigation in server mode, and publishes with Native AOT with no trim or AOT warnings. The `__Verified` copies map every visible sequence point to the original statement in `src/UserTests.cs`, so a debugger reads the original file and lines from the PDB.
 
-Rider 2026.2.0.2 passes discovery, run, navigation, breakpoint binding and stepping on the copies. It needs Testing Platform support turned on and a reference to `Microsoft.Testing.Platform.MSBuild`. VS Code and Visual Studio were not run. The details are in [IDE results](#ide-results).
+Rider 2026.2.0.2 passes discovery, run, navigation, breakpoint binding and stepping on the copies. It needs Testing Platform support turned on and a reference to `Microsoft.Testing.Platform.MSBuild`. Visual Studio was not run, because the spike machine runs macOS. VS Code was not run, because C# Dev Kit is not installed on the spike machine and the user ended the IDE checks after Rider. The details are in [IDE results](#ide-results).
 
 Tier 3 stays opt-in. Two advertised IDEs have no debugging result, and the cold-build budget has no user approval yet. Missing approval is not a pass.
 
@@ -103,7 +103,7 @@ Each row ran on both MTP versions with the same source and the same commands. `o
 | Full run | 5 of 5 pass | 5 of 5 pass |
 | `--filter-uid "MyApp.Tests.OrderTests.MockCalls()"` | 1 test runs and passes | 1 test runs and passes |
 | `dotnet test --project ... --filter-uid "MyApp.Tests.OrderTests.FileUsings()"` | 1 test runs and passes | 1 test runs and passes |
-| Server mode `testing/discoverTests` | 3 nodes with `location.file`, `location.line-start`, `location.type` and `location.method` | Same |
+| Server mode `testing/discoverTests` | 5 nodes with `location.file`, `location.line-start`, `location.type` and `location.method` | Same |
 | Server mode `testing/runTests` with one UID | Only that test runs and passes | Same |
 | AOT publish, osx-arm64 | 0 warnings, 10.9 MB | 0 warnings, 10.3 MB |
 | AOT `--list-tests`, full run and `--filter-uid` | 5 tests, 5 of 5 pass, 1 filtered test passes | 5 tests, 5 of 5 pass, 1 filtered test passes |
@@ -115,7 +115,7 @@ The MTP 2.5.3 column is historical comparison only, as the north star says. It s
 
 ## IDE results
 
-A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS. VS Code was not run in this session.
+A person runs these checks at each IDE. `spikes/ide/ide-checks.md` gives each step, its pass condition and a results block. The ID column gives the Rider step as R and the VS Code step as V. Each cell holds pass, fail with what happened, or not run. Visual Studio was not run, because the spike machine runs macOS. VS Code was not run, because C# Dev Kit is not installed on the spike machine and the user ended the IDE checks after Rider.
 
 ### What Rider needs to discover an MTP project
 
