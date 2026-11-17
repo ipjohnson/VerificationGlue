@@ -13,7 +13,11 @@ internal static class GeneratorHarness
     /// so a spec compiles them with its input and runs the registrations without the MTP 3 preview,
     /// which these xunit specs cannot load.
     /// </summary>
-    private static readonly string[] RuntimeFiles = ["VerifyTestAttribute.cs", "TestDescriptor.cs", "TestRegistry.cs", "TestContext.cs", "TestRuntime.cs"];
+    private static readonly string[] RuntimeFiles =
+    [
+        "VerifyTestAttribute.cs", "TestDescriptor.cs", "TestRegistry.cs", "TestContext.cs", "TestRuntime.cs", "TestParameter.cs",
+        "TestScope.cs", "TestContainer.cs", "ContainerAttribute.cs", "ExtensionPoints.cs", "TestRunner.cs",
+    ];
 
     public static readonly CSharpParseOptions ParseOptions = new CSharpParseOptions(LanguageVersion.Latest)
         .WithFeatures([new("InterceptorsNamespaces", "VerificationGlue.Generated;VerificationGlue.Mocks.Generated")]);

@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- samples/TestsContainers, which a snapshot compiles, builds its containers with it. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />

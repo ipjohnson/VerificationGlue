@@ -4,6 +4,7 @@
     <PackageVersion Include="CSharpAuthor" Version="2.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
     <!-- The MTP 3 preview that docs/research/ide-report.md pins. Only VerificationGlue.Tests and its fixtures reference it. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.Retry" Version="3.0.0-preview.26566.9" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="3.0.0-preview.26566.9" />

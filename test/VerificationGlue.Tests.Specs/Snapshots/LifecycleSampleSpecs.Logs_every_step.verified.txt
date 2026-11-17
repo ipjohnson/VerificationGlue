@@ -1,0 +1,26 @@
+assembly scope created
+class scope LifecycleTests created
+test scope First created
+class container built
+test container built with overrides for IClock
+middleware entered
+test class created
+parameter basket resolved from the test container
+first test runs
+test class disposed
+middleware left
+test scope First disposing
+test container disposed
+test scope Second created
+test container built with overrides for IClock
+middleware entered
+test class created
+parameter basket resolved from the test container
+second test runs
+test class disposed
+middleware left
+test scope Second disposing
+test container disposed
+class scope LifecycleTests disposing
+class container disposed
+assembly scope disposing

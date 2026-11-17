@@ -53,6 +53,7 @@ public class AnalyzerSpecs
     [InlineData("public async void M() { await Task.Yield(); }", "is async void, so the runner cannot wait for it")]
     [InlineData("public int M() => 1;", "does not return void, Task or ValueTask")]
     [InlineData("public void M(ref int value) { }", "has a ref, out or in parameter")]
+    [InlineData("public void M(Span<int> values) { }", "has the parameter values, whose type cannot be passed as an object")]
     public async Task A_method_the_runner_cannot_call_reports_VGT0004(string method, string reason)
     {
         var diagnostics = await Analyze($$"""
@@ -174,6 +175,82 @@ public class AnalyzerSpecs
             Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
             Assert.Equal("The test ID 'OrderTests.M(Vendor.Item)' is also the ID of another test. Each test ID must be unique.", diagnostic.GetMessage());
         });
+    }
+
+    private const string Usings = """
+        using VerificationGlue.Mocks;
+        using VerificationGlue.Tests;
+
+        """;
+
+    private const string Bootstraps = """
+        public interface IClock { DateTime Now { get; } }
+
+        public sealed class PlainBootstrap : ITestContainerBootstrap
+        {
+            public static ValueTask<ITestContainer> BuildAsync(TestContainerContext context) => throw new NotImplementedException();
+        }
+
+        public sealed class ChildBootstrap : ITestContainerBootstrap, ISupportsChildOverrides
+        {
+            public static ValueTask<ITestContainer> BuildAsync(TestContainerContext context) => throw new NotImplementedException();
+        }
+
+        public sealed class PlainContainerAttribute : ContainerAttribute<PlainBootstrap>;
+
+        """;
+
+    [Theory]
+    [InlineData("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
+    [InlineData("[assembly: Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "", "", "public void M([Mock] IClock clock) { }", "Assembly")]
+    [InlineData("", "", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }", "Class")]
+    [InlineData("", "[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M([Mock] IClock clock) { }", "Assembly")]
+    [InlineData("", "[PlainContainer(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
+    [InlineData("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M() { } public OrderTests([Mock] IClock clock) { }", "Class")]
+    public async Task A_mock_under_a_shared_container_without_child_overrides_reports_VGT0008(
+        string assembly, string type, string method, string members, string scope)
+    {
+        var diagnostics = await Analyze($$"""
+            {{Usings}}
+            {{assembly}}
+            {{Bootstraps}}
+            {{type}}
+            public partial class OrderTests
+            {
+                {{method}}
+                [VerifyTest]
+                {{members}}
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0008", diagnostic.Id);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(
+            $"The test 'M' has [Mock] parameters, but its container PlainBootstrap is shared with Scope = {scope} and PlainBootstrap does not implement ISupportsChildOverrides, so the system under test would not receive the mocks",
+            diagnostic.GetMessage());
+    }
+
+    [Theory]
+    [InlineData("[Container<PlainBootstrap>]", "public void M([Mock] IClock clock) { }")]
+    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Test)]", "public void M([Mock] IClock clock) { }")]
+    [InlineData("[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }")]
+    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M(IClock clock) { }")]
+    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public static void M() { } public OrderTests([Mock] IClock clock) { }")]
+    public async Task A_container_that_returns_the_mocks_reports_nothing(string type, string members)
+    {
+        var diagnostics = await Analyze($$"""
+            {{Usings}}
+            {{Bootstraps}}
+            {{type}}
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                {{members}}
+            }
+            """);
+
+        Assert.Empty(diagnostics);
     }
 
     private static async Task<ImmutableArray<Diagnostic>> Analyze(string source, params MetadataReference[] references)
