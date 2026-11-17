@@ -24,6 +24,15 @@ file static class MyApp_Tests_OrderTests
         TestRegistry.Tests.Add(new TestDescriptor(
             "MyApp.Tests.OrderTests.MockCalls()", "MockCalls", "MyApp.Tests", "OrderTests", "MockCalls", file, 45,
             static () => { new global::MyApp.Tests.OrderTests().MockCalls__Verified(); return default; }));
+
+        // Controls for the debugger checks: the original HelperCall instead of its copy, and a test with no copy.
+        TestRegistry.Tests.Add(new TestDescriptor(
+            "MyApp.Tests.OrderTests.HelperCallOriginal()", "HelperCallOriginal", "MyApp.Tests", "OrderTests", "HelperCall", file, 19,
+            static () => { new global::MyApp.Tests.OrderTests().HelperCall(); return default; }));
+        TestRegistry.Tests.Add(new TestDescriptor(
+            "MyApp.Tests.ControlTests.Plain()", "Plain", "MyApp.Tests", "ControlTests", "Plain",
+            Path.Combine(Path.GetDirectoryName(file)!, "ControlTests.cs"), 9,
+            static () => { new global::MyApp.Tests.ControlTests().Plain(); return default; }));
     }
 }
 
