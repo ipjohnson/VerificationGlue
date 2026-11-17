@@ -276,7 +276,7 @@ Needs: Phase 0, and `tests.md` Phase 2, which holds containers, overrides and VG
 - [ ] The entry generator, built on CSharpAuthor, for every shape in the report, with VGA0001 and VGA0002.
 - [ ] The measurement of the generator in the IDE pipeline described under "Cost in the IDE", with the result recorded in this document.
 - [x] `WebAppBootstrap<TEntry>` on TestServer with test scope, the watcher off, the logger provider, and the parameters above. `test/VerificationGlue.Tests.AspNetCore.Specs`, with a hand-written entry type until the generator ships.
-- [ ] The serial host build under Native AOT, and a test that starts many apps at once.
+- [x] The serial host build under Native AOT, and a test that starts many apps at once. The specs take the serial path on the JIT by switching `RuntimeFeature.IsDynamicCodeSupported` off in the fixture's runtimeconfig.json.
 - [x] The failures of an app that throws or returns before it builds a host, with the exit code in the message.
 - [ ] A Native AOT test project in CI that runs app tests with no warnings.
 - [ ] Pages: README, `docs/guide/getting-started-aspnetcore.md`, the guide "Run app tests under Native AOT", `docs/diagnostics/VGA0001.md` and `VGA0002.md`, the generated-code page, and the package's `llms.txt`.

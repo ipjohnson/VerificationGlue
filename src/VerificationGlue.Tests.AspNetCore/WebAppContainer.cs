@@ -16,6 +16,10 @@ internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestC
 
     public IServiceProvider Services => _scope.ServiceProvider;
 
+    internal IHost Host => host;
+
+    internal HttpClient Client => _client;
+
     public bool TryResolve(TestParameter parameter, out object? value)
     {
         value = parameter.Type == typeof(HttpClient) ? _client

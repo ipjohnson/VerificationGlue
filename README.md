@@ -27,7 +27,7 @@ The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The
 | `VerificationGlue` | Checks with `Verify`, `Throws`, and `ThrowsAsync` | [Write your first check](docs/guide/getting-started-verify.md) |
 | `VerificationGlue.Mocks` | Mocks generated at build time, with typed setup and call checks | [Set up a mock](docs/guide/getting-started-mocks.md) |
 | `VerificationGlue.Tests` | Tests registered at build time with `[VerifyTest]` | [Run your first test](docs/guide/getting-started-tests.md) |
-| `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app started for each test, with an `HttpClient` and the test's mocks | [Test your first endpoint](docs/guide/getting-started-aspnetcore.md) |
+| `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app started for each test, with an `HttpClient` and the test's mocks | [Package README](src/VerificationGlue.Tests.AspNetCore/README.md) |
 
 Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
 

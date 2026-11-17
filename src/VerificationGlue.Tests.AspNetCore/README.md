@@ -22,4 +22,6 @@ Each test gets its own app on TestServer. The app stops when the test ends, and 
 
 The test project references this package, `VerificationGlue.Tests` and the app's project.
 
-- [Getting started with VerificationGlue.Tests.AspNetCore](../../docs/guide/getting-started-aspnetcore.md)
+`ShopApiEntry` is the app's entry type, an `IWebAppEntry`. A partial class marked `[WebAppEntry("ShopApi")]` will be made the entry type by a generator, which is not built yet. Until then, this package is a preview of the runtime.
+
+- [The design of VerificationGlue.Tests.AspNetCore](../../docs/design/aspnet.md)

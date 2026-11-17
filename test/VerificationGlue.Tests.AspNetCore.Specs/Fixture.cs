@@ -1,32 +1,74 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
 namespace VerificationGlue.Tests.AspNetCore.Specs;
 
 /// <summary>
 /// Builds test/VerificationGlue.Tests.AspNetCore.Fixture once in the configuration of these specs, runs
-/// every test in it with <c>--report-trx</c>, and reads the results by test name.
+/// every test in it with <c>--report-trx</c>, and reads the results by test name. <see cref="SerialResults"/>
+/// runs it again with RuntimeFeature.IsDynamicCodeSupported switched off, as it is under Native AOT.
 /// </summary>
 internal static class Fixture
 {
-    private static readonly Lazy<Dictionary<string, TrxResult>> s_results = new(Run, LazyThreadSafetyMode.ExecutionAndPublication);
+    private const string DynamicCodeSwitch = "System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported";
+    private const string Executable = "VerificationGlue.Tests.AspNetCore.Fixture";
+    private static readonly Lazy<string> s_output = new(Build, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<Dictionary<string, TrxResult>> s_results = new(() => Run(s_output.Value), LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<Dictionary<string, TrxResult>> s_serialResults = new(RunWithoutDynamicCode, LazyThreadSafetyMode.ExecutionAndPublication);
 
     public static IReadOnlyDictionary<string, TrxResult> Results => s_results.Value;
 
-    private static Dictionary<string, TrxResult> Run()
+    public static IReadOnlyDictionary<string, TrxResult> SerialResults => s_serialResults.Value;
+
+    private static string Build()
     {
         var configuration = typeof(Fixture).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .Single(attribute => attribute.Key == "VerificationGlue.Configuration").Value!;
         var project = Path.Combine(FindRoot(), "test", "VerificationGlue.Tests.AspNetCore.Fixture");
         var build = Process("dotnet", project, "build", "-c", configuration);
         Assert.True(build.ExitCode == 0, "dotnet build of the fixture failed:\n" + build.Output);
+        return Path.Combine(project, "bin", configuration, "net10.0");
+    }
 
-        var output = Path.Combine(project, "bin", configuration, "net10.0");
+    /// <summary>Runs a copy of the fixture whose runtimeconfig.json turns dynamic code off.</summary>
+    private static Dictionary<string, TrxResult> RunWithoutDynamicCode()
+    {
+        var copy = Directory.CreateTempSubdirectory("vg-aspnet-serial-");
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(s_output.Value, "*", SearchOption.AllDirectories))
+            {
+                var target = Path.Combine(copy.FullName, Path.GetRelativePath(s_output.Value, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(file, target);
+            }
+
+            var runtimeConfig = Path.Combine(copy.FullName, Executable + ".runtimeconfig.json");
+            var json = JsonNode.Parse(File.ReadAllText(runtimeConfig))!;
+            var options = json["runtimeOptions"]!.AsObject();
+            if (options["configProperties"] is not JsonObject properties)
+            {
+                options["configProperties"] = properties = [];
+            }
+
+            properties[DynamicCodeSwitch] = false;
+            File.WriteAllText(runtimeConfig, json.ToJsonString());
+            return Run(copy.FullName);
+        }
+        finally
+        {
+            copy.Delete(recursive: true);
+        }
+    }
+
+    private static Dictionary<string, TrxResult> Run(string output)
+    {
         var results = Directory.CreateTempSubdirectory("vg-aspnet-trx-");
         try
         {
-            var executable = Path.Combine(output, OperatingSystem.IsWindows() ? "VerificationGlue.Tests.AspNetCore.Fixture.exe" : "VerificationGlue.Tests.AspNetCore.Fixture");
+            var executable = Path.Combine(output, OperatingSystem.IsWindows() ? Executable + ".exe" : Executable);
             var run = Process(executable, output, "--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", results.FullName);
             Assert.True(run.ExitCode == 2, run.Output);
 
