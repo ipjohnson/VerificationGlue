@@ -1,9 +1,38 @@
 # VerificationGlue
-C# based unit testing library that is built on AOT, source generation, and a lot of moxie!
 
-## Verify
+**Clear expectations. Readable failures.**
 
-The `VerificationGlue` package gives checks whose failure messages name the file, the line and the shape of the condition, under any test framework and under Native AOT. It is a preview.
+C# checks, generated mocks, and a test runner built for Native AOT. Use Verify and Mocks with your existing test framework, or run tests with VerificationGlue.Tests on Microsoft.Testing.Platform.
+
+[Documentation site preview](spikes/docs-site/README.md) · [Getting started](docs/guide/getting-started-verify.md) · [Samples](samples) · [Diagnostics](docs/diagnostics)
+
+> **Preview packages:** all three packages are previews. VerificationGlue.Tests builds against the MTP 3 preview and needs the feed and runner settings in its [setup guide](docs/guide/getting-started-tests.md).
+
+## See what failed
+
+When `Verify(order.Total == 30)` fails, the message names the condition, its expected shape, and the source location:
+
+```text
+Verify failed: order.Total == 30
+  expected order.Total to equal 30
+  at OrderTests.cs:32
+```
+
+The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The same source information is available under Native AOT. [Read the failure message guide](docs/guide/getting-started-verify.md#read-a-failure).
+
+## Choose your starting point
+
+| Package | What it gives you | Get started |
+| --- | --- | --- |
+| `VerificationGlue` | Checks with `Verify`, `Throws`, and `ThrowsAsync` | [Write your first check](docs/guide/getting-started-verify.md) |
+| `VerificationGlue.Mocks` | Mocks generated at build time, with typed setup and call checks | [Set up a mock](docs/guide/getting-started-mocks.md) |
+| `VerificationGlue.Tests` | Tests registered at build time with `[VerifyTest]` | [Run your first test](docs/guide/getting-started-tests.md) |
+
+Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
+
+## Write expectations in C#
+
+Import `VerificationGlue.VerifySyntax` with `using static`, then write a condition:
 
 <!-- snippet: verify-in-xunit -->
 <a id='snippet-verify-in-xunit'></a>
@@ -25,19 +54,12 @@ public async Task Checkout_reports_an_empty_cart()
 <sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-When `Verify(order.Total == 30)` fails, the message is:
+[Install and use Verify](docs/guide/getting-started-verify.md) · [Collect failures with Check](docs/guide/check.md) · [Understand failure messages](docs/guide/messages.md)
 
-```text
-Verify failed: order.Total == 30
-  expected order.Total to equal 30
-  at OrderTests.cs:32
-```
+<details>
+<summary><strong>Set up dependencies with generated mocks</strong></summary>
 
-[Getting started with Verify](docs/guide/getting-started-verify.md) shows the setup for xunit, NUnit, MSTest and TUnit, and every message shape. The package README is [`src/VerificationGlue/README.md`](src/VerificationGlue/README.md).
-
-## Mocks
-
-The `VerificationGlue.Mocks` package generates mocks at build time, with NSubstitute-style setup and a typed setup surface. They work under any test framework and under Native AOT. It is a preview.
+Use the typed `Setup()` surface to configure behavior and `Calls()` to check how a mock was used:
 
 <!-- snippet: mocks-style-typed -->
 <a id='snippet-mocks-style-typed'></a>
@@ -55,11 +77,14 @@ Verify(calc.Calls().Reset() == 0);
 <sup><a href='/samples/MocksGuide/SetupStyles.cs#L31-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-style-typed' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-[Getting started with mocks](docs/guide/getting-started-mocks.md) shows the setup for xunit, NUnit, MSTest and TUnit, with the hook each one needs for `[Mock]` test parameters. The package README is [`src/VerificationGlue.Mocks/README.md`](src/VerificationGlue.Mocks/README.md). [Migrate from NSubstitute](docs/guide/migrate-from-nsubstitute.md) and [Known differences from NSubstitute](docs/guide/nsubstitute-differences.md) cover a move from NSubstitute.
+[Get started with Mocks](docs/guide/getting-started-mocks.md) · [Choose a setup style](docs/guide/choose-a-setup-style.md)
 
-## Tests
+</details>
 
-The `VerificationGlue.Tests` package is a test framework on Microsoft.Testing.Platform. A method marked `[VerifyTest]` is a test, registered at build time, so the test project publishes with Native AOT. `dotnet test` and `dotnet run` run the tests, with `--filter-uid` and TRX reports. It builds against the MTP 3 preview and is a preview.
+<details>
+<summary><strong>Run tests registered at build time</strong></summary>
+
+Mark methods with `[VerifyTest]` in a partial class. Run them with `dotnet test` or `dotnet run`:
 
 <!-- snippet: first-verify-tests -->
 <a id='snippet-first-verify-tests'></a>
@@ -95,9 +120,41 @@ public partial class CartTests
 <sup><a href='/samples/TestsGettingStarted/CartTests.cs#L27-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-verify-tests' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-[Getting started with VerificationGlue.Tests](docs/guide/getting-started-tests.md) shows the setup, including the `global.json` line that `dotnet test` needs. The package README is [`src/VerificationGlue.Tests/README.md`](src/VerificationGlue.Tests/README.md).
+[Get started with Tests](docs/guide/getting-started-tests.md) · [Run tests under Native AOT](docs/guide/run-tests-under-native-aot.md)
 
-## Building
+</details>
+
+## Bring your existing tests
+
+- [Migrate from xunit assertions](docs/guide/migrate-from-xunit-assert.md).
+- [Migrate from NSubstitute](docs/guide/migrate-from-nsubstitute.md).
+- [Review differences from NSubstitute](docs/guide/nsubstitute-differences.md).
+
+## Explore the documentation site
+
+The [VitePress site preview](spikes/docs-site/README.md) brings the guides and diagnostic pages together with search, package navigation, and runnable sample code. [View the homepage mockup](spikes/docs-site/mockups/home-desktop.png) or run it locally:
+
+```sh
+cd spikes/docs-site
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173/VerificationGlue/`. The planned public address is `https://ipjohnson.github.io/VerificationGlue/`; publication is pending. The preview includes the GitHub Pages workflow example and setup instructions.
+
+## Build and contribute
+
+The SDK and test runner are pinned in `global.json`. `NuGet.config` includes the MTP preview feed.
+
+```sh
+dotnet build VerificationGlue.slnx -c Release
+dotnet test --solution VerificationGlue.slnx -c Release --no-build
+```
+
+<details>
+<summary><strong>Build checks and generator harnesses</strong></summary>
+
+### Build, package, and benchmark
 
 The SDK version and the test runner are pinned in `global.json`.
 
@@ -114,7 +171,7 @@ eng/pack-and-consume.sh --no-build
 
 The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit, and `samples/TestsGettingStarted` is a `VerificationGlue.Tests` project. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries. `test/VerificationGlue.Tests.Specs` builds `test/VerificationGlue.Tests.Fixture` and runs it as a process. The fixture is not in the solution, because some of its tests fail on purpose.
 
-## Generator harnesses
+### Generator harnesses
 
 `test/Generator.Harness` holds the code that generator specs and benchmarks share. `test/Generator.Harness.Sample` is a small generator that shows each harness in use.
 
@@ -122,6 +179,7 @@ The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects i
 - `GeneratorSnapshot.Match` compares the diagnostics and generated files of a run with `Snapshots/{Specs}.{Spec}.verified.txt` in the specs project. On a difference it writes a `.received.txt` file next to it and fails. Run the specs with `VERIFICATIONGLUE_ACCEPT_SNAPSHOTS=1` to accept the received output.
 - `test/Generator.Benchmarks` uses BenchmarkDotNet to time a cold generator run and a run after an unrelated edit. CI uploads the reports as the `generator-benchmarks` artifact.
 
-## Docs
 
-`eng/check-docs.sh` expands the snippets in the docs from `samples/` and fails when the committed docs differ. It also checks links and style. CI runs it too. [`docs/writing-docs.md`](docs/writing-docs.md) explains each check.
+</details>
+
+`eng/check-docs.sh` checks sample snippets, links, and writing style. See [Writing docs](docs/writing-docs.md) to contribute a guide or diagnostic page.

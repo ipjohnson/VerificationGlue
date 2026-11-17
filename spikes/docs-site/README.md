@@ -27,7 +27,7 @@ The build writes `.vitepress/dist`. Source Markdown is copied from `docs/` into 
 - `/VerificationGlue/readme-proposal.html`: proposed root README.
 - `/VerificationGlue/proposal.html`: information architecture and launch plan.
 
-The root README and original docs are unchanged. The README proposal retains working GitHub links until a site is published. Before adopting it, move its example into the existing snippet expansion system and retain the current build and harness details in contributor documentation.
+The root README introduces the packages and links to this preview. It retains the existing sample snippets and build and harness details. The guides under `docs/` are unchanged. The earlier README proposal is kept as a design reference.
 
 ## Hosting proposal
 
