@@ -6,7 +6,7 @@ C# checks, generated mocks, and a test runner built for Native AOT. Use Verify a
 
 [Documentation site preview](spikes/docs-site/README.md) · [Getting started](docs/guide/getting-started-verify.md) · [Samples](samples) · [Diagnostics](docs/diagnostics)
 
-> **Preview packages:** all three packages are previews. VerificationGlue.Tests builds against the MTP 3 preview and needs the feed and runner settings in its [setup guide](docs/guide/getting-started-tests.md).
+> **Preview packages:** all four packages are previews. VerificationGlue.Tests builds against the MTP 3 preview and needs the feed and runner settings in its [setup guide](docs/guide/getting-started-tests.md).
 
 ## See what failed
 
@@ -27,10 +27,11 @@ The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The
 | `VerificationGlue` | Checks with `Verify`, `Throws`, and `ThrowsAsync` | [Write your first check](docs/guide/getting-started-verify.md) |
 | `VerificationGlue.Mocks` | Mocks generated at build time, with typed setup and call checks | [Set up a mock](docs/guide/getting-started-mocks.md) |
 | `VerificationGlue.Tests` | Tests registered at build time with `[VerifyTest]` | [Run your first test](docs/guide/getting-started-tests.md) |
+| `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app started for each test, with an `HttpClient` and the test's mocks | [Test your first endpoint](docs/guide/getting-started-aspnetcore.md) |
 
 Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
 
-A fourth package, `VerificationGlue.Tests.AspNetCore`, will start an ASP.NET Core app for each test and pass the test an `HttpClient`. It is not built yet. [Read its design](docs/design/aspnet.md).
+`VerificationGlue.Tests.AspNetCore` starts each app on TestServer at test scope. Its other phases are in [its design](docs/design/aspnet.md).
 
 ## Write expectations in C#
 
@@ -167,7 +168,7 @@ dotnet run --project test/Generator.Benchmarks -c Release --no-build -- --filter
 eng/pack-and-consume.sh --no-build
 ```
 
-`eng/pack-and-consume.sh` packs the three packages into a local feed. It checks their layout and shared version, and publishes `samples/PackageConsumer`, `samples/VerifyAot` and `samples/MocksAot` with Native AOT. `samples/PackageConsumer` is a `VerificationGlue.Tests` project, and the script runs its tests from the published binary and records how long they take. The script also checks that a mismatched `VerificationGlue` version fails with VGT0007, and that `dotnet test` without the `global.json` runner setting fails with VGT1001. CI runs the same four commands.
+`eng/pack-and-consume.sh` packs the four packages into a local feed. It checks their layout, their shared version and their exact dependencies on each other, and publishes `samples/PackageConsumer`, `samples/VerifyAot` and `samples/MocksAot` with Native AOT. `samples/PackageConsumer` is a `VerificationGlue.Tests` project, and the script runs its tests from the published binary and records how long they take. The script also checks that a mismatched `VerificationGlue` version fails with VGT0007, and that `dotnet test` without the `global.json` runner setting fails with VGT1001. CI runs the same four commands.
 
 `VerificationGlue.Tests` builds against the MTP 3 preview from the `test-tools` feed in `NuGet.config`. Every other project restores from nuget.org.
 

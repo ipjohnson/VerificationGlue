@@ -151,4 +151,5 @@ Visual Studio and VS Code with C# Dev Kit have not been checked on the MTP 3 pre
 - [Test lifecycle](test-lifecycle.md)
 - [Extending VerificationGlue.Tests](extending.md)
 - [Run tests under Native AOT](run-tests-under-native-aot.md)
+- [Test an ASP.NET Core app](getting-started-aspnetcore.md)
 - [Generated test registrations](generated/test-registrations.md)

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The tests in docs/guide/getting-started-aspnetcore.md. The test run of the solution runs them on the
+    MTP 3 preview. The import, the references and UseVerificationGlueMocks add what the
+    VerificationGlue.Tests and VerificationGlue.Tests.AspNetCore packages add.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <PropertyGroup>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore/VerificationGlue.Tests.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../ShopApi/ShopApi.csproj" />
+  </ItemGroup>
+
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

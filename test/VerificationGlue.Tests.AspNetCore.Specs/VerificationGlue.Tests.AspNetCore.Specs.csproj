@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Runs test/VerificationGlue.Tests.AspNetCore.Fixture as a process. It does not reference
+    VerificationGlue.Tests.AspNetCore, which builds against the MTP 3 preview, because these specs run
+    on xunit v3 and MTP 2.
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="VerificationGlue.Configuration" Value="$(Configuration)" />
+  </ItemGroup>
+</Project>
