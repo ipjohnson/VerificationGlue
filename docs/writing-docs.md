@@ -34,7 +34,9 @@ Every `DiagnosticDescriptor` in the three generator assemblies has a page at `do
 - The fix
 - When to suppress it
 
-`test/Docs.Specs/DiagnosticPageSpecs.cs` fails when a descriptor has no page, a page has no descriptor, a `HelpLinkUri` is wrong, or a section is missing.
+An MSBuild `Error` task with a `VG` code in a package's `.targets` file, such as VGT1001, counts as a descriptor. Its `HelpLink` points to its page.
+
+`test/Docs.Specs/DiagnosticPageSpecs.cs` fails when a descriptor or build error has no page, a page has neither, a help link is wrong, or a section is missing.
 
 ## Links and style
 

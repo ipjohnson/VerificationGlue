@@ -57,6 +57,46 @@ Verify(calc.Calls().Reset() == 0);
 
 [Getting started with mocks](docs/guide/getting-started-mocks.md) shows the setup for xunit, NUnit, MSTest and TUnit, with the hook each one needs for `[Mock]` test parameters. The package README is [`src/VerificationGlue.Mocks/README.md`](src/VerificationGlue.Mocks/README.md). [Migrate from NSubstitute](docs/guide/migrate-from-nsubstitute.md) and [Known differences from NSubstitute](docs/guide/nsubstitute-differences.md) cover a move from NSubstitute.
 
+## Tests
+
+The `VerificationGlue.Tests` package is a test framework on Microsoft.Testing.Platform. A method marked `[VerifyTest]` is a test, registered at build time, so the test project publishes with Native AOT. `dotnet test` and `dotnet run` run the tests, with `--filter-uid` and TRX reports. It builds against the MTP 3 preview and is a preview.
+
+<!-- snippet: first-verify-tests -->
+<a id='snippet-first-verify-tests'></a>
+```cs
+public partial class CartTests
+{
+    [VerifyTest]
+    public void Total_adds_the_line_prices()
+    {
+        var prices = Mock.Of<IPrices>();
+        prices.PriceOf("apple").Returns(3);
+        prices.PriceOf("pear").Returns(4);
+        var cart = new Cart(prices);
+
+        cart.Add("apple", 2);
+        cart.Add("pear", 1);
+
+        Verify(cart.Total == 10);
+    }
+
+    [VerifyTest]
+    public async Task Checkout_empties_the_cart(CancellationToken cancellationToken)
+    {
+        var cart = new Cart(Mock.Of<IPrices>());
+        cart.Add("apple", 1);
+
+        await cart.CheckoutAsync(cancellationToken);
+
+        Verify(cart.Total == 0);
+    }
+}
+```
+<sup><a href='/samples/TestsGettingStarted/CartTests.cs#L27-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-verify-tests' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+[Getting started with VerificationGlue.Tests](docs/guide/getting-started-tests.md) shows the setup, including the `global.json` line that `dotnet test` needs. The package README is [`src/VerificationGlue.Tests/README.md`](src/VerificationGlue.Tests/README.md).
+
 ## Building
 
 The SDK version and the test runner are pinned in `global.json`.
@@ -68,9 +108,11 @@ dotnet run --project test/Generator.Benchmarks -c Release --no-build -- --filter
 eng/pack-and-consume.sh --no-build
 ```
 
-`eng/pack-and-consume.sh` packs the three packages into a local feed. It checks their layout and shared version, and publishes `samples/PackageConsumer` and `samples/VerifyAot` with Native AOT. `samples/VerifyAot` runs and checks its failure messages. The script also checks that a mismatched `VerificationGlue` version fails with VGT0007. CI runs the same four commands.
+`eng/pack-and-consume.sh` packs the three packages into a local feed. It checks their layout and shared version, and publishes `samples/PackageConsumer`, `samples/VerifyAot` and `samples/MocksAot` with Native AOT. `samples/PackageConsumer` is a `VerificationGlue.Tests` project, and the script runs its tests from the published binary and records how long they take. The script also checks that a mismatched `VerificationGlue` version fails with VGT0007, and that `dotnet test` without the `global.json` runner setting fails with VGT1001. CI runs the same four commands.
 
-The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries.
+`VerificationGlue.Tests` builds against the MTP 3 preview from the `test-tools` feed in `NuGet.config`. Every other project restores from nuget.org.
+
+The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit, and `samples/TestsGettingStarted` is a `VerificationGlue.Tests` project. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries. `test/VerificationGlue.Tests.Specs` builds `test/VerificationGlue.Tests.Fixture` and runs it as a process. The fixture is not in the solution, because some of its tests fail on purpose.
 
 ## Generator harnesses
 
