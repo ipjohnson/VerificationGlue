@@ -27,11 +27,15 @@ public class RunnerSpecs
         "Narrowest_provider_wins",
         "Next_test_shares_the_class_database",
         "Other_class_shares_the_assembly_database",
+        "Passes_before_its_class_container_fails_to_dispose",
         "Passes_on_the_second_attempt",
         "Service_without_a_mock_gets_the_registered_clock",
         "Starts_with_no_failed_checks",
         "Writes_its_output_in_order",
     ];
+
+    /// <summary>The node the runner publishes when the class container of FailingClassDisposalTests fails to dispose.</summary>
+    internal const string ScopeNode = "Disposing the class scope Fixture.FailingClassDisposalTests";
 
     internal static readonly string[] Failing =
     [
@@ -72,7 +76,7 @@ public class RunnerSpecs
     {
         var results = Trx();
 
-        Assert.Equal(Passing.Concat(Failing).Order(), results.Keys.Order());
+        Assert.Equal(Passing.Concat(Failing).Append(ScopeNode).Order(), results.Keys.Order());
         Assert.All(Passing, name => Assert.Equal("Passed", results[name].Outcome));
         Assert.All(Failing, name => Assert.Equal("Failed", results[name].Outcome));
         Assert.Equal("Fixture.PassingTests", results["Passes"].ClassName);

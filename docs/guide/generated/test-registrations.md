@@ -11,8 +11,10 @@ Each descriptor holds:
 - The test ID: the full name of the class, the method name and the parameter types.
 - The display name, which is the method name.
 - The class, the method and the source file and line, which a test explorer uses to open the test.
-- A function that creates the test's attributes. It starts with the attributes of the assembly, then the class, then the method. Attributes from `System` namespaces are left out. The runner calls it inside the test, so an attribute constructor that throws fails only that test.
-- A function that runs the test. It creates the class, calls the method with the built-in parameter values, and disposes the class.
+- Two functions that create the attributes of the class and of the method. Attributes from `System` namespaces are left out. The runner calls them inside the scope that owns them, so an attribute constructor that throws fails only that class or that test.
+- A `TestParameter` for each parameter of the constructor and of the method, with its name, type, attributes, default value and `[FromKeyedServices]` key. A `[Mock]` parameter carries a function that calls `Mock.Of<T>()`.
+- A function that creates the class with its constructor arguments. The runner calls it only when the container does not return the class.
+- A function that calls the method. Each argument comes from `TestRuntime.Argument`, which tries each source in the order that [Parameters and where they come from](../test-parameters.md) gives.
 
 ## Example
 
@@ -38,22 +40,17 @@ namespace VerificationGlue.Tests.Generated
                 "TestsGettingStarted",
                 "CartTests",
                 "Total_adds_the_line_prices",
-                global::System.Array.Empty<string>(),
                 "System.Void",
                 "CartTests.cs",
                 31,
-                static () => [.. global::VerificationGlue.Tests.Generated.AssemblyAttributes.Create(), new global::VerificationGlue.Tests.VerifyTestAttribute()],
-                static async context =>
+                static () => [],
+                static () => [new global::VerificationGlue.Tests.VerifyTestAttribute()],
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                static context => new global::TestsGettingStarted.CartTests(),
+                static async (context, instance) =>
                 {
-                    var instance = new global::TestsGettingStarted.CartTests();
-                    try
-                    {
-                        instance.Total_adds_the_line_prices__Verified();
-                    }
-                    finally
-                    {
-                        await global::VerificationGlue.Tests.TestRuntime.DisposeAsync(instance);
-                    }
+                    ((global::TestsGettingStarted.CartTests)instance!).Total_adds_the_line_prices__Verified();
                 }));
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Checkout_empties_the_cart(System.Threading.CancellationToken)",
@@ -62,35 +59,33 @@ namespace VerificationGlue.Tests.Generated
                 "TestsGettingStarted",
                 "CartTests",
                 "Checkout_empties_the_cart",
-                new string[] { "System.Threading.CancellationToken" },
                 "System.Threading.Tasks.Task",
                 "CartTests.cs",
                 45,
-                static () => [.. global::VerificationGlue.Tests.Generated.AssemblyAttributes.Create(), new global::VerificationGlue.Tests.VerifyTestAttribute()],
-                static async context =>
+                static () => [],
+                static () => [new global::VerificationGlue.Tests.VerifyTestAttribute()],
+                global::System.Array.Empty<global::VerificationGlue.Tests.TestParameter>(),
+                new global::VerificationGlue.Tests.TestParameter[]
                 {
-                    var instance = new global::TestsGettingStarted.CartTests();
-                    try
-                    {
-                        await instance.Checkout_empties_the_cart__Verified(context.CancellationToken);
-                    }
-                    finally
-                    {
-                        await global::VerificationGlue.Tests.TestRuntime.DisposeAsync(instance);
-                    }
+                    new("cancellationToken", typeof(global::System.Threading.CancellationToken), "System.Threading.CancellationToken", 0, false, static () => [], null, null, false, null),
+                },
+                static context => new global::TestsGettingStarted.CartTests(),
+                static async (context, instance) =>
+                {
+                    await ((global::TestsGettingStarted.CartTests)instance!).Checkout_empties_the_cart__Verified((global::System.Threading.CancellationToken)global::VerificationGlue.Tests.TestRuntime.Argument(context, 0)!);
                 }));
         }
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt#L1-L61' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt#L1-L54' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Both tests are eligible for tier 3, so each registration calls the `__Verified` copy, such as `Total_adds_the_line_prices__Verified()`. [Generated tier 3 copies](rewritten-methods.md) shows what a copy holds. Without `VerificationGlueRewrite`, or for a test that is not eligible, the registration calls the method itself.
 
 The registrations decide this without seeing the copies, which another generator writes. Both generators compile `WillRewrite` from `src/Shared.Generator/VerifyRewriteRules.cs`, so they make the same decision.
 
-The attribute list of each test starts with `AssemblyAttributes.Create()`, which the generator writes once per assembly:
+The attributes of the assembly come from one more file, which the generator writes once per assembly. Its module initializer gives `TestRegistry` the function that creates them, and the attribute list of each scope starts with them:
 
 <!-- snippet: GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt -->
 <a id='snippet-GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt'></a>
@@ -100,15 +95,69 @@ The attribute list of each test starts with `AssemblyAttributes.Create()`, which
 #pragma warning disable
 namespace VerificationGlue.Tests.Generated
 {
-    internal static class AssemblyAttributes
+    file static class AssemblyAttributes
     {
-        internal static global::System.Attribute[] Create() => [];
+        [global::System.Runtime.CompilerServices.ModuleInitializerAttribute]
+        internal static void Register() =>
+            global::VerificationGlue.Tests.TestRegistry.SetAssemblyAttributes(static () => []);
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt#L1-L10' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt#L1-L12' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 An attribute that the generated file cannot create, such as a private one, is left out and reports [VGT0006](../../diagnostics/VGT0006.md).
+
+## Mocks and constructor parameters
+
+For `CheckoutTests` in `samples/TestsContainers/ParameterTests.cs`, which takes a mock and a service in its constructor and the same mock type in its method, the generator writes:
+
+<!-- snippet: GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt -->
+<a id='snippet-GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt'></a>
+```txt
+// <auto-generated/>
+#nullable enable
+#pragma warning disable
+namespace VerificationGlue.Tests.Generated
+{
+    file static class Registration
+    {
+        [global::System.Runtime.CompilerServices.ModuleInitializerAttribute]
+        internal static void Register()
+        {
+            global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
+                "TestsContainers.CheckoutTests.Constructor_and_method_share_one_mock(TestsContainers.IClock)",
+                "Constructor_and_method_share_one_mock",
+                typeof(global::TestsContainers.CheckoutTests),
+                "TestsContainers",
+                "CheckoutTests",
+                "Constructor_and_method_share_one_mock",
+                "System.Void",
+                "ParameterTests.cs",
+                52,
+                static () => [new global::VerificationGlue.Tests.ContainerAttribute<global::TestsContainers.ShopBootstrap>()],
+                static () => [new global::VerificationGlue.Tests.VerifyTestAttribute()],
+                new global::VerificationGlue.Tests.TestParameter[]
+                {
+                    new("clock", typeof(global::TestsContainers.IClock), "TestsContainers.IClock", 0, true, static () => [new global::VerificationGlue.Mocks.MockAttribute()], static () => global::VerificationGlue.Mocks.Mock.Of<global::TestsContainers.IClock>(), null, false, null),
+                    new("sut", typeof(global::TestsContainers.OrderService), "TestsContainers.OrderService", 1, true, static () => [], null, null, false, null),
+                },
+                new global::VerificationGlue.Tests.TestParameter[]
+                {
+                    new("sameClock", typeof(global::TestsContainers.IClock), "TestsContainers.IClock", 0, false, static () => [new global::VerificationGlue.Mocks.MockAttribute()], static () => global::VerificationGlue.Mocks.Mock.Of<global::TestsContainers.IClock>(), null, false, null),
+                },
+                static context => new global::TestsContainers.CheckoutTests((global::TestsContainers.IClock)global::VerificationGlue.Tests.TestRuntime.ConstructorArgument(context, 0)!, (global::TestsContainers.OrderService)global::VerificationGlue.Tests.TestRuntime.ConstructorArgument(context, 1)!),
+                static async (context, instance) =>
+                {
+                    ((global::TestsContainers.CheckoutTests)instance!).Constructor_and_method_share_one_mock__Verified((global::TestsContainers.IClock)global::VerificationGlue.Tests.TestRuntime.Argument(context, 0)!);
+                }));
+        }
+    }
+}
+```
+<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt#L1-L39' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The registration never names a generated mock class, because the mock generator writes those and this generator cannot see them. It calls `Mock.Of<IClock>()`, and the mock generator writes the mock for each `[Mock]` parameter. The runner creates one mock for both `clock` parameters, because they have the same type and no key. It registers that mock as an override before it builds the container, so the `OrderService` from the container receives it too.
 
 `test/VerificationGlue.Tests.Generator.Specs/GeneratedCodeSpecs.cs` checks that these snapshots match a fresh run of the generator. `RewriteSpecs.cs` next to it runs registrations with tier 3 on and off and checks which method each one calls.

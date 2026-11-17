@@ -152,6 +152,13 @@ public sealed partial class MultipleFailuresTests : IDisposable
     public void Dispose() => throw new InvalidOperationException("The test instance failed to dispose.");
 }
 
+[Container<ThrowingDisposeBootstrap>(Scope = ContainerScope.Class)]
+public partial class FailingClassDisposalTests
+{
+    [VerifyTest]
+    public void Passes_before_its_class_container_fails_to_dispose(OrderService service) => Verify(service.Clock is SystemClock);
+}
+
 [ThrowingClass]
 public partial class BrokenClassTests
 {

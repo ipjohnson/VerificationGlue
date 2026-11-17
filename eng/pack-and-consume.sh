@@ -135,12 +135,12 @@ echo "dotnet test without the runner setting failed with VGT1001"
 
 echo "== Run the tests under Native AOT"
 "$sample/publish/PackageConsumer" || fail "the tests failed under Native AOT"
-"$sample/publish/PackageConsumer" --list-tests | grep -q "found 5 test(s)" || fail "the Native AOT binary did not list 5 tests"
+"$sample/publish/PackageConsumer" --list-tests | grep -q "found 6 test(s)" || fail "the Native AOT binary did not list 6 tests"
 "$sample/publish/PackageConsumer" --filter-uid "PackageConsumer.AotTests.Runs_a_test()" | grep -q "total: 1" \
   || fail "--filter-uid did not select exactly one test under Native AOT"
 "$sample/publish/PackageConsumer" --report-trx --report-trx-filename aot.trx --results-directory "$sample/results" > /dev/null
-[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "5" ] \
-  || fail "the TRX report from the Native AOT binary does not show 5 passed tests"
+[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "6" ] \
+  || fail "the TRX report from the Native AOT binary does not show 6 passed tests"
 
 # Timed after the runs above, so the first launch of each binary is not part of the figure.
 "$sample/bin/Release/net10.0/PackageConsumer" > /dev/null || fail "the tests failed before the Native AOT publish"
@@ -151,7 +151,7 @@ aot_start="$(now_ms)"
 "$sample/publish/PackageConsumer" > /dev/null
 aot_ms=$(( $(now_ms) - aot_start ))
 
-summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 5 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
+summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 6 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
 echo "$summary"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
 

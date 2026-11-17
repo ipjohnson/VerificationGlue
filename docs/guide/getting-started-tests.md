@@ -78,9 +78,9 @@ public partial class CartTests
 <sup><a href='/samples/TestsGettingStarted/CartTests.cs#L27-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-verify-tests' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-A test method returns `void`, `Task` or `ValueTask`. It can be static. For an instance method, the runner creates the class with its parameterless constructor and disposes it after the test when it implements `IDisposable` or `IAsyncDisposable`.
+A test method returns `void`, `Task` or `ValueTask`. It can be static. For an instance method, the runner creates the class and disposes it after the test when it implements `IDisposable` or `IAsyncDisposable`.
 
-A test can take a `CancellationToken`, which is cancelled when the run is cancelled, and a `TestContext`, which holds the test ID and the attributes of the test. A parameter of any other type fails the test with a message that names the parameter. Containers that supply services arrive in a later preview.
+A test can take a `CancellationToken`, which is cancelled when the run is cancelled, and a `TestContext`, which holds the test ID and the attributes of the test. With a container, it can also take services and `[Mock]` parameters. [Containers and scopes](containers-and-scopes.md) shows how, and [Parameters and where they come from](test-parameters.md) lists every source. A parameter that no source supplies fails the test with a message that names the parameter.
 
 A method the runner cannot call, such as a non-public or generic method, reports [VGT0004](../diagnostics/VGT0004.md) and is not registered.
 
@@ -146,5 +146,9 @@ Visual Studio and VS Code with C# Dev Kit have not been checked on the MTP 3 pre
 
 ## Next
 
+- [Containers and scopes](containers-and-scopes.md)
+- [Parameters and where they come from](test-parameters.md)
+- [Test lifecycle](test-lifecycle.md)
+- [Extending VerificationGlue.Tests](extending.md)
 - [Run tests under Native AOT](run-tests-under-native-aot.md)
 - [Generated test registrations](generated/test-registrations.md)

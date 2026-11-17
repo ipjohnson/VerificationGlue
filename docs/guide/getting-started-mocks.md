@@ -289,7 +289,7 @@ public async Task Bill_with_mock_parameters([Mock] IPriceList prices, [Mock] IRe
 
 ### VerificationGlue.Tests
 
-`Mock.Of<T>()` works in `VerificationGlue.Tests` too. Built-in `[Mock]` parameters arrive with its Phase 2, described in [`docs/design/tests.md`](../design/tests.md).
+`VerificationGlue.Tests` supports `[Mock]` parameters without a hook. The runner creates each one with `Mock.Of<T>()` and registers it in the test's container, so the system under test receives the same mock. [Containers and scopes](containers-and-scopes.md) shows it.
 
 ## Native AOT
 

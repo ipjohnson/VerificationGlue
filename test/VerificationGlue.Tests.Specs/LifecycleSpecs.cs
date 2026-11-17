@@ -70,6 +70,17 @@ public class LifecycleSpecs
     }
 
     [Fact]
+    public void A_class_scope_that_fails_to_dispose_is_reported_as_its_own_node()
+    {
+        var results = Results.Value;
+
+        Assert.Equal("Passed", results["Passes_before_its_class_container_fails_to_dispose"].Outcome);
+        var scope = results[RunnerSpecs.ScopeNode];
+        Assert.Equal("Failed", scope.Outcome);
+        Assert.Contains("The container failed to dispose.", scope.Message);
+    }
+
+    [Fact]
     public void An_attribute_that_throws_fails_only_the_tests_it_belongs_to()
     {
         var results = Results.Value;
