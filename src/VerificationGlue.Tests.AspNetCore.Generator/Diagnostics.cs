@@ -25,4 +25,13 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VGA0002.md");
+
+    public static readonly DiagnosticDescriptor ConfigurationOnSharedApp = new(
+        id: "VGA0003",
+        title: "A configuration attribute on a test method cannot reach a shared app",
+        messageFormat: "The test '{0}' has [{1}], but its app [WebApp<{2}>] is shared with Scope = {3} and starts before the test, so it does not read the test's attributes. Move [{1}] to {4}, or give the app test scope.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGA0003.md");
 }
