@@ -9,6 +9,8 @@ namespace VerificationGlue.Tests;
 /// <summary>
 /// One registered test. The generator creates a descriptor for each <c>[VerifyTest]</c> method, or one
 /// for each of its <c>[Row]</c> attributes, and adds it to <see cref="TestRegistry"/> from a module initializer.
+/// A method with <c>[RowSource]</c> or an <see cref="ITestDataSource"/> attribute gets one descriptor that
+/// discovery replaces with one descriptor per row.
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class TestDescriptor
@@ -40,6 +42,10 @@ public sealed class TestDescriptor
     /// <param name="maxParallel">The <c>MaxParallel</c> of that <c>[ScheduleGroup]</c>, where 0 means the processor count.</param>
     /// <param name="runAfter">The groups in the <c>[RunAfter]</c> attributes of the class.</param>
     /// <param name="resources">The <c>[Resource]</c> keys of the class and the method.</param>
+    /// <param name="createDataSources">
+    /// Creates the method's data sources, or is null when its rows are literal or it has none. Discovery
+    /// replaces a descriptor that has them with one descriptor per row.
+    /// </param>
     public TestDescriptor(
         string uid,
         Func<TestNameContext, string> formatName,
@@ -60,8 +66,10 @@ public sealed class TestDescriptor
         string scheduleGroup = ScheduleGroupAttribute.DefaultName,
         int maxParallel = 0,
         string[]? runAfter = null,
-        string[]? resources = null)
+        string[]? resources = null,
+        Func<TestDescriptor, IReadOnlyList<ITestDataSource>>? createDataSources = null)
     {
+        CreateDataSources = createDataSources;
         ScheduleGroup = scheduleGroup;
         MaxParallel = maxParallel;
         RunAfter = runAfter ?? [];
@@ -155,6 +163,27 @@ public sealed class TestDescriptor
 
     /// <summary>The full name of <see cref="TestClass"/>, with <c>+</c> between nested types.</summary>
     internal string FullTypeName => Namespace.Length == 0 ? TypeName : Namespace + "." + TypeName;
+
+    /// <summary>Creates the method's data sources, or is null when it has none.</summary>
+    internal Func<TestDescriptor, IReadOnlyList<ITestDataSource>>? CreateDataSources { get; }
+
+    /// <summary>Why the method's data sources gave no rows to run. The test fails with it and runs nothing.</summary>
+    internal Exception? SourceFailure { get; private init; }
+
+    /// <summary>One row of this test, with its own ID and values.</summary>
+    internal TestDescriptor WithRow(string uid, object?[] arguments) => Copy(uid, arguments, null);
+
+    /// <summary>This test under its own ID, failing with <paramref name="failure"/> instead of running.</summary>
+    internal TestDescriptor WithSourceFailure(Exception failure) => Copy(Uid, [], failure);
+
+    private TestDescriptor Copy(string uid, object?[] arguments, Exception? failure) =>
+        new(
+            uid, _formatName, arguments, TestClass, Namespace, TypeName, MethodName, ReturnTypeName, FilePath, Line,
+            CreateClassAttributes, CreateMethodAttributes, [.. ConstructorParameters], [.. Parameters], CreateInstance, Invoke,
+            ScheduleGroup, MaxParallel, [.. RunAfter], [.. Resources])
+        {
+            SourceFailure = failure,
+        };
 
     private string FormatName()
     {

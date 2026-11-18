@@ -34,7 +34,48 @@ public partial class PricingTests
         Verify(Pricing.Discounted(100, code) == expected);
     }
     #endregion
+
+    #region tests-row-source
+    public static IEnumerable<(int Qty, int Price, int Expected)> Orders() =>
+    [
+        (1, 4, 4),
+        (6, 2, 12),
+    ];
+
+    [VerifyTest]
+    [RowSource(nameof(Orders))]
+    public void Order_totals(int qty, int price, int expected) => Verify(Pricing.Total(qty, price) == expected);
+    #endregion
+
+    #region tests-data-source-usage
+    [VerifyTest]
+    [Customers]
+    public void Earns_points(Customer customer) => Verify(customer.Points >= 0);
+    #endregion
 }
+
+public sealed record Customer(string Name, int Points);
+
+public static class CustomerStore
+{
+    public static IEnumerable<Customer> All() => [new("ann", 10), new("bob", 0)];
+}
+
+#region tests-data-source
+/// <summary>Gives one row per stored customer, keyed by the customer's name.</summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class CustomersAttribute : Attribute, ITestDataSource
+{
+    public async IAsyncEnumerable<TestRow> GetRowsAsync(TestDataContext context)
+    {
+        await Task.Yield();
+        foreach (var customer in CustomerStore.All())
+        {
+            yield return new TestRow(customer) { Key = customer.Name };
+        }
+    }
+}
+#endregion
 
 #region tests-name-formatter
 /// <summary>Writes the method name and the row values, without the parameter names.</summary>

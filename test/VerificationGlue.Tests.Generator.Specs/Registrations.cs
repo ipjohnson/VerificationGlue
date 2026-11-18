@@ -10,13 +10,12 @@ internal static class Registrations
     public static Dictionary<string, Func<Task<IReadOnlyList<Exception>>>> Load(string source, bool rewrite, params IIncrementalGenerator[] generators)
     {
         var assembly = Compile(source, rewrite, generators);
-        var registry = assembly.GetType("VerificationGlue.Tests.TestRegistry", throwOnError: true)!;
         var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
         var runnerType = assembly.GetType("VerificationGlue.Tests.TestRunner", throwOnError: true)!;
         var uid = descriptorType.GetProperty("Uid")!;
         var runAsync = runnerType.GetMethod("RunAsync")!;
 
-        var descriptors = ((System.Collections.IEnumerable)registry.GetProperty("Tests")!.GetValue(null)!).Cast<object>().ToArray();
+        var descriptors = Expand(assembly);
         var selected = Array.CreateInstance(descriptorType, descriptors.Length);
         Array.Copy(descriptors, selected, descriptors.Length);
         var runner = Activator.CreateInstance(runnerType, [selected, CancellationToken.None])!;
@@ -41,10 +40,23 @@ internal static class Registrations
     {
         var assembly = Compile(source, rewrite: false, [new TestGenerator()]);
         var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
-        var registry = assembly.GetType("VerificationGlue.Tests.TestRegistry", throwOnError: true)!;
-        return ((System.Collections.IEnumerable)registry.GetProperty("Tests")!.GetValue(null)!).Cast<object>()
+        return Expand(assembly)
             .Select(descriptor => ((string)descriptorType.GetProperty("Uid")!.GetValue(descriptor)!, (string)descriptorType.GetProperty("DisplayName")!.GetValue(descriptor)!))
             .ToArray();
+    }
+
+    /// <summary>
+    /// The registered tests after discovery has replaced each test with data sources by its rows, or by
+    /// the failed node of its sources, in registration order.
+    /// </summary>
+    private static object[] Expand(System.Reflection.Assembly assembly)
+    {
+        var registry = assembly.GetType("VerificationGlue.Tests.TestRegistry", throwOnError: true)!;
+        var expansion = assembly.GetType("VerificationGlue.Tests.RowExpansion", throwOnError: true)!;
+        var tests = registry.GetProperty("Tests")!.GetValue(null)!;
+        var task = (Task)expansion.GetMethod("ExpandAsync")!.Invoke(null, [tests, CancellationToken.None])!;
+        task.GetAwaiter().GetResult();
+        return ((System.Collections.IEnumerable)task.GetType().GetProperty("Result")!.GetValue(task)!).Cast<object>().ToArray();
     }
 
     private static System.Reflection.Assembly Compile(string source, bool rewrite, IIncrementalGenerator[] generators)

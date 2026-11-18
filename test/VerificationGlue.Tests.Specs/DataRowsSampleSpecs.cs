@@ -17,13 +17,17 @@ public class DataRowsSampleSpecs
         var run = Fixture.Dotnet(output, Path.Combine(output, "TestsDataRows.dll"), "--list-tests");
 
         Assert.True(run.ExitCode == 0, run.Output);
-        Assert.Contains("found 6 test(s)", run.Output);
+        Assert.Contains("found 10 test(s)", run.Output);
         Assert.All(
             [
                 "Totals(qty: 2, price: 10, expected: 20)",
                 "Totals(qty: 3, price: 5, expected: 15)",
                 "Discounts(code: \"SAVE10\", expected: 90)",
                 "Discounts(code: \"HALF\", expected: 50)",
+                "Order_totals(qty: 1, price: 4, expected: 4)",
+                "Order_totals(qty: 6, price: 2, expected: 12)",
+                "Earns_points(customer: Customer { Name = ann, Points = 10 })",
+                "Earns_points(customer: Customer { Name = bob, Points = 0 })",
                 "Ships 1 / \"standard\"",
                 "Ships 5 / \"express\"",
             ],

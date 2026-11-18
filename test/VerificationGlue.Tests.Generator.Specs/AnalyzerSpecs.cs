@@ -207,6 +207,73 @@ public class AnalyzerSpecs
         Assert.Equal(row, "[" + diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
     }
 
+    [Theory]
+    [InlineData("[RowSource(\"Missing\")]", "names 'Missing', which is not a method, property or field of OrderTests")]
+    [InlineData("[RowSource(\"\")]", "names no member")]
+    [InlineData("[RowSource(nameof(Instance))]", "names 'Instance', which is not static")]
+    [InlineData("[RowSource(nameof(Hidden))]", "names 'Hidden', which is private, so the generated registration cannot read it")]
+    [InlineData("[RowSource(nameof(Filtered))]", "names the method 'Filtered', which has parameters or type parameters")]
+    [InlineData("[RowSource(nameof(Count))]", "names 'Count', which returns int, not IEnumerable<T> or IAsyncEnumerable<T> of the row values")]
+    [InlineData("[RowSource(nameof(Words))]", "names 'Words', whose rows give string for the parameter 'qty' of type int")]
+    [InlineData("[RowSource(nameof(Longs))]", "names 'Longs', whose rows give long for the parameter 'qty' of type int")]
+    [InlineData("[RowSource(nameof(Triples))]", "names 'Triples', whose rows have 3 values, but the method has 2 parameters")]
+    public async Task A_row_source_that_is_missing_or_has_the_wrong_shape_reports_VGT0005(string source, string reason)
+    {
+        var diagnostics = await Analyze($$"""
+            using VerificationGlue.Tests;
+
+            public partial class OrderTests
+            {
+                public IEnumerable<int> Instance => [1];
+                private static IEnumerable<int> Hidden => [1];
+                public static IEnumerable<int> Filtered(int min) => [min];
+                public static int Count => 1;
+                public static string[] Words = ["a"];
+                public static IEnumerable<long> Longs() => [1L];
+                public static IEnumerable<(int, int, int)> Triples() => [(1, 2, 3)];
+
+                [VerifyTest]
+                {{source}}
+                public void Totals(int qty, int price) { }
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0005", diagnostic.Id);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal($"The [RowSource] on 'Totals' {reason}, so its rows are not registered", diagnostic.GetMessage());
+        Assert.Equal(source, "[" + diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
+    }
+
+    [Fact]
+    public async Task Row_sources_with_rows_that_match_their_parameters_report_nothing()
+    {
+        var diagnostics = await Analyze("""
+            using VerificationGlue.Tests;
+
+            public class Rows
+            {
+                public static IEnumerable<int> Inherited() => [1];
+            }
+
+            public partial class OrderTests : Rows
+            {
+                public static (int, long)[] Pairs = [(1, 2)];
+                internal static IEnumerable<(short Qty, int Price)> Narrow => [(1, 2)];
+                public static async IAsyncEnumerable<(int, long)> Later() { await Task.Yield(); yield return (1, 2); }
+
+                [VerifyTest]
+                [RowSource(nameof(Pairs))]
+                [RowSource(nameof(Narrow), DeterministicReplay = true)]
+                [RowSource(nameof(Later))]
+                [RowSource(nameof(Inherited))]
+                public void Totals(int qty, long price) { }
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
     [Fact]
     public async Task Rows_that_match_their_parameters_report_nothing()
     {

@@ -1,6 +1,6 @@
 # Extending VerificationGlue.Tests
 
-At the end of this page you can write a container bootstrap, a parameter provider, middleware, a scope listener, a name formatter and a scheduler for `VerificationGlue.Tests`.
+At the end of this page you can write a container bootstrap, a parameter provider, middleware, a scope listener, a data source, a name formatter and a scheduler for `VerificationGlue.Tests`.
 
 Every extension point is a public interface in the `VerificationGlue.Tests` namespace. The runner finds them through the test's attributes, which the generator creates without reflection, so extensions work under Native AOT. A breaking change to any of these interfaces needs a major version.
 
@@ -161,6 +161,40 @@ public sealed class LogScopesAttribute : Attribute, ITestScopeListener
 
 `OnDisposingAsync` runs before the scope's containers are disposed. It runs for each listener whose `OnCreatedAsync` returned, in reverse order, even when the test failed.
 
+## Data sources
+
+An attribute that implements `ITestDataSource` gives the rows of the test methods it is placed on. The runner calls `GetRowsAsync` at discovery, in every process that runs tests, and each `TestRow` it returns is its own test. `TestDataContext` passes the method's `Uid`, `TestClass`, `MethodName` and `Parameters`, and a `CancellationToken` that is cancelled when the session is cancelled.
+
+This source gives one row per stored customer. Each row's `Key` is the customer's name:
+
+<!-- snippet: tests-data-source -->
+<a id='snippet-tests-data-source'></a>
+```cs
+/// <summary>Gives one row per stored customer, keyed by the customer's name.</summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class CustomersAttribute : Attribute, ITestDataSource
+{
+    public async IAsyncEnumerable<TestRow> GetRowsAsync(TestDataContext context)
+    {
+        await Task.Yield();
+        foreach (var customer in CustomerStore.All())
+        {
+            yield return new TestRow(customer) { Key = customer.Name };
+        }
+    }
+}
+```
+<sup><a href='/samples/TestsDataRows/PricingTests.cs#L64-L78' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-data-source' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The `Values` of a `TestRow` go to the method's first parameters, in order. The other parameters resolve as usual. The runner checks each value against its parameter type at discovery, because the attribute's values are not known at compile time.
+
+A row's test ID must select the same data in a fresh process, such as a retry. Give each row a `Key` that no other row of the test has, and that stays the same when the source adds, removes or reorders rows. A row whose values are all primitives, strings or enums can leave `Key` unset, and takes its ID from its values. When the source gives the same rows in the same order in every process, it can declare that instead by returning `true` from `DeterministicReplay`. Its unkeyed rows then take their IDs from their positions. [Data rows](data-rows.md#test-ids-of-runtime-rows) gives the full rules.
+
+When `GetRowsAsync` throws, gives no rows, gives two rows the same key, or gives a row that fits none of these rules, the test method fails discovery with the reason and runs no row. [Data rows](data-rows.md#a-source-that-fails) lists the cases.
+
+A method can have several data source attributes and `[RowSource]` members. Their rows are read in that order: the `[RowSource]` members first, then the attributes.
+
 ## Name formatters
 
 An `ITestNameFormatter` writes the display name that a test explorer and the TRX report show. It has one static method, `Format`, which takes a `TestNameContext`:
@@ -183,7 +217,7 @@ public sealed class ValuesOnlyNameFormatter : ITestNameFormatter
             : context.MethodName + " " + string.Join(" / ", context.Arguments.Select(DefaultNameFormatter.FormatValue));
 }
 ```
-<sup><a href='/samples/TestsDataRows/PricingTests.cs#L39-L48' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsDataRows/PricingTests.cs#L80-L89' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `[NameFormatter<T>]` names the formatter. It can go on the assembly, a class or a method, and the narrowest one applies:
@@ -200,7 +234,7 @@ public partial class ShippingTests
     public void Ships(int days, string speed) => Verify(days > 0 && speed.Length > 0);
 }
 ```
-<sup><a href='/samples/TestsDataRows/PricingTests.cs#L50-L59' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter-usage' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsDataRows/PricingTests.cs#L91-L100' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter-usage' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The two rows show as `Ships 1 / "standard"` and `Ships 5 / "express"`. Without the attribute, `DefaultNameFormatter` writes `Ships(days: 1, speed: "standard")`.

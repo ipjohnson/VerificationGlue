@@ -20,8 +20,18 @@ public class RowSpecs
         Assert.True(result.ExitCode == 0, result.Output);
         Assert.Contains("total: 2", result.Output);
         Assert.Contains("succeeded: 2", result.Output);
-        LifecycleLog.AssertInOrder(log, "container built: " + First, "Totals(2, 10) used database 1", "database 1 disposed", "container disposed: " + First);
-        LifecycleLog.AssertInOrder(log, "container built: " + Second, "Totals(3, 5) used database 2", "database 2 disposed", "container disposed: " + Second);
+        var first = Database(log, "Totals(2, 10)");
+        var second = Database(log, "Totals(3, 5)");
+        Assert.NotEqual(first, second);
+        LifecycleLog.AssertInOrder(log, "container built: " + First, $"Totals(2, 10) used database {first}", $"database {first} disposed", "container disposed: " + First);
+        LifecycleLog.AssertInOrder(log, "container built: " + Second, $"Totals(3, 5) used database {second}", $"database {second} disposed", "container disposed: " + Second);
+    }
+
+    /// <summary>The ID of the database that a row logged. The rows run in parallel, so either can create the first one.</summary>
+    private static string Database(string[] log, string row)
+    {
+        var prefix = row + " used database ";
+        return Assert.Single(log, line => line.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..];
     }
 
     [Fact]
