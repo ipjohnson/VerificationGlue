@@ -30,7 +30,7 @@ internal static class GeneratorHarness
     /// </summary>
     public static (GeneratorDriverRunResult Run, Compilation Output) Run(string source, params MetadataReference[] references)
     {
-        var driver = Driver().RunGeneratorsAndUpdateCompilation(Compilation(source, references), out var output, out _, TestContext.Current.CancellationToken);
+        var driver = Driver().RunGeneratorsAndUpdateCompilation(Compilation(source, references), out var output, out _, CancellationToken.None);
         return (driver.GetRunResult(), output);
     }
 
