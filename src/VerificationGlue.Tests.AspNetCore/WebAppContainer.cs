@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,7 +15,7 @@ namespace VerificationGlue.Tests.AspNetCore;
 internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestContainer
 {
     private readonly AsyncServiceScope _scope = host.Services.CreateAsyncScope();
-    private readonly HttpClient _client = host.GetTestClient();
+    private readonly HttpClient _client = CreateClient(host);
 
     public IServiceProvider Services => _scope.ServiceProvider;
 
@@ -31,6 +34,23 @@ internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestC
 
     public ValueTask<ITestContainer> CreateChildAsync(TestContainerContext context) =>
         throw new NotSupportedException("[WebApp<TEntry>] supports only Scope = ContainerScope.Test. An app shared by a class or an assembly is not built yet.");
+
+    /// <summary>
+    /// A TestServer client, or under <see cref="KestrelAttribute"/> a client whose base address is the
+    /// address Kestrel bound, which holds the real port once the server has started.
+    /// </summary>
+    private static HttpClient CreateClient(IHost host)
+    {
+        var server = host.Services.GetRequiredService<IServer>();
+        if (server is TestServer testServer)
+        {
+            return testServer.CreateClient();
+        }
+
+        var address = server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault()
+            ?? throw new InvalidOperationException($"The app's server {server.GetType().Name} has no address in IServerAddressesFeature after the app started.");
+        return new HttpClient { BaseAddress = new Uri(address) };
+    }
 
     /// <summary>Stops the app and returns when its entry point has returned.</summary>
     public async ValueTask DisposeAsync()

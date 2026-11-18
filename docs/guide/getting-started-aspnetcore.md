@@ -188,6 +188,7 @@ The app's log at level `Information` and above goes to the test's output, after 
 ## Next
 
 - [Configure the app for a test](configure-the-app-for-a-test.md)
+- [Test an app on a real port](test-an-app-on-a-real-port.md)
 - [Generated entry types](generated/web-app-entry.md)
 - [Containers and scopes](containers-and-scopes.md)
 - [Parameters and where they come from](test-parameters.md)

@@ -31,7 +31,7 @@ public sealed class WebAppBootstrap<TEntry> : ITestContainerBootstrap
     {
         var clock = Stopwatch.StartNew();
         var configuration = AppConfiguration.Read(attributes);
-        var capture = new HostCapture(overrides, configuration.Settings, output);
+        var capture = new HostCapture(overrides, configuration.Settings, configuration.Kestrel, output);
         var args = configuration.Arguments(TEntry.ApplicationName);
 
         // Under Native AOT, hosts that build at once can fail in GenericWebHostBuilder.UseStartup, so
