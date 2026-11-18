@@ -15,6 +15,7 @@
     <ProjectReference Include="../VerificationGlue.Tests/VerificationGlue.Tests.csproj" PrivateAssets="none" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="llms.txt" Pack="true" PackagePath="/" />
     <!-- Its test of apps that start at once calls WebAppBootstrap<TEntry>.StartAsync, because the runner starts one test at a time. -->
     <InternalsVisibleTo Include="VerificationGlue.Tests.AspNetCore.Fixture" />
   </ItemGroup>
