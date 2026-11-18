@@ -46,5 +46,6 @@ public sealed partial class ShopApiEntry;
 ## Docs
 
 - [Getting started with VerificationGlue.Tests.AspNetCore](../../docs/guide/getting-started-aspnetcore.md)
+- [Share an app across a class](../../docs/guide/share-an-app-across-a-class.md)
 - [Generated entry types](../../docs/guide/generated/web-app-entry.md)
 - [The design of VerificationGlue.Tests.AspNetCore](../../docs/design/aspnet.md)

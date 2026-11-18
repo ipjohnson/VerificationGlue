@@ -9,31 +9,49 @@ namespace VerificationGlue.Tests.AspNetCore.Specs;
 /// Builds test/VerificationGlue.Tests.AspNetCore.Fixture once in the configuration of these specs, runs
 /// every test in it with <c>--report-trx</c>, and reads the results by test name. <see cref="SerialResults"/>
 /// runs it again with RuntimeFeature.IsDynamicCodeSupported switched off, as it is under Native AOT.
+/// <see cref="Log"/> holds what the fixture's AppLog wrote in the first run.
 /// </summary>
 internal static class Fixture
 {
     private const string DynamicCodeSwitch = "System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported";
     private const string Executable = "VerificationGlue.Tests.AspNetCore.Fixture";
+    private static readonly string s_configuration = typeof(Fixture).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        .Single(attribute => attribute.Key == "VerificationGlue.Configuration").Value!;
     private static readonly Lazy<string> s_output = new(Build, LazyThreadSafetyMode.ExecutionAndPublication);
-    private static readonly Lazy<Dictionary<string, TrxResult>> s_results = new(() => Run(s_output.Value), LazyThreadSafetyMode.ExecutionAndPublication);
-    private static readonly Lazy<Dictionary<string, TrxResult>> s_serialResults = new(RunWithoutDynamicCode, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<FixtureRun> s_run = new(() => Run(s_output.Value), LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<FixtureRun> s_serialRun = new(RunWithoutDynamicCode, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<(int ExitCode, string Output)> s_sharedMockBuild = new(BuildSharedMock, LazyThreadSafetyMode.ExecutionAndPublication);
 
-    public static IReadOnlyDictionary<string, TrxResult> Results => s_results.Value;
+    public static IReadOnlyDictionary<string, TrxResult> Results => s_run.Value.Results;
 
-    public static IReadOnlyDictionary<string, TrxResult> SerialResults => s_serialResults.Value;
+    public static IReadOnlyDictionary<string, TrxResult> SerialResults => s_serialRun.Value.Results;
+
+    public static IReadOnlyList<string> Log => s_run.Value.Log;
+
+    /// <summary>The build of test/VerificationGlue.Tests.AspNetCore.SharedMock, which has a [Mock] under a shared app.</summary>
+    public static (int ExitCode, string Output) SharedMockBuild => s_sharedMockBuild.Value;
 
     private static string Build()
     {
-        var configuration = typeof(Fixture).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
-            .Single(attribute => attribute.Key == "VerificationGlue.Configuration").Value!;
         var project = Path.Combine(FindRoot(), "test", "VerificationGlue.Tests.AspNetCore.Fixture");
-        var build = Process("dotnet", project, "build", "-c", configuration);
+        var build = Process("dotnet", project, ["build", "-c", s_configuration]);
         Assert.True(build.ExitCode == 0, "dotnet build of the fixture failed:\n" + build.Output);
-        return Path.Combine(project, "bin", configuration, "net10.0");
+        return Path.Combine(project, "bin", s_configuration, "net10.0");
+    }
+
+    /// <summary>
+    /// Builds the project after the fixture, whose build has built every project it references, so the
+    /// two builds do not write the same files at once.
+    /// </summary>
+    private static (int ExitCode, string Output) BuildSharedMock()
+    {
+        _ = s_output.Value;
+        var project = Path.Combine(FindRoot(), "test", "VerificationGlue.Tests.AspNetCore.SharedMock");
+        return Process("dotnet", project, ["build", "-c", s_configuration, "--no-dependencies"]);
     }
 
     /// <summary>Runs a copy of the fixture whose runtimeconfig.json turns dynamic code off.</summary>
-    private static Dictionary<string, TrxResult> RunWithoutDynamicCode()
+    private static FixtureRun RunWithoutDynamicCode()
     {
         var copy = Directory.CreateTempSubdirectory("vg-aspnet-serial-");
         try
@@ -63,25 +81,27 @@ internal static class Fixture
         }
     }
 
-    private static Dictionary<string, TrxResult> Run(string output)
+    private static FixtureRun Run(string output)
     {
         var results = Directory.CreateTempSubdirectory("vg-aspnet-trx-");
         try
         {
             var executable = Path.Combine(output, OperatingSystem.IsWindows() ? Executable + ".exe" : Executable);
+            var log = Path.Combine(results.FullName, "fixture.log");
             // The results directory is the current directory, so a test that passes reads appsettings.json
             // from the content root the bootstrap passes, not from the current directory.
-            var run = Process(executable, results.FullName, "--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", results.FullName);
+            var run = Process(executable, results.FullName, ["--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", results.FullName], log);
             Assert.True(run.ExitCode == 2, run.Output);
 
             XNamespace trx = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
-            return XDocument.Load(Path.Combine(results.FullName, "fixture.trx")).Descendants(trx + "UnitTestResult").ToDictionary(
+            var tests = XDocument.Load(Path.Combine(results.FullName, "fixture.trx")).Descendants(trx + "UnitTestResult").ToDictionary(
                 test => test.Attribute("testName")!.Value,
                 test => new TrxResult(
                     test.Attribute("outcome")!.Value,
                     test.Descendants(trx + "Message").FirstOrDefault()?.Value ?? "",
                     test.Descendants(trx + "StackTrace").FirstOrDefault()?.Value ?? "",
                     test.Descendants(trx + "StdOut").FirstOrDefault()?.Value.Replace("\r\n", "\n") ?? ""));
+            return new FixtureRun(tests, File.Exists(log) ? File.ReadAllLines(log) : []);
         }
         finally
         {
@@ -89,7 +109,7 @@ internal static class Fixture
         }
     }
 
-    private static (int ExitCode, string Output) Process(string fileName, string directory, params string[] arguments)
+    private static (int ExitCode, string Output) Process(string fileName, string directory, string[] arguments, string? log = null)
     {
         var start = new ProcessStartInfo(fileName)
         {
@@ -109,6 +129,11 @@ internal static class Fixture
         }
 
         start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
+        if (log is not null)
+        {
+            start.Environment["VG_ASPNET_FIXTURE_LOG"] = log;
+        }
+
         using var process = System.Diagnostics.Process.Start(start)!;
         var standardError = process.StandardError.ReadToEndAsync();
         var standardOutput = process.StandardOutput.ReadToEnd();
@@ -136,3 +161,5 @@ internal static class Fixture
 }
 
 internal sealed record TrxResult(string Outcome, string Message, string StackTrace, string Output);
+
+internal sealed record FixtureRun(Dictionary<string, TrxResult> Results, string[] Log);

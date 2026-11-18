@@ -1,6 +1,6 @@
 # VerificationGlue.Tests.AspNetCore
 
-> Tests for an ASP.NET Core app with `VerificationGlue.Tests`. Each test starts its own copy of the app on TestServer, takes an `HttpClient` that calls it, and can replace the app's services with `[Mock]` parameters. A generator writes the code that calls the app's entry point.
+> Tests for an ASP.NET Core app with `VerificationGlue.Tests`. By default each test starts its own copy of the app on TestServer, takes an `HttpClient` that calls it, and can replace the app's services with `[Mock]` parameters. A generator writes the code that calls the app's entry point.
 
 ## Rules
 
@@ -10,13 +10,16 @@
 - Put `[WebApp<ShopApiEntry>]` on a `partial` test class. Each test then starts the app and stops it when the test ends.
 - A test takes `HttpClient`, `IHost` and any service the app registers as parameters. A scoped service comes from the test's own scope.
 - A `[Mock] IClock clock` parameter replaces the app's `IClock` registration for that test, in minimal API endpoints and in controllers alike. Set it up before the first request.
-- Do not share state between tests. Each test has its own app, so a store starts empty in every test.
+- Under the default scope each test has its own app, so a store starts empty in every test.
 - Set a configuration value with `[AppSetting("Orders:MaxQuantity", "5")]` on the test, the class or the assembly. Values add up, and a narrower value for the same key wins. It replaces the value from `appsettings.json`.
 - Set the environment name with `[AppEnvironment("Staging")]`. The narrowest one wins. The default is `Development`.
 - The app does not watch its configuration files. `[WatchAppConfiguration]` turns the watcher on.
 - These reach the app through `args`. An app that calls `WebApplication.CreateBuilder()` without `args` sees a test's values only from `Build()` on, and keeps its own environment name.
 - `[Kestrel]` on the test, the class or the assembly runs the app on Kestrel at `http://127.0.0.1` on a free port. The test's `HttpClient` has that address as its `BaseAddress`. Without it the app runs on TestServer.
-- Only `Scope = ContainerScope.Test`, the default, is built. A shared app per class or assembly is planned and does not exist yet.
+- `[WebApp<ShopApiEntry>(Scope = ContainerScope.Class)]` starts one app for the tests of the class. It starts with the first selected test of the class and stops after the last one. `Scope = ContainerScope.Assembly` starts one app for every class that names the same entry type with assembly scope, and stops it after the last test of the run.
+- A test of a shared app gets its own `HttpClient` and its own service scope, and its scoped services are disposed when the test ends. Singletons are shared, so a test of a shared app must not expect an empty store.
+- A shared app reads configuration attributes from its class and the assembly, or the assembly alone under assembly scope. Do not put `[AppSetting]`, `[AppEnvironment]`, `[Kestrel]` or `[WatchAppConfiguration]` on a test method under a shared app.
+- A test of a shared app cannot take a `[Mock]` parameter. The build fails with VGT0008. Use the default scope for tests with mocks.
 - The app's log at level `Information` and above is in the test's output.
 - VGA0001 means the generator found no entry point in the named assembly, or found more than one type with one. Check the assembly name and the project reference. VGA0002 means the class is not partial, is generic or is nested.
 
@@ -25,6 +28,7 @@
 - [Getting started](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/getting-started-aspnetcore.md): install, name the app and write a test with a mock.
 - [Configure the app for a test](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/configure-the-app-for-a-test.md): `[AppSetting]`, `[AppEnvironment]` and `[WatchAppConfiguration]`.
 - [Test an app on a real port](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/test-an-app-on-a-real-port.md): `[Kestrel]`.
+- [Share an app across a class](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/share-an-app-across-a-class.md): `Scope = ContainerScope.Class` and `ContainerScope.Assembly`, and what a shared app cannot do.
 - [Generated entry types](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/generated/web-app-entry.md): the code the generator writes for each entry point shape.
 - [VGA0001](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGA0001.md) and [VGA0002](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGA0002.md)
 - [Design](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/design/aspnet.md): the phases that are built and the ones that are planned.

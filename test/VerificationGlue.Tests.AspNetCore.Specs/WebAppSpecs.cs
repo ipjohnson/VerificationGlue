@@ -39,7 +39,7 @@ public class WebAppSpecs
         AssertPassed("First_app_lists_only_its_own_order");
         AssertPassed("Second_app_lists_only_its_own_order");
         Assert.All(
-            Fixture.Results.Where(result => result.Value.Outcome == "Passed" && result.Key != StartsAtOnce),
+            Fixture.Results.Where(result => result.Value.Outcome == "Passed" && result.Key != StartsAtOnce && !SharedAppSpecs.Tests.Contains(result.Key)),
             result => Assert.Single(Lines(result.Value.Output), line => line.Contains(" started in ", StringComparison.Ordinal)));
     }
 
@@ -158,8 +158,8 @@ public class WebAppSpecs
     [VerifyTest]
     public void The_other_tests_run_after_an_app_fails_to_start()
     {
-        Assert.Equal(42, Fixture.Results.Count);
-        Assert.Equal(39, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
+        Assert.Equal(49, Fixture.Results.Count);
+        Assert.Equal(46, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
     }
 
     private static void AssertPassed(string test)
