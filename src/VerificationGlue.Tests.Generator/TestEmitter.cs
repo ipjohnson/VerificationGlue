@@ -28,16 +28,14 @@ internal static class TestEmitter
 
         foreach (var method in file.Methods)
         {
-            if (method.HasRows)
+            foreach (var row in method.Rows)
             {
-                foreach (var row in method.Rows)
-                {
-                    AppendDescriptor(text, testClass, method, row.Uid, "new object?[] { " + string.Join(", ", row.Arguments) + " }", rewrite);
-                }
+                AppendDescriptor(text, testClass, method, row.Uid, "new object?[] { " + string.Join(", ", row.Arguments) + " }", rewrite, null);
             }
-            else
+
+            if (method.IsPlain || method.ExpandsAtDiscovery)
             {
-                AppendDescriptor(text, testClass, method, method.Uid, "global::System.Array.Empty<object?>()", rewrite);
+                AppendDescriptor(text, testClass, method, method.Uid, "global::System.Array.Empty<object?>()", rewrite, method.ExpandsAtDiscovery ? DataSources(method) : null);
             }
         }
 
@@ -45,7 +43,20 @@ internal static class TestEmitter
         return text.ToString();
     }
 
-    private static void AppendDescriptor(StringBuilder text, TestClassModel testClass, TestMethodModel method, string uid, string arguments, bool rewrite)
+    /// <summary>
+    /// A lambda that creates the method's data sources: a typed reader for each <c>[RowSource]</c> member,
+    /// then the method's attributes that implement <c>ITestDataSource</c>.
+    /// </summary>
+    private static string DataSources(TestMethodModel method)
+    {
+        var helper = Render(KnownTypes.TestDataSources);
+        var members = method.Sources.Select(source =>
+            "\n                    " + helper + "." + (source.IsAsync ? "AsyncMember" : "Member") + "<" + source.ElementType + ">(" +
+            Literal(source.MemberName) + ", static () => " + source.Read + ", " + source.Values + ", " + (source.DeterministicReplay ? "true" : "false") + ")");
+        return "static test => " + helper + ".With(test" + string.Concat(members.Select(member => "," + member)) + ")";
+    }
+
+    private static void AppendDescriptor(StringBuilder text, TestClassModel testClass, TestMethodModel method, string uid, string arguments, bool rewrite, string? dataSources)
     {
         text.Append("            ").Append(Render(KnownTypes.TestRegistry)).Append(".Add(new ").Append(Render(KnownTypes.TestDescriptor)).Append("(\n");
         text.Append("                ").Append(Literal(uid)).Append(",\n");
@@ -67,6 +78,11 @@ internal static class TestEmitter
         AppendInvoke(text, testClass, method, rewrite);
         text.Append("                }");
         AppendSchedule(text, method.Schedule);
+        if (dataSources is not null)
+        {
+            text.Append(",\n                createDataSources: ").Append(dataSources);
+        }
+
         text.Append("));\n");
     }
 

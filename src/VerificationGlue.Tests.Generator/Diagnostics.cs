@@ -46,6 +46,15 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VGT0004.md");
 
+    public static readonly DiagnosticDescriptor RowSourceMismatch = new(
+        id: "VGT0005",
+        title: "A [RowSource] member is missing or returns the wrong shape",
+        messageFormat: "The [RowSource] on '{0}' {1}, so its rows are not registered",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0005.md");
+
     public static readonly DiagnosticDescriptor AttributeNotMaterialized = new(
         id: "VGT0006",
         title: "An attribute is not passed to extension points",
