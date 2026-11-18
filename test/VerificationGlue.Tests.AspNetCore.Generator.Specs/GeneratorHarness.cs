@@ -40,12 +40,19 @@ internal static class GeneratorHarness
             [
                 CSharpSyntaxTree.ParseText(source, path: "Entry.cs"),
                 CSharpSyntaxTree.ParseText(Interface, path: "IWebAppEntry.cs"),
-                CSharpSyntaxTree.ParseText(
-                    File.ReadAllText(Path.Combine(RepositoryRoot, "src", "VerificationGlue.Tests.AspNetCore", "WebAppEntryAttribute.cs")),
-                    path: "WebAppEntryAttribute.cs"),
+                CSharpSyntaxTree.ParseText(AttributeSource, path: "WebAppEntryAttribute.cs"),
             ],
             [.. PlatformReferences.All, .. references],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+
+    /// <summary>A <see cref="GeneratorDriverHarness"/> for <see cref="EntryGenerator"/> that holds <c>IWebAppEntry</c> and <c>WebAppEntryAttribute</c>.</summary>
+    public static GeneratorDriverHarness Pipeline() =>
+        new GeneratorDriverHarness(new EntryGenerator())
+            .WithSource("IWebAppEntry.cs", Interface)
+            .WithSource("WebAppEntryAttribute.cs", AttributeSource);
+
+    private static string AttributeSource { get; } =
+        File.ReadAllText(Path.Combine(RepositoryRoot, "src", "VerificationGlue.Tests.AspNetCore", "WebAppEntryAttribute.cs"));
 
     public static GeneratorDriver Driver() =>
         CSharpGeneratorDriver.Create(

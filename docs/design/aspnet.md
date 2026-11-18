@@ -51,7 +51,7 @@ The user took these on 2026-11-17:
 `docs/research/aspnet-report.md` lists seven questions under "What the design must answer". This design answers each one.
 
 1. **Name, surface and north star.** The package is `VerificationGlue.Tests.AspNetCore`. Its surface is under [Package](#package) and [Attributes](#attributes). The north star lists it as the fourth package, with its dependencies, its place in the layout and its release.
-2. **Who writes the entry type.** A generator in the package writes it. The test author writes one attribute on a partial class. See [The entry type](#the-entry-type). The cost of `MetadataImportOptions.All` on each edit in the IDE is not measured. The generator is built so that an edit to the test project does not pay it, and Phase 1 measures it before the package ships a preview.
+2. **Who writes the entry type.** A generator in the package writes it. The test author writes one attribute on a partial class. See [The entry type](#the-entry-type). An edit to the test project does not read the app again, and an edit to the app reads it once. [Cost in the IDE](#cost-in-the-ide) has the measured times.
 3. **Parameters.** A test takes `HttpClient`, `IHost` and the app's services directly. No type of ours wraps them. See [Parameters](#parameters).
 4. **Configuration, environment and server.** `[AppSetting]`, `[AppEnvironment]` and `[Kestrel]` on the test, the class or the assembly. The default is TestServer in the `Development` environment. See [Configuration](#configuration).
 5. **The configuration watcher.** The bootstrap turns it off by default. `[WatchAppConfiguration]` turns it back on. The watcher is the difference between a 3 ms and a 64 ms start in the spike.
@@ -142,9 +142,22 @@ ShopApi's top-level statements return `void`, so `Run` returns 0. For an `int` s
 - It builds a compilation that holds only that reference, with `MetadataImportOptions.All`, and reads the entry point from it.
 - The model it caches holds the shape as plain values: the type name, the method name and the return type.
 
-An edit to the test project then leaves the reference unchanged, and the stage that reads it does not run again **(inference)**. An edit to the app's project changes the reference in the IDE, and the stage runs once.
+An edit to the test project leaves the reference unchanged, and the stage that reads it does not run again **(verified)**. An edit to the app's project changes the reference, and the stage runs once **(verified)**. The generator's pipeline needed no change for either.
 
-Phase 1 measures this with the generator benchmark harness, for an edit to the test project and an edit to the app, before the first preview.
+`test/VerificationGlue.Tests.AspNetCore.Generator.Specs/CachingSpecs.cs` shows which stages run, with `GeneratorDriverHarness`:
+
+- After an edit to a test file, the `Apps` stage is `Cached`. The `Entries` stage is `Unchanged`, because Roslyn runs the transform of `ForAttributeWithMetadataName` again for each new compilation. Its model compares equal, so the stages after it do not run.
+- After a new reference to the app, `Apps` runs once. It reports `Unchanged` when the entry point is the same, and the generated file is not written again. It reports `Modified` when the entry point changes, as from `void` to `int`.
+
+`EntryGeneratorBenchmarks` in `test/Generator.Benchmarks` times the generator over a test project of 200 test classes and one `[WebAppEntry]` class. The project references an app of 500 types through its reference assembly. Each edit to the app gives the generator a new reference object, as the IDE does after each build of the app. The medians from BenchmarkDotNet's medium job, in process, on an Apple M3 Pro with .NET SDK 10.0.403:
+
+| Run | Median | Allocated |
+|---|---|---|
+| After an edit to the test project | 0.41 ms | 431 KB |
+| After an edit to the app | 7.9 ms | 4,599 KB |
+| Cold run | 4.7 ms | 5,110 KB |
+
+An edit to the app costs about as much as a cold run, because the stage that reads the app runs again. The run after an edit to the app ranged from 7.2 to 17.1 ms over 27 iterations. The IDE pays this once for each build of the app, not for each edit to the test project.
 
 ## How the app starts
 
@@ -274,7 +287,7 @@ Needs: Phase 0, and `tests.md` Phase 2, which holds containers, overrides and VG
 
 - [x] The projects `src/VerificationGlue.Tests.AspNetCore` and `src/VerificationGlue.Tests.AspNetCore.Generator`, with their specs, and the package in `eng/pack-and-consume.sh`.
 - [x] The entry generator, built on CSharpAuthor, for every shape in the report, with VGA0001 and VGA0002. `test/VerificationGlue.Tests.AspNetCore.Generator.Specs` generates and calls the entry type of each shape, and `test/VerificationGlue.Tests.AspNetCore.Fixture` starts one app of each shape in `test/VerificationGlue.Tests.AspNetCore.Apps` with a mock.
-- [ ] The measurement of the generator in the IDE pipeline described under "Cost in the IDE", with the result recorded in this document.
+- [x] The measurement of the generator in the IDE pipeline described under "Cost in the IDE", with the result recorded in this document. `CachingSpecs` and `EntryGeneratorBenchmarks`.
 - [x] `WebAppBootstrap<TEntry>` on TestServer with test scope, the watcher off, the logger provider, and the parameters above. `test/VerificationGlue.Tests.AspNetCore.Specs`.
 - [x] The serial host build under Native AOT, and a test that starts many apps at once. The specs take the serial path on the JIT by switching `RuntimeFeature.IsDynamicCodeSupported` off in the fixture's runtimeconfig.json.
 - [x] The failures of an app that throws or returns before it builds a host, with the exit code in the message.
