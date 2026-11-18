@@ -65,11 +65,13 @@ Run the tests with `dotnet test`, or with `dotnet run` on the test project. Sele
 ## Docs
 
 - [Getting started with VerificationGlue.Tests](../../docs/guide/getting-started-tests.md)
+- [Migrate from xunit](../../docs/guide/migrate-from-xunit.md)
 - [Containers and scopes](../../docs/guide/containers-and-scopes.md)
 - [Parameters and where they come from](../../docs/guide/test-parameters.md)
 - [Data rows](../../docs/guide/data-rows.md)
 - [Test lifecycle](../../docs/guide/test-lifecycle.md)
 - [Scheduling groups and resources](../../docs/guide/scheduling-groups-and-resources.md)
+- [CI setup with TRX and retries](../../docs/guide/ci-setup-with-trx-and-retries.md)
 - [Extending VerificationGlue.Tests](../../docs/guide/extending.md)
 - [Run tests under Native AOT](../../docs/guide/run-tests-under-native-aot.md)
 - [Generated test registrations](../../docs/guide/generated/test-registrations.md)

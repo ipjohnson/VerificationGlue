@@ -80,7 +80,7 @@ The props that `VerificationGlue` and `VerificationGlue.Mocks` need ship in `bui
 - Phase 0 evidence pins the .NET 10 SDK, MTP 3, IDE and IDE-plugin versions and covers discovery, UID-filtered runs, navigation/debugging and warning-free Native AOT execution. Record the combined results and supported limitations in `docs/research/ide-report.md` before making release promises; the MTP 2.5.3 spike is historical evidence only.
 - Each MTP major version gets a VerificationGlue major version. The previous major stays on a release branch that receives fixes.
 - The four packages keep one version number. A major caused by MTP does not break the public surface of `VerificationGlue` or `VerificationGlue.Mocks`. CI checks this through `PublicAPI.Shipped.txt`: such a major removes no entry from those two packages' files.
-- This repository's `.Specs` projects start on xunit v3 with MTP. See "Repository layout".
+- This repository's `.Specs` projects run on `VerificationGlue.Tests`, and its conformance suites also run on xunit v3. See "Repository layout".
 - `Verify(cond)` throws at once. `Check(cond)` records a failure and lets the test continue. The test then fails at the end with every recorded failure listed.
 - `.WithMessage` and `.Because` outside a `[Verify]` method are build errors.
 - Mock setup uses NSubstitute-style syntax. Each mock has its own `MockAdapter` instance.
@@ -173,7 +173,7 @@ docs/
 
 The package `VerificationGlue.Tests` takes the name a test project would normally use. This repository's own test projects therefore live under `test/` and end in `.Specs`, for example `VerificationGlue.Mocks.Specs`.
 
-The `.Specs` projects start on xunit v3 with MTP, because `VerificationGlue.Tests` cannot run them until its Phase 2 is done. They move to `VerificationGlue.Tests` when `docs/design/tests.md` Phase 2 is done, each project as a whole, and that move is the paired sample for the xunit migration guide. The conformance suites stay runnable on xunit v3 after the move, so a defect in `VerificationGlue.Tests` cannot hide a defect in the other two packages. `VerificationGlue.Tests.Specs` stays on xunit v3, because a runner cannot be the only check of itself.
+The `.Specs` projects started on xunit v3 with MTP, because `VerificationGlue.Tests` could not run them until its Phase 2 was done. In Phase 3 they moved to `VerificationGlue.Tests`, each project as a whole, and the "Migrate from xunit" guide describes that move. The conformance suites stay runnable on xunit v3 after the move, so a defect in `VerificationGlue.Tests` cannot hide a defect in the other two packages. CI runs them on both runners. `VerificationGlue.Tests.Specs` stays on xunit v3, because a runner cannot be the only check of itself.
 
 ## Documentation
 

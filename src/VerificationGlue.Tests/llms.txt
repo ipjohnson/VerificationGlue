@@ -1,0 +1,33 @@
+# VerificationGlue.Tests
+
+> A test framework on Microsoft.Testing.Platform. A public method marked `[VerifyTest]` is a test. A generator registers each test at build time, so discovery does no reflection and the test project publishes with Native AOT. The package brings `VerificationGlue` and `VerificationGlue.Mocks` at the same version.
+
+## Rules
+
+- Reference only `VerificationGlue.Tests`. Do not add `xunit.v3` or another test framework to the same project. `dotnet test` needs `"test": { "runner": "Microsoft.Testing.Platform" }` in the `global.json` next to the solution. VGT1001 means it is missing.
+- Mark each test `[VerifyTest]`. The method is public, and its class is not `private`, `protected` or `file`. A generic method or a method in a generic class is not registered. VGT0004 names the reason.
+- Check with `Verify`, `Check` and `Throws` from `VerificationGlue`. The runner opens a `VerifyScope` for each test, so every failed `Check` is reported when the test ends.
+- A test takes what it needs as parameters: row values first, then services from its `[Container<T>]`, then `CancellationToken`, `TestContext` and `ITestOutput`. There is no `TestContext.Current`. A `[Mock] IClock clock` parameter gets a mock that replaces the container's `IClock` for that test.
+- `[Row(2, 10, 20)]` gives one test per row. A value must convert to its parameter without a cast. VGT0002 reports a row that does not fit.
+- `[RowSource(nameof(Orders))]` reads rows from a static method, property or field that returns `IEnumerable<T>` or `IAsyncEnumerable<T>`, where `T` is a tuple of the values or a single value. VGT0005 reports a member that is missing or has the wrong shape. A row of values that are not primitives, strings or enums needs a `TestRow.Key` or deterministic replay, or discovery fails.
+- Tests run in parallel, up to the processor count, including the tests of one class. Give tests that share state the same `[Resource("key")]`. `[ScheduleGroup("name", MaxParallel = 1)]` runs a group one at a time. `[RunAfter("group")]` starts a group after another, and VGT0003 reports a cycle.
+- `[Trait("Category", "Slow")]` labels a test. `--vg-filter` selects tests by `name:`, `trait:` and `group:`, and `--filter-uid` selects tests by ID.
+- There is no skip. Delete a test that should not run.
+- Add `Microsoft.Testing.Extensions.TrxReport` for `--report-trx` and `Microsoft.Testing.Extensions.Retry` for `--retry-failed-tests`. A retry runs the same rows in a fresh process.
+- VGT0007 means `VerificationGlue` or `VerificationGlue.Mocks` has another version than `VerificationGlue.Tests`. Reference only `VerificationGlue.Tests`, which brings both.
+
+## Docs
+
+- [Getting started](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/getting-started-tests.md): install, write a test and run it.
+- [Migrate from xunit](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/migrate-from-xunit.md): move an xunit v3 test project, attribute by attribute.
+- [Parameters and where they come from](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/test-parameters.md): the order the runner resolves parameters in.
+- [Containers and scopes](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/containers-and-scopes.md): `[Container<T>]`, scopes and mocks that replace services.
+- [Data rows](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/data-rows.md): `[Row]`, `[RowSource]`, `ITestDataSource` and row IDs.
+- [Scheduling groups and resources](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/scheduling-groups-and-resources.md): `[ScheduleGroup]`, `[Resource]` and `[RunAfter]`.
+- [CI setup with TRX and retries](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/ci-setup-with-trx-and-retries.md): the workflow, `--vg-filter`, TRX reports and retries.
+- [Test lifecycle](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/test-lifecycle.md): the order of setup, run and cleanup, and who disposes what.
+- [Extending VerificationGlue.Tests](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/extending.md): data sources, name formatters, schedulers, middleware and parameter providers.
+- [Run tests under Native AOT](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/run-tests-under-native-aot.md)
+- [Generated test registrations](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/generated/test-registrations.md)
+- Diagnostics: [VGT0001](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0001.md), [VGT0002](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0002.md), [VGT0003](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0003.md), [VGT0004](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0004.md), [VGT0005](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0005.md), [VGT0006](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0006.md), [VGT0007](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0007.md), [VGT0008](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT0008.md) and [VGT1001](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGT1001.md)
+- [Design](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/design/tests.md): the phases that are built and the ones that are planned.

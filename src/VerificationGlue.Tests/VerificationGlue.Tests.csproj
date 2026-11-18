@@ -19,5 +19,6 @@
     <None Include="build/VerificationGlue.Tests.props" Pack="true" PackagePath="build/" />
     <None Include="build/VerificationGlue.Tests.targets" Pack="true" PackagePath="build/" />
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="llms.txt" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
