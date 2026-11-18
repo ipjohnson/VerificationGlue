@@ -9,7 +9,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public partial class TypedSurface
 {
-    [Fact]
+    [VerifyTest]
     public void Setup_with_a_value_and_Arg_Any_configures_the_mock()
     {
         var calc = Mock.Of<ICalculator>();
@@ -21,7 +21,7 @@ public partial class TypedSurface
         Assert.Equal(0, calc.Add(2, 2));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Arg_Is_matches_by_predicate_and_by_value()
     {
         var calc = Mock.Of<ICalculator>();
@@ -33,7 +33,7 @@ public partial class TypedSurface
         Assert.Equal(0, calc.Add(11, 6));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_default_argument_matches_the_default_value()
     {
         var calc = Mock.Of<ICalculator>();
@@ -44,7 +44,7 @@ public partial class TypedSurface
         Assert.Equal(0, calc.Add(2, 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Setup_does_not_record_a_call()
     {
         var calc = Mock.Of<ICalculator>();
@@ -55,7 +55,7 @@ public partial class TypedSurface
         Assert.Empty(((IMock)calc).Adapter.ReceivedCalls());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Throws_Does_and_sequences_apply_to_matching_calls()
     {
         var calc = Mock.Of<ICalculator>();
@@ -75,7 +75,7 @@ public partial class TypedSurface
         Assert.Equal([7, 8, 9], seen);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_void_member_can_throw()
     {
         var calc = Mock.Of<ICalculator>();
@@ -85,7 +85,7 @@ public partial class TypedSurface
         Assert.Equal("reset", Assert.Throws<InvalidOperationException>(calc.Reset).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Properties_indexers_and_out_parameters_can_be_set_up()
     {
         var calc = Mock.Of<ICalculator>();
@@ -105,7 +105,7 @@ public partial class TypedSurface
         Assert.Equal(7, value);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Async_members_take_the_result_value()
     {
         var calc = Mock.Of<ICalculator>();
@@ -117,7 +117,7 @@ public partial class TypedSurface
         Assert.Equal("calc", await calc.NameAsync());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_generic_method_matches_its_type_argument()
     {
         var calc = Mock.Of<ICalculator>();
@@ -132,7 +132,7 @@ public partial class TypedSurface
         Assert.True(calc.Calls().Echo(Arg<string>.Any()) == 2);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_interface_typed_parameter_matches_an_exact_value_through_Arg_Is()
     {
         var calc = Mock.Of<ICalculator>();
@@ -144,7 +144,7 @@ public partial class TypedSurface
         Assert.Equal(TimeSpan.Zero, calc.Since(Mock.Of<IClock>()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Calls_counts_the_matching_calls()
     {
         var calc = Mock.Of<ICalculator>();
@@ -161,7 +161,7 @@ public partial class TypedSurface
         Verify(calc.Calls().Add(1, 2) >= 1 && calc.Calls().Add(1, 2) < 2 && 1 == calc.Calls().Add(1, 2));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Both_styles_drive_the_same_mock()
     {
         var calc = Mock.Of<ICalculator>();
@@ -175,7 +175,7 @@ public partial class TypedSurface
         Verify(calc.Calls().Divide(5, 0) == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_call_count_lists_up_to_10_calls_to_the_member()
     {
         var calc = Mock.Of<ICalculator>();
@@ -196,7 +196,7 @@ public partial class TypedSurface
             calc.Calls().Add(1, 2).ToString());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_failed_Verify_lists_the_calls_the_member_received()
     {
         var calc = Mock.Of<ICalculator>();

@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class MockContextFlow
 {
-    [Fact]
+    [VerifyTest]
     public async Task Returns_with_an_await_binds_to_its_own_call_in_200_parallel_setups()
     {
         var calc = Mock.Of<ICalculator>();
@@ -18,7 +18,7 @@ public class MockContextFlow
         Assert.All(Enumerable.Range(0, 200), i => Assert.Equal(i * 10, calc.Add(i, i)));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_pending_check_and_a_matcher_flow_across_an_await_in_the_arguments()
     {
         var calc = Mock.Of<ICalculator>();
@@ -29,8 +29,8 @@ public class MockContextFlow
         Assert.Single(((IMock)calc).Adapter.ReceivedCalls());
     }
 
-    [Fact]
-    public async Task A_background_call_during_Received_is_recorded_and_not_checked()
+    [VerifyTest]
+    public async Task A_background_call_during_Received_is_recorded_and_not_checked(CancellationToken cancellationToken)
     {
         var calc = Mock.Of<ICalculator>();
         calc.Add(1, 2);
@@ -38,10 +38,10 @@ public class MockContextFlow
         using var done = new SemaphoreSlim(0);
         var worker = Task.Run(async () =>
         {
-            await start.WaitAsync(TestContext.Current.CancellationToken);
+            await start.WaitAsync(cancellationToken);
             calc.Add(5, 5);
             done.Release();
-        }, TestContext.Current.CancellationToken);
+        }, cancellationToken);
 
         calc.Received().Add(1, CallInTheBackground(start, done));
         await worker;
@@ -50,13 +50,13 @@ public class MockContextFlow
     }
 
 #pragma warning disable VGM0005 // The receiver is a local on purpose: the case moves the setup into a child task.
-    [Fact]
-    public async Task A_child_task_starts_with_its_parents_last_call_and_its_own_calls_stay_in_the_child()
+    [VerifyTest]
+    public async Task A_child_task_starts_with_its_parents_last_call_and_its_own_calls_stay_in_the_child(CancellationToken cancellationToken)
     {
         var calc = Mock.Of<ICalculator>();
         var call = calc.Add(1, 2);
 
-        await Task.Run(() => call.Returns(3), TestContext.Current.CancellationToken);
+        await Task.Run(() => call.Returns(3), cancellationToken);
         Assert.Equal(3, calc.Add(1, 2));
 
         var again = calc.Add(1, 2);
@@ -67,7 +67,7 @@ public class MockContextFlow
         Assert.Equal(0, calc.Add(9, 9));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Returns_with_no_mock_call_before_it_fails()
     {
         var error = Assert.Throws<MockSetupException>(() => 5.Returns(6));
@@ -77,7 +77,7 @@ public class MockContextFlow
 #pragma warning restore VGM0005
 
 #pragma warning disable VGM0002 // The cases abandon a matcher on purpose.
-    [Fact]
+    [VerifyTest]
     public async Task A_matcher_abandoned_in_a_child_task_does_not_reach_the_parent()
     {
         var calc = Mock.Of<ICalculator>();
@@ -89,7 +89,7 @@ public class MockContextFlow
         Assert.Equal(0, calc.Add(7, 5));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_matcher_abandoned_in_the_same_flow_fails_the_next_call_it_cannot_fit()
     {
         var calc = Mock.Of<ICalculator>();
