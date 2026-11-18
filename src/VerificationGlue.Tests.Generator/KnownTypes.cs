@@ -12,6 +12,8 @@ internal static class KnownTypes
     public const string RunAfterAttribute = "VerificationGlue.Tests.RunAfterAttribute";
     public const string ISupportsChildOverrides = "VerificationGlue.Tests.ISupportsChildOverrides";
     public const string RowAttribute = "VerificationGlue.Tests.RowAttribute";
+    public const string RowSourceAttribute = "VerificationGlue.Tests.RowSourceAttribute";
+    public const string ITestDataSource = "VerificationGlue.Tests.ITestDataSource";
     public const string NameFormatterAttribute = "VerificationGlue.Tests.NameFormatterAttribute";
     public const string DefaultNameFormatter = "global::VerificationGlue.Tests.DefaultNameFormatter";
     public const string MockAttribute = "VerificationGlue.Mocks.MockAttribute";
@@ -23,6 +25,6 @@ internal static class KnownTypes
     public static readonly ITypeDefinition TestRegistry = TypeDefinition.Get("VerificationGlue.Tests", "TestRegistry");
     public static readonly ITypeDefinition TestDescriptor = TypeDefinition.Get("VerificationGlue.Tests", "TestDescriptor");
     public static readonly ITypeDefinition TestRuntime = TypeDefinition.Get("VerificationGlue.Tests", "TestRuntime");
-    public static readonly ITypeDefinition Attribute = TypeDefinition.Get("System", "Attribute");
+    public static readonly ITypeDefinition TestDataSources = TypeDefinition.Get("VerificationGlue.Tests", "TestDataSources");    public static readonly ITypeDefinition Attribute = TypeDefinition.Get("System", "Attribute");
     public static readonly ITypeDefinition ModuleInitializerAttribute = TypeDefinition.Get("System.Runtime.CompilerServices", "ModuleInitializerAttribute");
 }

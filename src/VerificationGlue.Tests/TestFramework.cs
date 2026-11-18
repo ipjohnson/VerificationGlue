@@ -38,21 +38,26 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
 
     public Task<bool> IsEnabledAsync() => Task.FromResult(true);
 
-    public Task<CreateTestSessionResult> CreateTestSessionAsync(CreateTestSessionContext context)
+    /// <summary>
+    /// Reads the registry and expands each test that has data sources into its rows. This runs in every
+    /// process, so a fresh process that a retry starts computes the same row IDs from the same data.
+    /// </summary>
+    public async Task<CreateTestSessionResult> CreateTestSessionAsync(CreateTestSessionContext context)
     {
-        var tests = TestRegistry.Tests.OrderBy(test => test.Uid, StringComparer.Ordinal).ToArray();
+        var expanded = await RowExpansion.ExpandAsync(TestRegistry.Tests, context.CancellationToken);
+        var tests = expanded.OrderBy(test => test.Uid, StringComparer.Ordinal).ToArray();
         var duplicates = tests.GroupBy(test => test.Uid, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
         if (duplicates.Length > 0)
         {
-            return Task.FromResult(new CreateTestSessionResult
+            return new CreateTestSessionResult
             {
                 IsSuccess = false,
                 ErrorMessage = "More than one test has the ID " + string.Join(", ", duplicates) + ". Each test ID must be unique.",
-            });
+            };
         }
 
         _tests = tests;
-        return Task.FromResult(new CreateTestSessionResult { IsSuccess = true });
+        return new CreateTestSessionResult { IsSuccess = true };
     }
 
     public Task<CloseTestSessionResult> CloseTestSessionAsync(CloseTestSessionContext context) =>
@@ -68,7 +73,14 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
                     var discoverFilter = Filter(discover.Filter);
                     foreach (var test in _tests.Where(discoverFilter))
                     {
-                        await Publish(context, discover.Session.SessionUid, test, DiscoveredTestNodeStateProperty.CachedInstance, null);
+                        if (test.SourceFailure is { } failure)
+                        {
+                            await Publish(context, discover.Session.SessionUid, test, new ErrorTestNodeStateProperty(failure, failure.Message), failure);
+                        }
+                        else
+                        {
+                            await Publish(context, discover.Session.SessionUid, test, DiscoveredTestNodeStateProperty.CachedInstance, null);
+                        }
                     }
 
                     break;
@@ -262,7 +274,9 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
 
     /// <summary>
     /// The tests a request selects. <c>--filter-uid</c> and the IDEs send a <see cref="TestNodeUidListFilter"/>.
-    /// The other MTP 3 filters are experimental (TPEXP), and docs/design/tests.md rules them out.
+    /// The other MTP 3 filters are experimental (TPEXP), and docs/design/tests.md rules them out. The ID
+    /// of a row also selects the failed node of its method's data sources, so a retry of that row in a
+    /// process where the source fails reports the failure and runs no other row.
     /// </summary>
     private static Func<TestDescriptor, bool> Filter(ITestExecutionFilter? filter)
     {
@@ -272,7 +286,7 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
                 return static _ => true;
             case TestNodeUidListFilter list:
                 var uids = list.TestNodeUids.Select(uid => uid.Value).ToHashSet(StringComparer.Ordinal);
-                return test => uids.Contains(test.Uid);
+                return test => uids.Contains(test.Uid) || (test.SourceFailure is not null && uids.Any(uid => uid.StartsWith(test.Uid + "#", StringComparison.Ordinal)));
             default:
                 throw new NotSupportedException(
                     $"VerificationGlue.Tests does not support the {filter.GetType().Name} filter. Select tests with --filter-uid.");

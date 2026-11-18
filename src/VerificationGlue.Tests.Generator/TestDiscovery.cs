@@ -208,6 +208,7 @@ internal static class TestDiscovery
         var location = method.Locations.FirstOrDefault(candidate => candidate.IsInSource);
         var span = location?.GetLineSpan();
         var rows = RowReader.Read(method, compilation);
+        var sources = RowSourceReader.Read(method, compilation);
         var testClass = new TestClassModel(
             MetadataName(type),
             type.GetTypeDefinition(),
@@ -231,7 +232,10 @@ internal static class TestDiscovery
             rows.Count > 0,
             rows.Where(row => row.Row is not null).Select(row => row.Row!).ToArray(),
             NameFormatter(method, compilation),
-            Schedule(method, compilation));
+            Schedule(method, compilation),
+            sources.Count > 0,
+            sources.Where(source => source.Source is not null).Select(source => source.Source!).ToArray(),
+            method.GetAttributes().Any(RowSourceReader.IsDataSource));
 
         return new TestEntry(testClass, testMethod);
     }

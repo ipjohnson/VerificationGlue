@@ -6,7 +6,7 @@ At the end of this page you can write tests and test classes that take services,
 
 The runner supplies each parameter of a test method, and each parameter of its class's constructor, from the first source in this list that has a value:
 
-1. The value from the test's [data row](data-rows.md), for a method parameter that a `[Row]` gives a value.
+1. The value from the test's [data row](data-rows.md), for a method parameter that a `[Row]`, a `[RowSource]` member or an `ITestDataSource` gives a value.
 2. A parameter-level provider: `[Mock]`, which creates `Mock.Of<T>()`, or an attribute on the parameter that implements `ITestParameterProvider`.
 3. Attributes that implement `ITestParameterProvider` on the method, then the class, then the assembly.
 4. The test's [container](containers-and-scopes.md).

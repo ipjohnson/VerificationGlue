@@ -12,14 +12,14 @@ namespace VerificationGlue.Tests.Generator;
 /// Reports the <c>[VerifyTest]</c> methods the runner cannot call (VGT0004), the attributes the
 /// registration leaves out (VGT0006), test IDs that two tests share (VGT0001), <c>[Row]</c> values
 /// that do not match their parameters (VGT0002), <c>[RunAfter]</c> cycles between schedule groups
-/// (VGT0003), and tests with <c>[Mock]</c> parameters under a shared container that cannot take
+/// (VGT0003), <c>[RowSource]</c> members that are missing or return the wrong shape (VGT0005), and tests with <c>[Mock]</c> parameters under a shared container that cannot take
 /// overrides (VGT0008).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TestAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [Diagnostics.DuplicateUid, Diagnostics.RowMismatch, Diagnostics.RunAfterCycle, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized, Diagnostics.SharedContainerWithoutChildOverrides];
+        [Diagnostics.DuplicateUid, Diagnostics.RowMismatch, Diagnostics.RunAfterCycle, Diagnostics.RowSourceMismatch, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized, Diagnostics.SharedContainerWithoutChildOverrides];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -60,6 +60,15 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
                     {
                         var rowLocation = row.Attribute.ApplicationSyntaxReference?.GetSyntax(symbol.CancellationToken).GetLocation() ?? location;
                         symbol.ReportDiagnostic(Diagnostic.Create(Diagnostics.RowMismatch, rowLocation, method.Name, row.Error));
+                    }
+                }
+
+                foreach (var source in RowSourceReader.Read(method, compilation))
+                {
+                    if (source.Error is not null)
+                    {
+                        var sourceLocation = source.Attribute.ApplicationSyntaxReference?.GetSyntax(symbol.CancellationToken).GetLocation() ?? location;
+                        symbol.ReportDiagnostic(Diagnostic.Create(Diagnostics.RowSourceMismatch, sourceLocation, method.Name, source.Error));
                     }
                 }
 

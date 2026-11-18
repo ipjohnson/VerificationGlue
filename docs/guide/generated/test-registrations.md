@@ -4,7 +4,7 @@ This page shows the code the generator writes for a test class. After reading it
 
 ## One file per test class
 
-For each class with `[VerifyTest]` methods, the generator writes `{Namespace}.{Class}.Tests.g.cs`. A module initializer in the file adds one `TestDescriptor` per test to `TestRegistry`, so the tests are registered before `Main` runs and discovery does no scanning. A method with `[Row]` attributes gets one descriptor per row, as [Data rows](../data-rows.md) describes.
+For each class with `[VerifyTest]` methods, the generator writes `{Namespace}.{Class}.Tests.g.cs`. A module initializer in the file adds one `TestDescriptor` per test to `TestRegistry`, so the tests are registered before `Main` runs and discovery does no scanning. A method with `[Row]` attributes gets one descriptor per row, as [Data rows](../data-rows.md) describes. A method with `[RowSource]` or an `ITestDataSource` attribute gets one descriptor under the method's ID, with a `createDataSources` function. For each `[RowSource]` member, that function holds a typed call to the member and a lambda that converts each row to its parameter types. The runner calls it at discovery and replaces the descriptor with one per row.
 
 Each descriptor holds:
 

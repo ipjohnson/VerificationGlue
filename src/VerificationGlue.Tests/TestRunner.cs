@@ -35,6 +35,11 @@ internal sealed class TestRunner
     /// <summary>Runs one test and returns every failure in the order it happened, with the test's output.</summary>
     public async Task<TestOutcome> RunAsync(TestDescriptor test)
     {
+        if (test.SourceFailure is { } sourceFailure)
+        {
+            return new TestOutcome([sourceFailure], "");
+        }
+
         var output = new TestOutput();
         _sharedOutput.Target = output;
         var failures = new List<Exception>();
