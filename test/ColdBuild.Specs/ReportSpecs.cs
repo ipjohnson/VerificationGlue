@@ -2,7 +2,7 @@ namespace ColdBuild.Specs;
 
 public class ReportSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Added_seconds_are_scaled_to_100000_calls_and_the_ratio_is_to_the_generator_off_median()
     {
         Run[] runs =
@@ -32,7 +32,7 @@ public class ReportSpecs
         Assert.Contains("| Tier 3 with redirects | 42.0 | 20.0 | 40.0 | 1.91 |", report.ToMarkdown(), StringComparison.Ordinal);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_configuration_over_either_limit_fails_the_budget()
     {
         Run[] runs =
@@ -53,7 +53,7 @@ public class ReportSpecs
         Assert.Contains("| Tier 2 alone | Ratio to generator off | 5.00 | 6.00 | Over budget |", Budgets.ToMarkdown(checks), StringComparison.Ordinal);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_committed_budget_is_the_approved_one()
     {
         var budgets = Budgets.Load(Path.Combine(AppContext.BaseDirectory, "budgets.json"));
