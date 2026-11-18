@@ -1,6 +1,6 @@
 # VerificationGlue repository
 
-> Four .NET packages for tests: `VerificationGlue` for assertions with generated failure messages, `VerificationGlue.Mocks` for source-generated mocks, `VerificationGlue.Tests` for a test runner, and `VerificationGlue.Tests.AspNetCore` for testing an ASP.NET Core app from a test parameter. Each package carries its own `llms.txt`. `VerificationGlue.Tests.AspNetCore` is designed in `docs/design/aspnet.md` and is not built yet.
+> Four .NET packages for tests: `VerificationGlue` for assertions with generated failure messages, `VerificationGlue.Mocks` for source-generated mocks, `VerificationGlue.Tests` for a test runner, and `VerificationGlue.Tests.AspNetCore` for testing an ASP.NET Core app from a test parameter. Each package carries its own `llms.txt`. `VerificationGlue.Tests.AspNetCore` starts an app for each test. Its later phases are designed in `docs/design/aspnet.md` and are not built yet.
 
 ## Packages
 

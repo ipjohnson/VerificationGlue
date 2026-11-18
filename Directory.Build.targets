@@ -1,6 +1,6 @@
 <Project>
   <!--
-    Packaging rules shared by the three packages.
+    Packaging rules shared by the four packages.
 
     A ProjectReference with PackAsAnalyzer="true" names a generator project. Its assembly goes into
     analyzers/dotnet/cs of this package, so the runtime and the generator always ship at one version.

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!--
+    The app that test/VerificationGlue.Tests.AspNetCore.Fixture starts for each test. Fixture:Start set
+    to throw or return makes the entry point stop before it builds a host.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FixtureShop</AssemblyName>
+    <RootNamespace>FixtureShop</RootNamespace>
+  </PropertyGroup>
+</Project>

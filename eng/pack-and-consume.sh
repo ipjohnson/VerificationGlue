@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Packs the three packages into a local feed and checks them as a user would see them:
-#   1. the package layout, one version for all three, and exact dependencies from VerificationGlue.Tests;
+# Packs the four packages into a local feed and checks them as a user would see them:
+#   1. the package layout, one version for all four, and exact dependencies from VerificationGlue.Tests
+#      and VerificationGlue.Tests.AspNetCore;
 #   2. samples/PackageConsumer, a test project that references VerificationGlue.Tests, builds, runs and
 #      publishes under Native AOT with warnings as errors without the global.json runner setting. dotnet test
 #      fails with VGT1001 without the setting and runs the tests with it. The Native AOT binary runs every
@@ -28,7 +29,7 @@ echo "== Pack"
 dotnet pack "$root/VerificationGlue.slnx" -c "$configuration" -o "$feed" "$@"
 
 version=""
-for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests; do
+for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore; do
   matches=("$feed/$package".[0-9]*.nupkg)
   [ ${#matches[@]} -eq 1 ] && [ -f "${matches[0]}" ] || fail "expected one $package package in $feed"
   package_version="$(basename "${matches[0]}" .nupkg)"
@@ -36,7 +37,7 @@ for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests; d
   if [ -z "$version" ]; then version="$package_version"; fi
   [ "$package_version" = "$version" ] || fail "$package has version $package_version, expected $version"
 done
-echo "All three packages have version $version"
+echo "All four packages have version $version"
 
 echo "== Package layout"
 expect_entry() {
@@ -58,12 +59,22 @@ expect_entry VerificationGlue.Tests "analyzers/dotnet/cs/VerificationGlue.Tests.
 expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.props"
 expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.targets"
 expect_entry VerificationGlue.Tests "README.md"
+expect_entry VerificationGlue.Tests.AspNetCore "lib/net10.0/VerificationGlue.Tests.AspNetCore.dll"
+expect_entry VerificationGlue.Tests.AspNetCore "README.md"
 
-nuspec="$(unzip -p "$feed/VerificationGlue.Tests.$version.nupkg" VerificationGlue.Tests.nuspec)"
-for dependency in VerificationGlue VerificationGlue.Mocks; do
-  echo "$nuspec" | grep -q "<dependency id=\"$dependency\" version=\"\[$version\]\"" \
-    || fail "VerificationGlue.Tests does not depend on exactly $dependency $version"
-done
+expect_dependency() {
+  local nuspec
+  nuspec="$(unzip -p "$feed/$1.$version.nupkg" "$1.nuspec")"
+  echo "$nuspec" | grep "<dependency id=\"$2\" version=\"$3\"" > /dev/null \
+    || fail "$1 does not depend on $2 $3"
+}
+expect_dependency VerificationGlue.Tests VerificationGlue "\[$version\]"
+expect_dependency VerificationGlue.Tests VerificationGlue.Mocks "\[$version\]"
+expect_dependency VerificationGlue.Tests.AspNetCore VerificationGlue.Tests "\[$version\]"
+unzip -p "$feed/VerificationGlue.Tests.AspNetCore.$version.nupkg" VerificationGlue.Tests.AspNetCore.nuspec \
+  | grep '<frameworkReference name="Microsoft.AspNetCore.App"' > /dev/null \
+  || fail "VerificationGlue.Tests.AspNetCore has no framework reference to Microsoft.AspNetCore.App"
+expect_dependency VerificationGlue.Tests.AspNetCore Microsoft.AspNetCore.TestHost '[^"]*'
 echo "Layout and dependencies are correct"
 
 # A run gets its own package folder and NuGet.config, so a package cached by an earlier run
