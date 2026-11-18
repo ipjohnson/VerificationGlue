@@ -59,7 +59,7 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
         RegisterMethods(context, runnerMethods, rewrite, projectDirectory);
 
         var redirects = context.SyntaxProvider
-            .CreateSyntaxProvider(static (node, _) => node is InvocationExpressionSyntax && !VerifyCalls.IsCandidate(node), static (syntax, token) => ToRedirect(syntax, token))
+            .CreateSyntaxProvider(static (node, _) => node is InvocationExpressionSyntax, static (syntax, token) => ToRedirect(syntax, token))
             .Where(static redirect => redirect is not null)
             .Select(static (redirect, _) => redirect!)
             .WithTrackingName(RedirectsStep);
@@ -159,6 +159,7 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
     {
         var invocation = (InvocationExpressionSyntax)syntax.Node;
         if (syntax.SemanticModel.GetSymbolInfo(invocation, token).Symbol is not IMethodSymbol target ||
+            VerifyCalls.KindOf(target) is not null ||
             !VerifyRewriteRules.WillRewrite(target) ||
             syntax.SemanticModel.GetInterceptableLocation(invocation, token) is not { } location)
         {
