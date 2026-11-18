@@ -61,6 +61,23 @@ public class InterceptorSpecs
             public static void ThrowsBlock() => Throws<InvalidOperationException>(() => { order.ToString(); });
             public static void ThrowsTypeParameter() => ThrowsOf<InvalidOperationException>();
             public static Task ThrowsAsyncNothing() => ThrowsAsync<TimeoutException>(() => Task.Delay(1));
+            public static void SingleOfTwo() => Single(order.Lines);
+            public static void SingleMatchNone() => Single(order.Lines, line => line > 5);
+            public static void IsWrongType() => Is<int>(boxed);
+            public static void NotNullReference() => NotNull(missing);
+            public static void NotNullValue() => NotNull(noCount);
+
+            private static readonly int? noCount = null;
+            private static readonly int? someCount = 4;
+
+            public static string PassesWithValues()
+            {
+                var line = Single(order.Lines, n => n > 1);
+                var text = Is<string>(boxed);
+                var length = NotNull(present).Length;
+                int count = NotNull(someCount);
+                return $"{line} {text} {length} {count} {Single(new[] { 'z' })}";
+            }
 
             private static void ThrowsOf<TException>() where TException : Exception => Throws<TException>(() => { });
 
@@ -116,6 +133,11 @@ public class InterceptorSpecs
         ("CheckWithoutScope", "Check failed: order.Total == 40\n  expected order.Total to equal 40"),
         ("ThrowsNothing", "Throws failed: () => order.ToString()\n  expected order.ToString() to throw InvalidOperationException\n  no exception was thrown"),
         ("ThrowsOther", "Throws failed: () => throw new FormatException(\"bad digit\")\n  expected throw new FormatException(\"bad digit\") to throw InvalidOperationException\n  it threw System.FormatException: bad digit"),
+        ("SingleOfTwo", "Single failed: order.Lines\n  expected one item, but found 2: [1, 2]"),
+        ("SingleMatchNone", "Single failed: order.Lines, line => line > 5\n  expected one match, but found 0"),
+        ("IsWrongType", "Is failed: boxed\n  expected Int32, but it was String"),
+        ("NotNullReference", "NotNull failed: missing"),
+        ("NotNullValue", "NotNull failed: noCount"),
         ("ThrowsBlock", "Throws failed: () => { order.ToString(); }\n  expected () => { order.ToString(); } to throw InvalidOperationException\n  no exception was thrown"),
     ];
 
@@ -181,6 +203,12 @@ public class InterceptorSpecs
     {
         Assert.Equal("expected", Cases.Value.GetMethod("Passes")!.Invoke(null, null));
         Assert.Equal("slow", await (Task<string>)Cases.Value.GetMethod("PassesAsync")!.Invoke(null, null)!);
+    }
+
+    [VerifyTest]
+    public void Single_Is_and_NotNull_return_what_they_checked()
+    {
+        Assert.Equal("2 text 1 4 z", Cases.Value.GetMethod("PassesWithValues")!.Invoke(null, null));
     }
 
     [VerifyTest]

@@ -108,6 +108,51 @@ internal static class InterceptorEmitter
                     AddExpression(method);
                     method.Return(Ex.CallGeneric(KnownTypes.VerifyFailure, call.Kind.ToString(), new ITypeDefinition[] { exception }, Ex.Id("action"), Expression, message, path, line));
                     break;
+                case CallKind.Single:
+                case CallKind.SingleWhere:
+                    var item = new TypeParameterDefinition("T");
+                    method.AddGenericParameter(item);
+                    method.SetReturnType(item);
+                    method.AddParameter(new GenericTypeDefinition(TypeDefinitionEnum.InterfaceDefinition, "System.Collections.Generic", "IEnumerable", new ITypeDefinition[] { item }).MakeNullable(), "items");
+                    if (call.Kind == CallKind.Single)
+                    {
+                        AddExpression(method);
+                        method.Return(Ex.Call(KnownTypes.VerifyFailure, "Single", Ex.Id("items"), Expression, path, line));
+                        break;
+                    }
+
+                    method.AddParameter(new GenericTypeDefinition(TypeDefinitionEnum.ClassDefinition, "System", "Func", new ITypeDefinition[] { item, KnownTypes.Bool }), "predicate");
+                    AddExpression(method);
+                    method.AddParameter(KnownTypes.String.MakeNullable(), "predicateExpression").DefaultValue = Ex.Null;
+                    method.Return(Ex.Call(KnownTypes.VerifyFailure, "Single", Ex.Id("items"), Ex.Id("predicate"), Expression, Ex.Id("predicateExpression"), path, line));
+                    break;
+                case CallKind.Is:
+                    var target = new TypeParameterDefinition("T");
+                    method.AddGenericParameter(target);
+                    method.SetReturnType(target);
+                    method.AddParameter(KnownTypes.Object.MakeNullable(), "value");
+                    AddExpression(method);
+                    method.Return(Ex.CallGeneric(KnownTypes.VerifyFailure, "Is", new ITypeDefinition[] { target }, Ex.Id("value"), Expression, path, line));
+                    break;
+                case CallKind.NotNull:
+                case CallKind.NotNullValue:
+                    var value = new TypeParameterDefinition("T");
+                    method.AddGenericParameter(value);
+                    var constraint = method.AddConstraint("T");
+                    if (call.Kind == CallKind.NotNull)
+                    {
+                        constraint.Class();
+                    }
+                    else
+                    {
+                        constraint.Struct();
+                    }
+
+                    method.SetReturnType(value);
+                    method.AddParameter(value.MakeNullable(), "value");
+                    AddExpression(method);
+                    method.Return(Ex.Call(KnownTypes.VerifyFailure, "NotNull", Ex.Id("value"), Expression, path, line));
+                    break;
             }
         }
 

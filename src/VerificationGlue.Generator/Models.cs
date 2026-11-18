@@ -11,6 +11,11 @@ internal enum CallKind
     ThrowsAsync,
     ThrowsExactly,
     ThrowsExactlyAsync,
+    Single,
+    SingleWhere,
+    Is,
+    NotNull,
+    NotNullValue,
 }
 
 /// <summary>

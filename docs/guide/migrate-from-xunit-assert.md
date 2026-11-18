@@ -81,6 +81,8 @@ Verify(_order.Shipping is not null);
 <sup><a href='/samples/MigrateFromXunitAssert/After/OrderTests.cs#L33-L36' title='Snippet source file'>snippet source</a> | <a href='#snippet-xunit-assert-null-after' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+When the test uses the value after the check, `NotNull(value)` checks it and returns it, typed as non-null.
+
 ## Collections
 
 <!-- snippet: xunit-assert-collections-before -->
@@ -105,7 +107,7 @@ Verify(_order.Lines.Count == 2);
 <sup><a href='/samples/MigrateFromXunitAssert/After/OrderTests.cs#L44-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-xunit-assert-collections-after' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-`Assert.Single(items)` returns the element. With `Verify`, check `items.Count == 1` and then read `items[0]`.
+`Assert.Single(items)` returns the element, and `Single(items)` does the same. `Assert.Single(items, predicate)` maps to `Single(items, predicate)`.
 
 ## Strings
 
@@ -147,7 +149,7 @@ Verify(order.GetType() == typeof(PaidOrder));
 <sup><a href='/samples/MigrateFromXunitAssert/After/OrderTests.cs#L66-L69' title='Snippet source file'>snippet source</a> | <a href='#snippet-xunit-assert-types-after' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-`Assert.IsType<T>` passes only for exactly `T`, and `is T` also passes for a type derived from `T`. Compare `GetType()` with `typeof(T)` when the exact type matters.
+`Assert.IsType<T>` passes only for exactly `T`, and `is T` also passes for a type derived from `T`. Compare `GetType()` with `typeof(T)` when the exact type matters. When the test needs the value as a `T`, `Is<T>(value)` returns it, and like `is T` it passes for a derived type.
 
 ## Ranges
 

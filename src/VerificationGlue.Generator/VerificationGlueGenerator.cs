@@ -9,8 +9,8 @@ using VerificationGlue.Shared;
 namespace VerificationGlue.Generator;
 
 /// <summary>
-/// Tier 2: one interceptor per call to <c>Verify</c>, <c>Check</c>, <c>Throws</c> or
-/// <c>ThrowsAsync</c>, reporting the file, the line and a message for the shape of the call, all
+/// Tier 2: one interceptor per call to a <c>VerifySyntax</c> method, such as <c>Verify</c>,
+/// <c>Check</c>, <c>Throws</c> or <c>Single</c>, reporting the file, the line and a message for the shape of the call, all
 /// fixed at compile time. Tier 3, when the <c>VerificationGlueRewrite</c> property is true: a
 /// <c>__Verified</c> copy of each eligible method that reports captured values, and interceptors
 /// that send direct calls of those methods to their copies.
@@ -112,7 +112,8 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
                 message = Shapes.Condition(condition, syntax.SemanticModel, token);
             }
         }
-        else if (VerifyCalls.Argument(invocation, VerifyCalls.ActionParameter) is { } action)
+        else if (kind is CallKind.Throws or CallKind.ThrowsAsync or CallKind.ThrowsExactly or CallKind.ThrowsExactlyAsync &&
+                 VerifyCalls.Argument(invocation, VerifyCalls.ActionParameter) is { } action)
         {
             message = Shapes.Throws(action, method.TypeArguments[0], kind is CallKind.ThrowsExactly or CallKind.ThrowsExactlyAsync);
         }

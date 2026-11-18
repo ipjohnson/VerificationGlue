@@ -218,6 +218,35 @@ public class RewriteSpecs
             public static void ThrowsInCopy() => Throws<InvalidOperationException>(() => { });
 
             [Verify]
+            public static void SingleInCopy(int count)
+            {
+                var items = new int[count];
+                Single(items);
+            }
+
+            [Verify]
+            public static void SingleMatchInCopy(int count)
+            {
+                var items = new int[count];
+                Single(items, n => n > 1);
+            }
+
+            [Verify]
+            public static void IsInCopy(object value) => Is<string>(value);
+
+            [Verify]
+            public static void NotNullInCopy(string? text)
+            {
+                var length = NotNull(text).Length;
+            }
+
+            [Verify]
+            public static void NotNullValueInCopy(int? count)
+            {
+                int value = NotNull(count);
+            }
+
+            [Verify]
             public static void Helper(int x) => Verify(x == 1);
 
             public static void CallsHelper(int x) => Helper(x);
@@ -508,6 +537,22 @@ public class RewriteSpecs
         Assert.Equal(
             Lines("Throws failed: () => { }", "  expected () => { } to throw InvalidOperationException", "  no exception was thrown", $"  at Tests/Rewrite.cs:{LineOf("Throws<InvalidOperationException>(() => { })")}"),
             Fail("ThrowsInCopy").Message);
+    }
+
+    public static IEnumerable<(string Method, object? Argument, string Call, string Expected)> ValueChecksInCopies =>
+    [
+        ("SingleInCopy", 2, "Single(items);", "Single failed: items\n  expected one item, but found 2: [0, 0]"),
+        ("SingleMatchInCopy", 1,"Single(items, n => n > 1)", "Single failed: items, n => n > 1\n  expected one match, but found 0"),
+        ("IsInCopy", 3, "Is<string>(value)", "Is failed: value\n  expected String, but it was Int32"),
+        ("NotNullInCopy", null, "NotNull(text)", "NotNull failed: text"),
+        ("NotNullValueInCopy", null, "NotNull(count)", "NotNull failed: count"),
+    ];
+
+    [VerifyTest]
+    [RowSource(nameof(ValueChecksInCopies))]
+    public void Single_Is_and_NotNull_in_a_copy_keep_their_tier_2_message(string method, object? argument, string call, string expected)
+    {
+        Assert.Equal(expected + $"\n  at Tests/Rewrite.cs:{LineOf(call)}", Fail(method, [argument], copy: true).Message);
     }
 
     [VerifyTest]

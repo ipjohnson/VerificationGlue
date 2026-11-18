@@ -17,8 +17,8 @@ namespace VerificationGlue.Generator;
 /// <summary>
 /// Writes the tier 3 copy of one method. The body is the original text with these changes:
 /// each <c>Verify</c> or <c>Check</c> statement becomes an <c>if</c> that captures values; a
-/// <c>Verify</c>, <c>Check</c>, <c>Throws</c> or <c>ThrowsAsync</c> call that cannot be rewritten,
-/// such as one in a lambda, calls its tier 2 form; a direct call to a method that tier 3 rewrites
+/// <c>Verify</c> or <c>Check</c> call that cannot be rewritten, such as one in a lambda, and every
+/// other <c>VerifySyntax</c> call, such as <c>Throws</c> or <c>Single</c>, calls its tier 2 form; a direct call to a method that tier 3 rewrites
 /// calls that method's copy; and a call that leaves out a <c>[CallerMemberName]</c> argument passes
 /// the original method name. <c>#line</c> directives map the text to the original file.
 /// </summary>
@@ -352,6 +352,31 @@ internal sealed class CopyBuilder
                 var message = Shapes.Throws(action, target.TypeArguments[0], kind is CallKind.ThrowsExactly or CallKind.ThrowsExactlyAsync);
                 return $"{Runtime}.{kind}{typeArguments}({Render(action.Span)}, " +
                        $"{(expression is null ? Literal(action.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
+            }
+
+            case CallKind.Single or CallKind.SingleWhere or CallKind.Is or CallKind.NotNull or CallKind.NotNullValue:
+            {
+                var single = kind is CallKind.Single or CallKind.SingleWhere;
+                var subject = VerifyCalls.Argument(call, single ? VerifyCalls.ItemsParameter : VerifyCalls.ValueParameter)!;
+                var expression = VerifyCalls.Argument(call, VerifyCalls.ExpressionParameter, kind == CallKind.SingleWhere ? 2 : 1);
+                var typeArguments = call.Expression switch
+                {
+                    GenericNameSyntax generic => Render(generic.TypeArgumentList.Span),
+                    MemberAccessExpressionSyntax { Name: GenericNameSyntax generic } => Render(generic.TypeArgumentList.Span),
+                    _ => "",
+                };
+                var arguments = Render(subject.Span) + ", ";
+                var expressions = expression is null ? Literal(subject.ToString()) : Render(expression.Span);
+                if (kind == CallKind.SingleWhere)
+                {
+                    var predicate = VerifyCalls.Argument(call, VerifyCalls.PredicateParameter, 1)!;
+                    var predicateExpression = VerifyCalls.Argument(call, VerifyCalls.PredicateExpressionParameter, 3);
+                    arguments += Render(predicate.Span) + ", ";
+                    expressions += ", " + (predicateExpression is null ? Literal(predicate.ToString()) : Render(predicateExpression.Span));
+                }
+
+                var name = single ? "Single" : kind == CallKind.Is ? "Is" : "NotNull";
+                return $"{Runtime}.{name}{typeArguments}({arguments}{expressions}, {where})";
             }
 
             default:

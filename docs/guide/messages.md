@@ -158,6 +158,83 @@ ThrowsExactly failed: () => throw new ArgumentNullException("item")
 ```
 <!-- endMessage -->
 
+### Single
+
+`Single` returns the only item. It fails when there are no items or more than one. The message gives the count, and lists up to 10 of the items when there is more than one.
+
+<!-- snippet: message-tier2-single -->
+<a id='snippet-message-tier2-single'></a>
+```cs
+var line = Single(order.Lines);
+```
+<sup><a href='/samples/Messages/ValueMessages.cs#L13-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-single' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-single -->
+```text
+Single failed: order.Lines
+  expected one item, but found 2: [10, 20]
+  at ValueMessages.cs:14
+```
+<!-- endMessage -->
+
+With a predicate, `Single` returns the only item that matches. The message gives the count of matches, and lists up to 10 of them when more than one matches.
+
+<!-- snippet: message-tier2-single-match -->
+<a id='snippet-message-tier2-single-match'></a>
+```cs
+var order = Single(orders, o => o.Total > 50);
+```
+<sup><a href='/samples/Messages/ValueMessages.cs#L21-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-single-match' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-single-match -->
+```text
+Single failed: orders, o => o.Total > 50
+  expected one match, but found 0
+  at ValueMessages.cs:22
+```
+<!-- endMessage -->
+
+### Is
+
+`Is<T>` returns the value as a `T`. It fails when the value is null or not a `T`, and the message names the actual type.
+
+<!-- snippet: message-tier2-is -->
+<a id='snippet-message-tier2-is'></a>
+```cs
+var order = Is<Order>(item);
+```
+<sup><a href='/samples/Messages/ValueMessages.cs#L29-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-is' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-is -->
+```text
+Is failed: item
+  expected Order, but it was Cart
+  at ValueMessages.cs:30
+```
+<!-- endMessage -->
+
+### NotNull
+
+`NotNull` returns the value when it is not null. Its message has no line beyond the expression and the location.
+
+<!-- snippet: message-tier2-not-null-value -->
+<a id='snippet-message-tier2-not-null-value'></a>
+```cs
+var found = NotNull(order);
+```
+<sup><a href='/samples/Messages/ValueMessages.cs#L37-L39' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-not-null-value' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-not-null-value -->
+```text
+NotNull failed: order
+  at ValueMessages.cs:38
+```
+<!-- endMessage -->
+
 ## Tier 3: captured values
 
 A `[Verify]` method in a `partial` type gets a tier 3 copy when the project sets `VerificationGlueRewrite`. The message lists the value of each part of the condition, as it was when the condition ran. Nothing is evaluated again to build the message.

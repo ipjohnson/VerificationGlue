@@ -34,6 +34,12 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 | `ThrowsAsync<T>(action)` | Awaits `action` and does the same as `Throws<T>`. |
 | `ThrowsExactly<T>(action)` | Returns the exception that `action` throws. Fails unless its type is exactly `T`, so an exception derived from `T` fails. |
 | `ThrowsExactlyAsync<T>(action)` | Awaits `action` and does the same as `ThrowsExactly<T>`. |
+| `Single(items)` | Returns the only item. Fails when there are no items or more than one. |
+| `Single(items, predicate)` | Returns the only item that matches `predicate`. Fails when none or more than one match. |
+| `Is<T>(value)` | Returns `value` as a `T`. Fails when `value` is null or not a `T`. |
+| `NotNull(value)` | Returns `value` when it is not null. Nullable analysis treats the result as non-null. |
+
+`Throws`, `Single`, `Is` and `NotNull` return a value, so they throw on failure also inside a `VerifyScope`. The [messages page](messages.md#single) shows what each one reports.
 
 ### xunit
 

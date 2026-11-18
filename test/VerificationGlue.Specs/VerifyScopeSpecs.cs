@@ -97,6 +97,24 @@ public class VerifyScopeSpecs
         Assert.Empty(scope.Failures);
     }
 
+    [VerifyTest]
+    public void Single_Is_and_NotNull_throw_inside_a_scope_and_record_nothing()
+    {
+        List<int> numbers = [];
+        object value = "text";
+        string? name = null;
+        int? count = null;
+
+        using var scope = VerifyScope.Begin();
+
+        Assert.Throws<VerifyException>(() => Single(numbers));
+        Assert.Throws<VerifyException>(() => Single(numbers, n => n > 0));
+        Assert.Throws<VerifyException>(() => Is<int>(value));
+        Assert.Throws<VerifyException>(() => NotNull(name));
+        Assert.Throws<VerifyException>(() => NotNull(count));
+        Assert.Empty(scope.Failures);
+    }
+
     // VerificationGlue.Tests runs each test inside a VerifyScope. The body runs without the
     // execution context, so it starts with no scope.
     private static Task OutsideTheRunnersScope(Action body)
