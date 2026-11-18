@@ -4,12 +4,13 @@ This page shows the code the generator writes for a test class. After reading it
 
 ## One file per test class
 
-For each class with `[VerifyTest]` methods, the generator writes `{Namespace}.{Class}.Tests.g.cs`. A module initializer in the file adds one `TestDescriptor` per test to `TestRegistry`, so the tests are registered before `Main` runs and discovery does no scanning.
+For each class with `[VerifyTest]` methods, the generator writes `{Namespace}.{Class}.Tests.g.cs`. A module initializer in the file adds one `TestDescriptor` per test to `TestRegistry`, so the tests are registered before `Main` runs and discovery does no scanning. A method with `[Row]` attributes gets one descriptor per row, as [Data rows](../data-rows.md) describes.
 
 Each descriptor holds:
 
-- The test ID: the full name of the class, the method name and the parameter types.
-- The display name, which is the method name.
+- The test ID: the full name of the class, the method name and the parameter types. A row's ID adds its typed values.
+- A function that calls the `ITestNameFormatter` from the narrowest `[NameFormatter<T>]`, or `DefaultNameFormatter`, for the display name.
+- The row values, or an empty array for a test without rows.
 - The class, the method and the source file and line, which a test explorer uses to open the test.
 - Two functions that create the attributes of the class and of the method. Attributes from `System` namespaces are left out. The runner calls them inside the scope that owns them, so an attribute constructor that throws fails only that class or that test.
 - A `TestParameter` for each parameter of the constructor and of the method, with its name, type, attributes, default value and `[FromKeyedServices]` key. A `[Mock]` parameter carries a function that calls `Mock.Of<T>()`.
@@ -35,7 +36,8 @@ namespace VerificationGlue.Tests.Generated
         {
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Total_adds_the_line_prices()",
-                "Total_adds_the_line_prices",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsGettingStarted.CartTests),
                 "TestsGettingStarted",
                 "CartTests",
@@ -54,7 +56,8 @@ namespace VerificationGlue.Tests.Generated
                 }));
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Checkout_empties_the_cart(System.Threading.CancellationToken)",
-                "Checkout_empties_the_cart",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsGettingStarted.CartTests),
                 "TestsGettingStarted",
                 "CartTests",
@@ -78,7 +81,7 @@ namespace VerificationGlue.Tests.Generated
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt#L1-L54' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt#L1-L56' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_for_the_getting_started_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Both tests are eligible for tier 3, so each registration calls the `__Verified` copy, such as `Total_adds_the_line_prices__Verified()`. [Generated tier 3 copies](rewritten-methods.md) shows what a copy holds. Without `VerificationGlueRewrite`, or for a test that is not eligible, the registration calls the method itself.
@@ -127,7 +130,8 @@ namespace VerificationGlue.Tests.Generated
         {
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsContainers.CheckoutTests.Constructor_and_method_share_one_mock(TestsContainers.IClock)",
-                "Constructor_and_method_share_one_mock",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsContainers.CheckoutTests),
                 "TestsContainers",
                 "CheckoutTests",
@@ -155,7 +159,7 @@ namespace VerificationGlue.Tests.Generated
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt#L1-L39' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Tests.Generator.Specs/Snapshots/GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt#L1-L40' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Registration_with_mocks_for_the_containers_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The registration never names a generated mock class, because the mock generator writes those and this generator cannot see them. It calls `Mock.Of<IClock>()`, and the mock generator writes the mock for each `[Mock]` parameter. The runner creates one mock for both `clock` parameters, because they have the same type and no key. It registers that mock as an override before it builds the container, so the `OrderService` from the container receives it too.

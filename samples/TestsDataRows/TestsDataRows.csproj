@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The tests in docs/guide/data-rows.md and the name formatter in docs/guide/extending.md. dotnet test on
+    the solution runs them, and test/VerificationGlue.Tests.Specs checks the names the page shows. The
+    imports and the references add what the VerificationGlue.Tests package adds.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using CSharpAuthor.Roslyn;
@@ -136,11 +137,27 @@ internal static class TestDiscovery
     private static AttributeData? FindContainer(IEnumerable<AttributeData> attributes) =>
         attributes.LastOrDefault(attribute => Bootstrap(attribute.AttributeClass) is not null);
 
-    private static ITypeSymbol? Bootstrap(INamedTypeSymbol? attribute)
+    private static ITypeSymbol? Bootstrap(INamedTypeSymbol? attribute) => TypeArgument(attribute, KnownTypes.ContainerAttribute);
+
+    /// <summary>
+    /// The global type name of the <c>ITestNameFormatter</c> from the narrowest <c>[NameFormatter&lt;T&gt;]</c>:
+    /// the method's, then the class's, then the assembly's. <c>DefaultNameFormatter</c> when none applies.
+    /// </summary>
+    public static string NameFormatter(IMethodSymbol method, Compilation compilation)
+    {
+        var formatter = Formatter(method.GetAttributes()) ?? Formatter(method.ContainingType.GetAttributes()) ?? Formatter(compilation.Assembly.GetAttributes());
+        return formatter?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? KnownTypes.DefaultNameFormatter;
+
+        static ITypeSymbol? Formatter(IEnumerable<AttributeData> attributes) =>
+            attributes.Select(attribute => TypeArgument(attribute.AttributeClass, KnownTypes.NameFormatterAttribute)).LastOrDefault(type => type is not null);
+    }
+
+    /// <summary>The <c>T</c> of <paramref name="attribute"/> when it is, or derives from, <c>{genericName}&lt;T&gt;</c>.</summary>
+    private static ITypeSymbol? TypeArgument(INamedTypeSymbol? attribute, string genericName)
     {
         for (var type = attribute; type is not null; type = type.BaseType)
         {
-            if (type is { IsGenericType: true, TypeArguments.Length: 1 } && type.ConstructedFrom.ToDisplayString() == KnownTypes.ContainerAttribute + "<T>")
+            if (type is { IsGenericType: true, TypeArguments.Length: 1 } && type.ConstructedFrom.ToDisplayString() == genericName + "<T>")
             {
                 return type.TypeArguments[0];
             }
@@ -190,6 +207,7 @@ internal static class TestDiscovery
 
         var location = method.Locations.FirstOrDefault(candidate => candidate.IsInSource);
         var span = location?.GetLineSpan();
+        var rows = RowReader.Read(method, compilation);
         var testClass = new TestClassModel(
             MetadataName(type),
             type.GetTypeDefinition(),
@@ -209,7 +227,10 @@ internal static class TestDiscovery
             method.ReturnsVoid ? "System.Void" : TypeName(method.ReturnType),
             parameters,
             VerifyRewriteRules.WillRewrite(method),
-            AttributeMaterializer.Materialize(method.GetAttributes(), compilation),
+            AttributeMaterializer.Materialize(method.GetAttributes().Where(attribute => !RowReader.IsRow(attribute)).ToImmutableArray(), compilation),
+            rows.Count > 0,
+            rows.Where(row => row.Row is not null).Select(row => row.Row!).ToArray(),
+            NameFormatter(method, compilation),
             Schedule(method, compilation));
 
         return new TestEntry(testClass, testMethod);

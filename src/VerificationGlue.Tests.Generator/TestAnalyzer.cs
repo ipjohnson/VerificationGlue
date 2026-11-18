@@ -10,15 +10,16 @@ namespace VerificationGlue.Tests.Generator;
 
 /// <summary>
 /// Reports the <c>[VerifyTest]</c> methods the runner cannot call (VGT0004), the attributes the
-/// registration leaves out (VGT0006), test IDs that two tests share (VGT0001), <c>[RunAfter]</c>
-/// cycles between schedule groups (VGT0003), and tests with <c>[Mock]</c> parameters under a shared
-/// container that cannot take overrides (VGT0008).
+/// registration leaves out (VGT0006), test IDs that two tests share (VGT0001), <c>[Row]</c> values
+/// that do not match their parameters (VGT0002), <c>[RunAfter]</c> cycles between schedule groups
+/// (VGT0003), and tests with <c>[Mock]</c> parameters under a shared container that cannot take
+/// overrides (VGT0008).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TestAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        [Diagnostics.DuplicateUid, Diagnostics.RunAfterCycle, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized, Diagnostics.SharedContainerWithoutChildOverrides];
+        [Diagnostics.DuplicateUid, Diagnostics.RowMismatch, Diagnostics.RunAfterCycle, Diagnostics.NotRunnable, Diagnostics.AttributeNotMaterialized, Diagnostics.SharedContainerWithoutChildOverrides];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -53,6 +54,15 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
 
                 uids.Add((TestDiscovery.Uid(method), location));
                 var compilation = symbol.Compilation;
+                foreach (var row in RowReader.Read(method, compilation))
+                {
+                    if (row.Error is not null)
+                    {
+                        var rowLocation = row.Attribute.ApplicationSyntaxReference?.GetSyntax(symbol.CancellationToken).GetLocation() ?? location;
+                        symbol.ReportDiagnostic(Diagnostic.Create(Diagnostics.RowMismatch, rowLocation, method.Name, row.Error));
+                    }
+                }
+
                 var group = TestDiscovery.Schedule(method, compilation).Group;
                 foreach (var (attribute, waitsOn) in TestDiscovery.RunAfter(method))
                 {
@@ -168,6 +178,7 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
         foreach (var attribute in attributes)
         {
             if (AttributeMaterializer.IsSkipped(attribute) ||
+                RowReader.IsRow(attribute) ||
                 attribute.ApplicationSyntaxReference is not { } syntax ||
                 AttributeMaterializer.WhyNotMaterialized(attribute, compilation) is not { } reason ||
                 !reported.TryAdd(syntax, 0))

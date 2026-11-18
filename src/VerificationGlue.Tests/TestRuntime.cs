@@ -28,12 +28,18 @@ public static class TestRuntime
         new($"The runner cannot create {type}. A test class needs a public constructor without ref, out or in parameters, or the test method must be static.");
 
     /// <summary>
-    /// Supplies a parameter from, in order: the <c>[Mock]</c> factory or a provider attribute on the
-    /// parameter, provider attributes of the method, the class and the assembly, the container, the
-    /// built-in values, and the default value.
+    /// Supplies a parameter from, in order: the data row, the <c>[Mock]</c> factory or a provider
+    /// attribute on the parameter, provider attributes of the method, the class and the assembly, the
+    /// container, the built-in values, and the default value.
     /// </summary>
     internal static object? Resolve(TestContext context, TestParameter parameter)
     {
+        var row = context.Test.Arguments;
+        if (!parameter.IsConstructorParameter && parameter.Position < row.Count)
+        {
+            return row[parameter.Position];
+        }
+
         var tried = new List<string>();
         if (context.TryGetMock(parameter, out var mock))
         {

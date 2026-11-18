@@ -10,7 +10,8 @@ namespace VerificationGlue.Tests.Generated
         {
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Total_adds_the_line_prices()",
-                "Total_adds_the_line_prices",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsGettingStarted.CartTests),
                 "TestsGettingStarted",
                 "CartTests",
@@ -29,7 +30,8 @@ namespace VerificationGlue.Tests.Generated
                 }));
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsGettingStarted.CartTests.Checkout_empties_the_cart(System.Threading.CancellationToken)",
-                "Checkout_empties_the_cart",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsGettingStarted.CartTests),
                 "TestsGettingStarted",
                 "CartTests",

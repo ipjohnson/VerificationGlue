@@ -6,6 +6,7 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 VGT0001 | VerificationGlue.Tests | Error | TestAnalyzer
+VGT0002 | VerificationGlue.Tests | Error | TestAnalyzer
 VGT0003 | VerificationGlue.Tests | Error | TestAnalyzer
 VGT0004 | VerificationGlue.Tests | Warning | TestAnalyzer
 VGT0006 | VerificationGlue.Tests | Warning | TestAnalyzer

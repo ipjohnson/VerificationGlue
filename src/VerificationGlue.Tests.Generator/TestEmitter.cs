@@ -28,30 +28,46 @@ internal static class TestEmitter
 
         foreach (var method in file.Methods)
         {
-            text.Append("            ").Append(Render(KnownTypes.TestRegistry)).Append(".Add(new ").Append(Render(KnownTypes.TestDescriptor)).Append("(\n");
-            text.Append("                ").Append(Literal(method.Uid)).Append(",\n");
-            text.Append("                ").Append(Literal(method.Name)).Append(",\n");
-            text.Append("                typeof(").Append(Render(testClass.Type)).Append("),\n");
-            text.Append("                ").Append(Literal(testClass.Namespace)).Append(",\n");
-            text.Append("                ").Append(Literal(testClass.TypeName)).Append(",\n");
-            text.Append("                ").Append(Literal(method.Name)).Append(",\n");
-            text.Append("                ").Append(Literal(method.ReturnTypeName)).Append(",\n");
-            text.Append("                ").Append(Literal(method.FilePath)).Append(",\n");
-            text.Append("                ").Append(method.Line).Append(",\n");
-            text.Append("                ").Append(Attributes(testClass.Attributes)).Append(",\n");
-            text.Append("                ").Append(Attributes(method.Attributes)).Append(",\n");
-            text.Append("                ").Append(Parameters(method.IsStatic ? [] : testClass.ConstructorParameters, isConstructor: true)).Append(",\n");
-            text.Append("                ").Append(Parameters(method.Parameters, isConstructor: false)).Append(",\n");
-            text.Append("                ").Append(CreateInstance(testClass, method)).Append(",\n");
-            text.Append("                static async (context, instance) =>\n                {\n");
-            AppendInvoke(text, testClass, method, rewrite);
-            text.Append("                }");
-            AppendSchedule(text, method.Schedule);
-            text.Append("));\n");
+            if (method.HasRows)
+            {
+                foreach (var row in method.Rows)
+                {
+                    AppendDescriptor(text, testClass, method, row.Uid, "new object?[] { " + string.Join(", ", row.Arguments) + " }", rewrite);
+                }
+            }
+            else
+            {
+                AppendDescriptor(text, testClass, method, method.Uid, "global::System.Array.Empty<object?>()", rewrite);
+            }
         }
 
         text.Append("        }\n    }\n}\n");
         return text.ToString();
+    }
+
+    private static void AppendDescriptor(StringBuilder text, TestClassModel testClass, TestMethodModel method, string uid, string arguments, bool rewrite)
+    {
+        text.Append("            ").Append(Render(KnownTypes.TestRegistry)).Append(".Add(new ").Append(Render(KnownTypes.TestDescriptor)).Append("(\n");
+        text.Append("                ").Append(Literal(uid)).Append(",\n");
+        text.Append("                static context => ").Append(method.NameFormatter).Append(".Format(in context),\n");
+        text.Append("                ").Append(arguments).Append(",\n");
+        text.Append("                typeof(").Append(Render(testClass.Type)).Append("),\n");
+        text.Append("                ").Append(Literal(testClass.Namespace)).Append(",\n");
+        text.Append("                ").Append(Literal(testClass.TypeName)).Append(",\n");
+        text.Append("                ").Append(Literal(method.Name)).Append(",\n");
+        text.Append("                ").Append(Literal(method.ReturnTypeName)).Append(",\n");
+        text.Append("                ").Append(Literal(method.FilePath)).Append(",\n");
+        text.Append("                ").Append(method.Line).Append(",\n");
+        text.Append("                ").Append(Attributes(testClass.Attributes)).Append(",\n");
+        text.Append("                ").Append(Attributes(method.Attributes)).Append(",\n");
+        text.Append("                ").Append(Parameters(method.IsStatic ? [] : testClass.ConstructorParameters, isConstructor: true)).Append(",\n");
+        text.Append("                ").Append(Parameters(method.Parameters, isConstructor: false)).Append(",\n");
+        text.Append("                ").Append(CreateInstance(testClass, method)).Append(",\n");
+        text.Append("                static async (context, instance) =>\n                {\n");
+        AppendInvoke(text, testClass, method, rewrite);
+        text.Append("                }");
+        AppendSchedule(text, method.Schedule);
+        text.Append("));\n");
     }
 
     /// <summary>The assembly's attributes, which every scope's attribute list starts with.</summary>

@@ -234,7 +234,8 @@ internal static class AttributeMaterializer
         }
     }
 
-    private static string? Primitive(object value, SpecialType type) => type switch
+    /// <summary>A constant of a built-in type written as a C# expression of that type, or null for other types.</summary>
+    public static string? Primitive(object value, SpecialType type) => type switch
     {
         SpecialType.System_Boolean => (bool)value ? "true" : "false",
         SpecialType.System_Char => SymbolDisplay.FormatLiteral((char)value, quote: true),

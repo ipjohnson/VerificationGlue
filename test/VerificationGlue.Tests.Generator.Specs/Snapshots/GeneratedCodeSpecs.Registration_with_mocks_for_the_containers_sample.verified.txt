@@ -10,7 +10,8 @@ namespace VerificationGlue.Tests.Generated
         {
             global::VerificationGlue.Tests.TestRegistry.Add(new global::VerificationGlue.Tests.TestDescriptor(
                 "TestsContainers.CheckoutTests.Constructor_and_method_share_one_mock(TestsContainers.IClock)",
-                "Constructor_and_method_share_one_mock",
+                static context => global::VerificationGlue.Tests.DefaultNameFormatter.Format(in context),
+                global::System.Array.Empty<object?>(),
                 typeof(global::TestsContainers.CheckoutTests),
                 "TestsContainers",
                 "CheckoutTests",

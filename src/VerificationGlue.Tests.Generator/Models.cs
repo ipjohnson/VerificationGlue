@@ -31,7 +31,14 @@ internal enum ReturnKind
     Awaitable,
 }
 
-/// <summary>One <c>[VerifyTest]</c> method that the runner can call.</summary>
+/// <summary>One <c>[Row]</c> that matches its parameters: its test ID and its values as C# expressions of type <c>object?</c>.</summary>
+internal sealed record RowModel(string Uid, EquatableArray<string> Arguments);
+
+/// <summary>
+/// One <c>[VerifyTest]</c> method that the runner can call. A method with <c>[Row]</c> attributes
+/// registers one test for each row in <see cref="Rows"/>, and none when every row is invalid.
+/// <see cref="NameFormatter"/> is the global type name of its <c>ITestNameFormatter</c>.
+/// </summary>
 internal sealed record TestMethodModel(
     string Name,
     string Uid,
@@ -43,6 +50,9 @@ internal sealed record TestMethodModel(
     EquatableArray<ParameterModel> Parameters,
     bool WillRewrite,
     EquatableArray<AttributeModel> Attributes,
+    bool HasRows,
+    EquatableArray<RowModel> Rows,
+    string NameFormatter,
     ScheduleModel Schedule);
 
 /// <summary>

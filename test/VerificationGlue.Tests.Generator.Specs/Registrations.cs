@@ -9,17 +9,7 @@ internal static class Registrations
     /// <summary>The emitted tests by ID, each as a function that runs it through the runner and returns its failures.</summary>
     public static Dictionary<string, Func<Task<IReadOnlyList<Exception>>>> Load(string source, bool rewrite, params IIncrementalGenerator[] generators)
     {
-        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
-        GeneratorHarness.Driver(rewrite, generators)
-            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, TestContext.Current.CancellationToken);
-        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-
-        using var stream = new MemoryStream();
-        var emitted = output.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
-
-        stream.Position = 0;
-        var assembly = new AssemblyLoadContext("Registrations", isCollectible: true).LoadFromStream(stream);
+        var assembly = Compile(source, rewrite, generators);
         var registry = assembly.GetType("VerificationGlue.Tests.TestRegistry", throwOnError: true)!;
         var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
         var runnerType = assembly.GetType("VerificationGlue.Tests.TestRunner", throwOnError: true)!;
@@ -44,5 +34,31 @@ internal static class Registrations
         }
 
         return tests;
+    }
+
+    /// <summary>The ID and display name of each emitted test, in registration order.</summary>
+    public static (string Uid, string DisplayName)[] Names(string source)
+    {
+        var assembly = Compile(source, rewrite: false, [new TestGenerator()]);
+        var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
+        var registry = assembly.GetType("VerificationGlue.Tests.TestRegistry", throwOnError: true)!;
+        return ((System.Collections.IEnumerable)registry.GetProperty("Tests")!.GetValue(null)!).Cast<object>()
+            .Select(descriptor => ((string)descriptorType.GetProperty("Uid")!.GetValue(descriptor)!, (string)descriptorType.GetProperty("DisplayName")!.GetValue(descriptor)!))
+            .ToArray();
+    }
+
+    private static System.Reflection.Assembly Compile(string source, bool rewrite, IIncrementalGenerator[] generators)
+    {
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
+        GeneratorHarness.Driver(rewrite, generators)
+            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, TestContext.Current.CancellationToken);
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+
+        using var stream = new MemoryStream();
+        var emitted = output.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
+
+        stream.Position = 0;
+        return new AssemblyLoadContext("Registrations", isCollectible: true).LoadFromStream(stream);
     }
 }
