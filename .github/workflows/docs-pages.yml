@@ -1,32 +1,44 @@
 name: Documentation Pages
+
+# Builds the VitePress site in spikes/docs-site and publishes it to https://ipjohnson.github.io/VerificationGlue/.
+# The repository's Pages source must be set to GitHub Actions.
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths: ['docs/**', 'spikes/docs-site/**', 'README.md', '.github/workflows/docs-pages.yml']
+
 permissions:
   contents: read
+
 concurrency:
   group: pages
   cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: spikes/docs-site/package-lock.json
-      - uses: actions/configure-pages@v5
+
+      - uses: actions/configure-pages@v6
+
       - run: npm ci
         working-directory: spikes/docs-site
+
       - run: npm run build
         working-directory: spikes/docs-site
-      - uses: actions/upload-pages-artifact@v3
+
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: spikes/docs-site/.vitepress/dist
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -39,4 +51,4 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
