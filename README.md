@@ -180,7 +180,7 @@ The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects i
 
 - `GeneratorDriverHarness` runs a generator over in-memory sources and keeps its driver between runs. After an edit and a second run, `StepReasons` returns the `IncrementalStepRunReason` of each output of a tracked step.
 - `GeneratorSnapshot.Match` compares the diagnostics and generated files of a run with `Snapshots/{Specs}.{Spec}.verified.txt` in the specs project. On a difference it writes a `.received.txt` file next to it and fails. Run the specs with `VERIFICATIONGLUE_ACCEPT_SNAPSHOTS=1` to accept the received output.
-- `test/Generator.Benchmarks` uses BenchmarkDotNet to time a cold generator run and a run after an unrelated edit. CI uploads the reports as the `generator-benchmarks` artifact.
+- `test/Generator.Benchmarks` uses BenchmarkDotNet to time a cold generator run and a run after an unrelated edit. For the entry generator it also times a run after an edit to the app. CI uploads the reports as the `generator-benchmarks` artifact.
 
 
 </details>

@@ -9,5 +9,9 @@
     <ProjectReference Include="../Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../src/VerificationGlue.Tests.AspNetCore/WebAppEntryAttribute.cs" LogicalName="WebAppEntryAttribute.cs" />
   </ItemGroup>
 </Project>
