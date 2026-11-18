@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    A test with a [Mock] parameter under an app that a class shares. Its build fails with VGT0008, and
+    test/VerificationGlue.Tests.AspNetCore.Specs builds it after the fixture with dotnet build -no-dependencies.
+    It is not in the solution.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+  <Import Project="../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <Import Project="../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore/VerificationGlue.Tests.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.FixtureShop/VerificationGlue.Tests.AspNetCore.FixtureShop.csproj" />
+  </ItemGroup>
+
+  <Import Project="../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.targets" />
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

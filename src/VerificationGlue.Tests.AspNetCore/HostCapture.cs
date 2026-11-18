@@ -19,7 +19,7 @@ namespace VerificationGlue.Tests.AspNetCore;
 /// <see cref="DiagnosticListener"/> named Microsoft.Extensions.Hosting, which it creates on the thread
 /// that builds the host, so each app's thread sees only its own host.
 /// </summary>
-internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOnlyDictionary<string, string?> settings, bool kestrel, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
+internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOnlyDictionary<string, string?> settings, bool kestrel, bool shared, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
 {
     private static readonly AsyncLocal<HostCapture?> s_current = new();
     private static readonly IDisposable s_subscription = DiagnosticListener.AllListeners.Subscribe(new Listeners());
@@ -55,6 +55,12 @@ internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOn
                 if (!kestrel)
                 {
                     services.AddSingleton<IServer, TestServer>();
+                    if (shared)
+                    {
+                        // The output of a shared app follows the test's execution context, which TestServer
+                        // does not pass to a request by default.
+                        services.Configure<TestServerOptions>(options => options.PreserveExecutionContext = true);
+                    }
                 }
 
                 services.RemoveAll<ILoggerProvider>();

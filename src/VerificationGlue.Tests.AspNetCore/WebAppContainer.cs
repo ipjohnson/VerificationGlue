@@ -11,8 +11,13 @@ using VerificationGlue.Tests;
 
 namespace VerificationGlue.Tests.AspNetCore;
 
-/// <summary>A started app. The test gets its own client and service scope.</summary>
-internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestContainer
+/// <summary>
+/// A started app, or a child of an app that a class or an assembly shares. Each has its own client and
+/// service scope. Only the app's own container stops the app.
+/// </summary>
+/// <param name="host">The app's host.</param>
+/// <param name="entryPoint">The running entry point, or null for a child.</param>
+internal sealed class WebAppContainer(IHost host, Task<int>? entryPoint) : ITestContainer
 {
     private readonly AsyncServiceScope _scope = host.Services.CreateAsyncScope();
     private readonly HttpClient _client = CreateClient(host);
@@ -32,8 +37,12 @@ internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestC
         return value is not null;
     }
 
+    /// <summary>
+    /// A child for one test of a shared app. The context holds no overrides, because the bootstrap does
+    /// not implement <see cref="ISupportsChildOverrides"/>.
+    /// </summary>
     public ValueTask<ITestContainer> CreateChildAsync(TestContainerContext context) =>
-        throw new NotSupportedException("[WebApp<TEntry>] supports only Scope = ContainerScope.Test. An app shared by a class or an assembly is not built yet.");
+        new(new WebAppContainer(host, null));
 
     /// <summary>
     /// A TestServer client, or under <see cref="KestrelAttribute"/> a client whose base address is the
@@ -52,11 +61,19 @@ internal sealed class WebAppContainer(IHost host, Task<int> entryPoint) : ITestC
         return new HttpClient { BaseAddress = new Uri(address) };
     }
 
-    /// <summary>Stops the app and returns when its entry point has returned.</summary>
+    /// <summary>
+    /// Disposes the client and the scope. The app's own container then stops the app and returns when
+    /// its entry point has returned.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _client.Dispose();
         await _scope.DisposeAsync();
+        if (entryPoint is null)
+        {
+            return;
+        }
+
         host.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
         await entryPoint;
     }

@@ -206,6 +206,8 @@ The app is a container, so it follows the container scopes of `docs/design/tests
 - **Test scope, the default.** Each test starts its own app with its own overrides and its own configuration.
 - **Class or assembly scope.** One app starts for the class or the assembly. Each test gets a child with its own `HttpClient` and service scope. The app reads only the class and assembly attributes.
 
+A shared app writes its log to the runner's shared output, which follows the test's execution context. TestServer does not pass that context to a request by default, so the bootstrap sets `TestServerOptions.PreserveExecutionContext` for a shared app, and a request's log goes to the test that sent it **(verified)**. Kestrel runs a request without it, so under `[Kestrel]` a shared app's request log is in no test's output **(verified)**. `SharedAppSpecs` checks both.
+
 `WebAppBootstrap<TEntry>` does not implement `ISupportsChildOverrides`. A built service provider takes no new registrations, so a test's mock cannot reach an app that other tests share. A class-scoped or assembly-scoped app with `[Mock]` parameters therefore stays build error VGT0008 **(verified in the spike)**.
 
 A configuration attribute on a test method whose app is shared cannot reach the app either. The generator reports it as VGA0003.
@@ -305,9 +307,11 @@ Needs: Phase 1.
 - [x] `[AppSetting]`, `[AppEnvironment]` and `[WatchAppConfiguration]`, with the placement rules above. `ConfigurationSpecs`.
 - [x] `[Kestrel]`. `KestrelSpecs`.
 - [x] Tests for an app that passes `args` to its builder and one that does not. `NoArgsApp` in `test/VerificationGlue.Tests.AspNetCore.Apps`.
-- [ ] Class and assembly scope, with a child per test, and VGA0003.
+- [x] Class and assembly scope, with a child per test. `SharedAppSpecs`.
+- [ ] VGA0003.
 - [x] The guide "Configure the app for a test", `docs/guide/configure-the-app-for-a-test.md`.
-- [ ] Pages: the guides "Share an app across a class" and "Test an app on a real port", `docs/diagnostics/VGA0003.md`, and the migration guide from `WebApplicationFactory`.
+- [x] The guides "Share an app across a class" and "Test an app on a real port", `docs/guide/share-an-app-across-a-class.md` and `docs/guide/test-an-app-on-a-real-port.md`.
+- [ ] Pages: `docs/diagnostics/VGA0003.md` and the migration guide from `WebApplicationFactory`.
 
 ## Risks and open questions
 

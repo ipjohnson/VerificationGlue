@@ -19,19 +19,23 @@ namespace VerificationGlue.Tests.AspNetCore;
 public sealed class WebAppBootstrap<TEntry> : ITestContainerBootstrap
     where TEntry : IWebAppEntry
 {
-    /// <inheritdoc/>
+    /// <summary>
+    /// Starts the app for a test, or for a class or an assembly that shares it. A shared app reads the
+    /// attributes of its scope, which are the class's and the assembly's or the assembly's alone.
+    /// </summary>
+    /// <param name="context">The scope, its attributes and the test's overrides.</param>
     public static async ValueTask<ITestContainer> BuildAsync(TestContainerContext context) =>
-        await StartAsync(context.Uid, context.Attributes, context.Overrides, context.Output, context.CancellationToken);
+        await StartAsync(context.Uid, context.Attributes, context.Overrides, context.Output, context.CancellationToken, shared: context.Scope.Kind != TestScopeKind.Test);
 
     /// <summary>
     /// Starts the app with the configuration that <paramref name="attributes"/> set, <paramref name="overrides"/>
     /// and its log in <paramref name="output"/>.
     /// </summary>
-    internal static async Task<WebAppContainer> StartAsync(string uid, IReadOnlyList<Attribute> attributes, IReadOnlyList<TestOverride> overrides, ITestOutput output, CancellationToken cancellationToken)
+    internal static async Task<WebAppContainer> StartAsync(string uid, IReadOnlyList<Attribute> attributes, IReadOnlyList<TestOverride> overrides, ITestOutput output, CancellationToken cancellationToken, bool shared = false)
     {
         var clock = Stopwatch.StartNew();
         var configuration = AppConfiguration.Read(attributes);
-        var capture = new HostCapture(overrides, configuration.Settings, configuration.Kestrel, output);
+        var capture = new HostCapture(overrides, configuration.Settings, configuration.Kestrel, shared, output);
         var args = configuration.Arguments(TEntry.ApplicationName);
 
         // Under Native AOT, hosts that build at once can fail in GenericWebHostBuilder.UseStartup, so
