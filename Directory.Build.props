@@ -11,5 +11,9 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <RepositoryUrl>https://github.com/ipjohnson/VerificationGlue</RepositoryUrl>
     <PackageProjectUrl>https://github.com/ipjohnson/VerificationGlue</PackageProjectUrl>
+    <Authors>Ian Johnson</Authors>
+    <Copyright>Copyright (c) 2026 Ian Johnson</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 </Project>

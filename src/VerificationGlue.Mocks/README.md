@@ -1,3 +1,5 @@
+![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup.png)
+
 # VerificationGlue.Mocks
 
 Source-generated mocks for .NET tests, with NSubstitute-style setup and a typed setup surface. The generator writes each mock at build time, so mocks work under Native AOT and trimming. They work in xunit, NUnit, MSTest, TUnit and plain application code. The package is a preview, released as 0.x.

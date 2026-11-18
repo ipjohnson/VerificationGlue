@@ -6,6 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Verify and Check assertions with generated failure messages that work under Native AOT.</Description>
+    <PackageTags>testing assertions verify aot source-generator</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VerificationGlue.Generator/VerificationGlue.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
