@@ -1,10 +1,13 @@
 # VerificationGlue repository
 
-> Four .NET packages for tests: `VerificationGlue` for assertions with generated failure messages, `VerificationGlue.Mocks` for source-generated mocks, `VerificationGlue.Tests` for a test runner, and `VerificationGlue.Tests.AspNetCore` for testing an ASP.NET Core app from a test parameter. Each package carries its own `llms.txt`. `VerificationGlue.Tests.AspNetCore` starts an app for each test. Its later phases are designed in `docs/design/aspnet.md` and are not built yet.
+> Four .NET packages for tests: `VerificationGlue` for assertions with generated failure messages, `VerificationGlue.Mocks` for source-generated mocks, `VerificationGlue.Tests` for a test runner, and `VerificationGlue.Tests.AspNetCore` for testing an ASP.NET Core app from a test parameter. `VerificationGlue.Tests.AspNetCore` starts an app for each test. Its later phases are designed in `docs/design/aspnet.md` and are not built yet.
 
 ## Packages
 
 - [VerificationGlue](src/VerificationGlue/llms.txt): `Verify`, `Check`, `Throws` and `VerifyScope`. The agent guide for writing checks.
+- [VerificationGlue.Mocks](src/VerificationGlue.Mocks/README.md): `Mock.Of<T>()`, setups and call checks.
+- [VerificationGlue.Tests](src/VerificationGlue.Tests/README.md): `[VerifyTest]`, containers and `[Mock]` parameters on Microsoft.Testing.Platform.
+- [VerificationGlue.Tests.AspNetCore](src/VerificationGlue.Tests.AspNetCore/llms.txt): `[WebAppEntry]` and `[WebApp<TEntry>]`. The agent guide for testing an ASP.NET Core app.
 
 ## Rules
 

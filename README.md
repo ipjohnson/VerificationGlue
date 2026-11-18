@@ -27,7 +27,7 @@ The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The
 | `VerificationGlue` | Checks with `Verify`, `Throws`, and `ThrowsAsync` | [Write your first check](docs/guide/getting-started-verify.md) |
 | `VerificationGlue.Mocks` | Mocks generated at build time, with typed setup and call checks | [Set up a mock](docs/guide/getting-started-mocks.md) |
 | `VerificationGlue.Tests` | Tests registered at build time with `[VerifyTest]` | [Run your first test](docs/guide/getting-started-tests.md) |
-| `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app started for each test, with an `HttpClient` and the test's mocks | [Package README](src/VerificationGlue.Tests.AspNetCore/README.md) |
+| `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app started for each test, with an `HttpClient` and the test's mocks | [Test an app](docs/guide/getting-started-aspnetcore.md) |
 
 Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
 
@@ -172,7 +172,7 @@ eng/pack-and-consume.sh --no-build
 
 `VerificationGlue.Tests` builds against the MTP 3 preview from the `test-tools` feed in `NuGet.config`. Every other project restores from nuget.org.
 
-The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit, and `samples/TestsGettingStarted` is a `VerificationGlue.Tests` project. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries. `test/VerificationGlue.Tests.Specs` builds `test/VerificationGlue.Tests.Fixture` and runs it as a process. The fixture is not in the solution, because some of its tests fail on purpose.
+The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects in xunit, NUnit, MSTest and TUnit. `samples/TestsGettingStarted` is a `VerificationGlue.Tests` project, and `samples/TestsAspNetCore` tests the app in `samples/ShopApi` with `VerificationGlue.Tests.AspNetCore`. They are in the solution, so `dotnet test` runs them with the specs. `test/NSubstituteComparison.Specs` runs the NSubstitute comparison cases under both libraries. `test/VerificationGlue.Tests.Specs` builds `test/VerificationGlue.Tests.Fixture` and runs it as a process. The fixture is not in the solution, because some of its tests fail on purpose.
 
 ### Generator harnesses
 
