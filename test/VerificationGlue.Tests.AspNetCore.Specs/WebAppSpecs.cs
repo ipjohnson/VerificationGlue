@@ -159,7 +159,7 @@ public class WebAppSpecs
     public void The_other_tests_run_after_an_app_fails_to_start()
     {
         Assert.Equal(42, Fixture.Results.Count);
-        Assert.Equal(39,Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
+        Assert.Equal(39, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
     }
 
     private static void AssertPassed(string test)
