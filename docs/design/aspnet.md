@@ -169,9 +169,11 @@ An edit to the app costs about as much as a cold run, because the stage that rea
 4. It waits for `IHostApplicationLifetime.ApplicationStarted` and returns the container.
 5. `DisposeAsync` disposes the test's `HttpClient` and service scope, calls `StopApplication`, and waits for the entry point to return.
 
-The arguments it passes are `--applicationName=<ApplicationName>`, `--environment=<name>`, `--hostBuilder:reloadConfigOnChange=false` unless `[WatchAppConfiguration]` applies, and one `--<key>=<value>` for each `[AppSetting]`.
+The arguments it passes are `--applicationName=<ApplicationName>`, `--contentRoot=<test output directory>`, `--environment=<name>`, `--hostBuilder:reloadConfigOnChange=false` unless `[WatchAppConfiguration]` applies, and one `--<key>=<value>` for each `[AppSetting]`.
 
 `--applicationName` is needed for controllers. Without it, MVC looks for controllers in the test assembly and `GET /clock` returns 404 **(verified)**.
+
+The app's content root is the test output directory, `AppContext.BaseDirectory`. The build copies the app's `appsettings.json` and `appsettings.<environment>.json` there through the project reference. Without `--contentRoot`, `WebApplication.CreateBuilder` uses the current directory, and `dotnet run --project samples/TestsAspNetCore` from the repository root read no `appsettings.json` **(verified)**. `WebApplicationFactory` uses the app's project directory instead. We do not, because that path comes from the build machine and does not exist where a published or Native AOT test executable runs. The test output directory exists wherever the tests run. If the test project has its own `appsettings.json`, the build copies one of the two files to the output directory, so the app may read the test project's file. An app that does not pass `args` to its builder keeps the current directory as its content root.
 
 The host capture is an `AsyncLocal` set on the app's thread. The hosting `DiagnosticListener` is created on the thread that builds the host, so each app's capture receives only its own host **(verified)**.
 

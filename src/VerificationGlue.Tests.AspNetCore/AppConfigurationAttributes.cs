@@ -88,6 +88,7 @@ internal sealed class AppConfiguration
         var args = new List<string>
         {
             $"--applicationName={applicationName}",
+            $"--contentRoot={AppContext.BaseDirectory}",
             $"--environment={Environment}",
         };
         if (!Watch)

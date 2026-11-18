@@ -14,6 +14,13 @@ public class ConfigurationSpecs
     }
 
     [Fact]
+    public void The_app_reads_appsettings_json_from_the_test_output_directory_when_the_current_directory_is_another()
+    {
+        AssertPassed("The_content_root_is_the_test_output_directory");
+        AssertPassed("Reads_the_value_from_appsettings_json");
+    }
+
+    [Fact]
     public void The_narrowest_value_of_a_key_wins_and_values_of_other_keys_from_each_level_are_present()
     {
         AssertPassed("The_narrowest_value_of_a_key_wins_and_the_other_keys_add_up");

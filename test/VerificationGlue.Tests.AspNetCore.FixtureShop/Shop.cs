@@ -82,11 +82,11 @@ public static class BuildWindow
 
     public static int Most => Volatile.Read(ref s_most);
 
-    public static void Reset()
-    {
-        Volatile.Write(ref s_current, 0);
-        Volatile.Write(ref s_most, 0);
-    }
+    /// <summary>
+    /// Starts a new count of the most. It keeps the current count, because the app of another test can be
+    /// between its start and Build() and would take the count below zero when it leaves.
+    /// </summary>
+    public static void Reset() => Volatile.Write(ref s_most, Volatile.Read(ref s_current));
 
     public static void Enter()
     {

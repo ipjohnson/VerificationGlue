@@ -25,6 +25,11 @@ public partial class AppSettingTests
     }
 
     [VerifyTest]
+    public void The_content_root_is_the_test_output_directory(IHostEnvironment environment)
+    {
+        Verify(Path.TrimEndingDirectorySeparator(environment.ContentRootPath) == Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));    }
+
+    [VerifyTest]
     [AppSetting("Shop:Greeting", "from the test")]
     public void A_test_value_replaces_the_value_from_appsettings_json(IConfiguration configuration)
     {

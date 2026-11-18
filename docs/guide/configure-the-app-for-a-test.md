@@ -32,7 +32,7 @@ public partial class MaxQuantityTests
     }
 }
 ```
-<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L16-L37' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-setting' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L17-L38' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-setting' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The test's value replaces the value from `appsettings.json` and from environment variables. In the first test the app reads 5, so an order of 6 is rejected.
@@ -44,7 +44,7 @@ The test's value replaces the value from `appsettings.json` and from environment
 ```cs
 [assembly: AppSetting("Orders:MaxQuantity", "20")]
 ```
-<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L10-L12' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-setting-assembly' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L11-L13' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-setting-assembly' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Values add up from the assembly to the class to the method. When two levels set the same key, the narrower value wins. In the example above, the second test reads 20 from the assembly, and the first test reads 5 from its method. A value for another key at any level is still present.
@@ -74,7 +74,7 @@ public partial class EnvironmentTests
     }
 }
 ```
-<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L39-L57' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-environment' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L53-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-app-environment' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `[AppEnvironment]` goes on the test, the class or the assembly. The narrowest one wins, so the method's `Production` replaces the class's `Staging`.
@@ -99,7 +99,7 @@ public partial class WatchTests
     }
 }
 ```
-<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L59-L72' title='Snippet source file'>snippet source</a> | <a href='#snippet-watch-app-configuration' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsAspNetCore/ConfigurationTests.cs#L73-L86' title='Snippet source file'>snippet source</a> | <a href='#snippet-watch-app-configuration' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `[WatchAppConfiguration]` goes on the test, the class or the assembly.
@@ -108,11 +108,14 @@ public partial class WatchTests
 
 The app receives each value as a command-line argument, such as `--Orders:MaxQuantity=5`, and the environment name as `--environment=Staging`. Command-line arguments are the last configuration source of `WebApplication.CreateBuilder(args)` and `Host.CreateDefaultBuilder(args)`, so they replace the values from files and environment variables. The ASP.NET Core templates pass `args` to the builder.
 
+The app reads its `appsettings.json` from the test output directory, where the build copies it, whatever the current directory. The package passes that directory as `--contentRoot`.
+
 The values also reach an app that calls `WebApplication.CreateBuilder()` without `args`. The package adds them as one more configuration source when the app calls `Build()`. Such an app does not see these:
 
 - A configuration value that its code reads before `Build()`, such as `builder.Configuration["Orders:MaxQuantity"]`. It reads the value from its own files and environment variables.
 - The environment name. `IHostEnvironment` keeps the name from the `ASPNETCORE_ENVIRONMENT` or `DOTNET_ENVIRONMENT` variable, or `Production`.
 - The configuration watcher setting. The app watches its files.
+- The content root. The app reads `appsettings.json` from the current directory.
 
 From `Build()` on, `IConfiguration` holds the test's values. `NoArgsAppTests` in [`test/VerificationGlue.Tests.AspNetCore.Fixture/ConfigurationTests.cs`](../../test/VerificationGlue.Tests.AspNetCore.Fixture/ConfigurationTests.cs) shows both cases. Pass `args` to the builder for the app to see all of them.
 
