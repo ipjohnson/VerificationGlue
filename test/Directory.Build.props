@@ -34,7 +34,14 @@
     <AssemblyMetadata Include="VerificationGlue.ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(SpecsRunner)' == 'xunit'">
+  <!-- A referenced project builds as it does in the solution, whatever runner the .Specs project uses. -->
+  <ItemDefinitionGroup Condition="'$(IsSpecsProject)' == 'true'">
+    <ProjectReference>
+      <GlobalPropertiesToRemove>%(GlobalPropertiesToRemove);SpecsRunner</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+
+  <ItemGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'xunit'">
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
   <ItemGroup Condition="'$(_SpecsOnXunitShim)' == 'true'">
@@ -47,8 +54,8 @@
     VerificationGlue and VerificationGlue.Mocks generators, so the specs of those generators do not
     run them on themselves. Assert comes from xunit.v3.assert.
   -->
-  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" Condition="'$(SpecsRunner)' == 'VerificationGlue.Tests'" />
-  <ItemGroup Condition="'$(SpecsRunner)' == 'VerificationGlue.Tests'">
+  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'" />
+  <ItemGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'">
     <PackageReference Include="xunit.v3.assert" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
