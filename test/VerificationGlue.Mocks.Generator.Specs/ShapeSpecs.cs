@@ -2,10 +2,10 @@ namespace VerificationGlue.Mocks.Generator.Specs;
 
 public class ShapeSpecs
 {
-    public static TheoryData<string> Cases => new(ShapeCase.Files());
+    public static IEnumerable<string> Cases => ShapeCase.Files();
 
-    [Theory]
-    [MemberData(nameof(Cases))]
+    [VerifyTest]
+    [RowSource(nameof(Cases))]
     public void Mocks_compile_and_report_the_expected_diagnostics(string file)
     {
         var shape = ShapeCase.Load(file);
@@ -16,7 +16,7 @@ public class ShapeSpecs
         Assert.Equal(shape.Expected, result.DiagnosticIds);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_case_mocks_at_least_one_type()
     {
         var empty = ShapeCase.Files().Where(file => ShapeCase.Load(file).Compile().Outcomes.Count == 0).ToList();

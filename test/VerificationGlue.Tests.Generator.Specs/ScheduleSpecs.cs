@@ -11,7 +11,7 @@ namespace VerificationGlue.Tests.Generator.Specs;
 /// </summary>
 public class ScheduleSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void The_narrowest_ScheduleGroup_wins_and_resources_add_up()
     {
         var schedules = Schedules("""
@@ -49,7 +49,7 @@ public class ScheduleSpecs
         Assert.Equal(("everything", 8, "", ""), schedules["Shop.OtherTests.From_the_assembly()"]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_test_with_no_ScheduleGroup_is_in_the_default_group()
     {
         var schedules = Schedules("""
@@ -65,15 +65,15 @@ public class ScheduleSpecs
         Assert.Equal(("default", 0, "", ""), schedules["OrderTests.M()"]);
     }
 
-    [Theory]
-    [InlineData("""[ScheduleGroup("a")] [RunAfter("a")] public partial class A { [VerifyTest] public void M() { } }""", "a", "a", "a -> a")]
-    [InlineData("""
+    [VerifyTest]
+    [Row("""[ScheduleGroup("a")] [RunAfter("a")] public partial class A { [VerifyTest] public void M() { } }""", "a", "a", "a -> a")]
+    [Row("""
         [ScheduleGroup("a")] [RunAfter("b")] public partial class A { [VerifyTest] public void M() { } }
         [ScheduleGroup("b")] [RunAfter("c")] public partial class B { [VerifyTest] public void M() { } }
         [ScheduleGroup("c")] public partial class C { [VerifyTest] public void M() { } }
         [ScheduleGroup("c")] [RunAfter("a")] public partial class C2 { [VerifyTest] public void M() { } }
         """, "a", "b", "a -> b -> c -> a")]
-    public async Task A_RunAfter_cycle_reports_VGT0003_on_each_RunAfter_in_it(string types, string group, string waitsOn, string cycle)
+    public async Task A_RunAfter_cycle_reports_VGT0003_on_each_RunAfter_in_it(string types, string group, string waitsOn, string cycle, CancellationToken cancellationToken)
     {
         var diagnostics = await Analyze("using VerificationGlue.Tests;\n" + types);
 
@@ -86,10 +86,10 @@ public class ScheduleSpecs
             $"[RunAfter(\"{waitsOn}\")] makes the schedule group '{group}' wait on itself through {cycle}, so none of these groups can start",
             diagnostics.Select(diagnostic => diagnostic.GetMessage()));
         Assert.Equal(cycle.Split(" -> ").Length - 1, diagnostics.Length);
-        Assert.All(diagnostics, diagnostic => Assert.StartsWith("RunAfter(", diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan)));
+        Assert.All(diagnostics, diagnostic => Assert.StartsWith("RunAfter(", diagnostic.Location.SourceTree!.GetText(cancellationToken).ToString(diagnostic.Location.SourceSpan)));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_RunAfter_chain_without_a_cycle_reports_nothing()
     {
         var diagnostics = await Analyze("""
@@ -113,11 +113,10 @@ public class ScheduleSpecs
     private static async Task<ImmutableArray<Diagnostic>> Analyze(string source)
     {
         var compilation = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
-        return await compilation.WithAnalyzers([new TestAnalyzer()]).GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
+        return await compilation.WithAnalyzers([new TestAnalyzer()]).GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
 
-    /// <summary>Each registered test's group, limit, <c>[RunAfter]</c> groups and resource keys, by UID.</summary>
-    [Fact]
+    [VerifyTest]
     public void Traits_come_from_the_class_then_the_method()
     {
         var traits = Descriptors("""
@@ -147,6 +146,7 @@ public class ScheduleSpecs
         Assert.Equal("", traits["OtherTests.Without_traits()"]);
     }
 
+    /// <summary>Each registered test's group, limit, <c>[RunAfter]</c> groups and resource keys, by UID.</summary>
     private static Dictionary<string, (string Group, int MaxParallel, string RunAfter, string Resources)> Schedules(string source) =>
         Descriptors(source, read => (read("ScheduleGroup"), int.Parse(read("MaxParallel")), read("RunAfter"), read("Resources")));
 
@@ -155,11 +155,11 @@ public class ScheduleSpecs
     {
         var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
         GeneratorHarness.Driver(rewrite: false, new TestGenerator())
-            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, TestContext.Current.CancellationToken);
+            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, CancellationToken.None);
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         using var stream = new MemoryStream();
-        var emitted = output.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        var emitted = output.Emit(stream, cancellationToken: CancellationToken.None);
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
 
         stream.Position = 0;

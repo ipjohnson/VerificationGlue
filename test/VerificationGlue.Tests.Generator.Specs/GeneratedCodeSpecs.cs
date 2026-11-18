@@ -17,15 +17,15 @@ public class GeneratedCodeSpecs
 
     private static readonly Lazy<GeneratorDriverRunResult> Containers = new(() => Generate("TestsContainers", "Shop.cs", "Bootstraps.cs", "ContainerTests.cs", "ParameterTests.cs"));
 
-    [Fact]
+    [VerifyTest]
     public void Registration_for_the_getting_started_sample() =>
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Registration_for_the_getting_started_sample), Source(GettingStarted, "TestsGettingStarted.CartTests.Tests.g.cs"));
 
-    [Fact]
+    [VerifyTest]
     public void Assembly_attributes_for_the_getting_started_sample() =>
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Assembly_attributes_for_the_getting_started_sample), Source(GettingStarted, TestEmitter.AssemblyAttributesHintName));
 
-    [Fact]
+    [VerifyTest]
     public void Registration_with_mocks_for_the_containers_sample() =>
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Registration_with_mocks_for_the_containers_sample), Source(Containers, "TestsContainers.CheckoutTests.Tests.g.cs"));
 
@@ -40,8 +40,9 @@ public class GeneratedCodeSpecs
             MetadataReference.CreateFromFile(typeof(ServiceProvider).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(IServiceCollection).Assembly.Location));
 
+        // Several tests share the result, so one test's token does not cancel it.
         var driver = GeneratorHarness.Driver(rewrite: true, new VerificationGlueGenerator(), new MockGenerator(), new TestGenerator())
-            .RunGeneratorsAndUpdateCompilation(input, out var output, out _, TestContext.Current.CancellationToken);
+            .RunGeneratorsAndUpdateCompilation(input, out var output, out _, CancellationToken.None);
 
         var errors = output.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors));

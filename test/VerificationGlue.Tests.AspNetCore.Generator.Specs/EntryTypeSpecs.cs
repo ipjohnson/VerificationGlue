@@ -11,10 +11,10 @@ namespace VerificationGlue.Tests.AspNetCore.Generator.Specs;
 /// </summary>
 public class EntryTypeSpecs
 {
-    public static TheoryData<string> Names => Shapes.Names;
+    public static IEnumerable<string> Names => Shapes.Names;
 
-    [Theory]
-    [MemberData(nameof(Names))]
+    [VerifyTest]
+    [RowSource(nameof(Names))]
     public void Entry_type_from_the_reference_assembly(string name)
     {
         var shape = Shapes.Get(name);
@@ -24,8 +24,8 @@ public class EntryTypeSpecs
         Snapshot.Match(typeof(EntryTypeSpecs), "Entry_type_for_" + name, source);
     }
 
-    [Theory]
-    [MemberData(nameof(Names))]
+    [VerifyTest]
+    [RowSource(nameof(Names))]
     public void Entry_type_from_the_full_assembly(string name)
     {
         var shape = Shapes.Get(name);
@@ -33,7 +33,7 @@ public class EntryTypeSpecs
         GenerateAndRun(shape, shape.Full);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Entry_type_in_the_global_namespace()
     {
         var shape = Shapes.Get("VoidApp");
@@ -63,7 +63,7 @@ public class EntryTypeSpecs
             """,
             MetadataReference.CreateFromImage(appImage));
         Assert.Empty(run.Diagnostics);
-        var errors = output.GetDiagnostics(TestContext.Current.CancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToList();
+        var errors = output.GetDiagnostics(CancellationToken.None).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors));
 
         var context = new ShapeLoadContext(new() { [shape.Name] = shape.Full });

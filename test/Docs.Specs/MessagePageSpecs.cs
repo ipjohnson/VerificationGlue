@@ -15,7 +15,7 @@ public partial class MessagePageSpecs
 
     private static readonly string Page = Path.Combine(RepositoryRoot.Path, "docs", "guide", "messages.md");
 
-    [Fact]
+    [VerifyTest]
     public void Every_case_has_one_block_and_every_block_has_a_case()
     {
         var blocks = Block().Matches(Read()).Select(match => match.Groups["name"].Value).ToList();
@@ -23,7 +23,7 @@ public partial class MessagePageSpecs
         Assert.Equal(Gallery.Cases.Select(@case => @case.Name).Order(), blocks.Order());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_message_on_the_page_matches_a_fresh_run()
     {
         var page = Read();

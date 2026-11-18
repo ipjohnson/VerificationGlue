@@ -247,7 +247,7 @@ public class RewriteSpecs
 
     private static readonly Lazy<Type> Cases = new(() => GeneratorHarness.Load(rewrite: true, (Path, Source)).GetType("Sample.Cases", throwOnError: true)!);
 
-    [Fact]
+    [VerifyTest]
     public void A_failure_lists_the_captured_values()
     {
         var failure = Fail("Values");
@@ -263,7 +263,7 @@ public class RewriteSpecs
             failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_1_each_part_runs_once_in_the_original_order()
     {
         var counter = Activator.CreateInstance(Cases.Value.Assembly.GetType("Sample.Counter")!)!;
@@ -285,7 +285,7 @@ public class RewriteSpecs
             failure.Message.Replace("Sample.Counter", "order-counter"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_1_a_getter_that_throws_on_a_second_read_is_read_once()
     {
         var order = NewOrder();
@@ -296,7 +296,7 @@ public class RewriteSpecs
         Assert.Contains("\n  order.Total → 30\n", failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_2_a_passing_check_does_not_allocate()
     {
         var passes = Cases.Value.GetMethod("Passes__Verified")!.CreateDelegate<Action<int>>();
@@ -312,7 +312,7 @@ public class RewriteSpecs
         Assert.Contains("int __vg0_0 = default!;", CopyText("Passes"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_3_constants_and_literals_are_not_captured()
     {
         var failure = Fail("Constants", 2);
@@ -322,10 +322,10 @@ public class RewriteSpecs
             failure.Message);
     }
 
-    [Theory]
-    [InlineData("MutationByIncrement", "x++ == x", new[] { "  x++ → 1", "  x   → 2" })]
-    [InlineData("MutationByRef", "x == Bump(ref x) && x == 3", new[] { "  x == Bump(ref x) → false", "  x                → 1", "  Bump(ref x)      → 2", "  x == 3           → <not evaluated>" })]
-    [InlineData("MutationByClosure", "x + bump() == x", new[] { "  x + bump() → 3", "  x          → 1", "  bump()     → 2", "  x          → 2" })]
+    [VerifyTest]
+    [Row("MutationByIncrement", "x++ == x", new[] { "  x++ → 1", "  x   → 2" })]
+    [Row("MutationByRef", "x == Bump(ref x) && x == 3", new[] { "  x == Bump(ref x) → false", "  x                → 1", "  Bump(ref x)      → 2", "  x == 3           → <not evaluated>" })]
+    [Row("MutationByClosure", "x + bump() == x", new[] { "  x + bump() → 3", "  x          → 1", "  bump()     → 2", "  x          → 2" })]
     public void Rule_4_reads_separated_by_a_change_keep_their_own_values(string method, string condition, string[] rows)
     {
         var failure = Fail(method);
@@ -333,11 +333,11 @@ public class RewriteSpecs
         Assert.Equal(Lines([$"Verify failed: {condition}", .. rows, $"  at Tests/Rewrite.cs:{LineOf(condition)}"]), failure.Message);
     }
 
-    [Theory]
-    [InlineData("SkippedAnd", null, new[] { "  s != null    → false", "  s            → null", "  s.Length > 3 → <not evaluated>", "  s.Length     → <not evaluated>" })]
-    [InlineData("SkippedOr", 0, new[] { "  x == 0 || Explode() → true", "  x == 0              → true", "  x                   → 0", "  Explode()           → <not evaluated>" })]
-    [InlineData("SkippedConditional", true, new[] { "  flag      → true", "  No()      → false", "  Explode() → <not evaluated>" })]
-    [InlineData("SkippedCoalesce", "ab", new[] { "  (name ?? Fallback()).Length → 2", "  name ?? Fallback()          → \"ab\"", "  name                        → \"ab\"", "  Fallback()                  → <not evaluated>" })]
+    [VerifyTest]
+    [Row("SkippedAnd", null, new[] { "  s != null    → false", "  s            → null", "  s.Length > 3 → <not evaluated>", "  s.Length     → <not evaluated>" })]
+    [Row("SkippedOr", 0, new[] { "  x == 0 || Explode() → true", "  x == 0              → true", "  x                   → 0", "  Explode()           → <not evaluated>" })]
+    [Row("SkippedConditional", true, new[] { "  flag      → true", "  No()      → false", "  Explode() → <not evaluated>" })]
+    [Row("SkippedCoalesce", "ab", new[] { "  (name ?? Fallback()).Length → 2", "  name ?? Fallback()          → \"ab\"", "  name                        → \"ab\"", "  Fallback()                  → <not evaluated>" })]
     public void Rule_5_the_skipped_side_is_not_evaluated(string method, object? argument, string[] rows)
     {
         var failure = Fail(method, argument);
@@ -345,14 +345,14 @@ public class RewriteSpecs
         Assert.Equal(rows, failure.Message.Split('\n')[1..^1]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_6_an_out_variable_stays_in_scope_after_the_call()
     {
         Assert.Equal(12, Invoke("OutVarScope", "12"));
         Assert.StartsWith("Verify failed: int.TryParse(text, out var number)\n  text → \"x\"\n", Fail("OutVarScope", "x").Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_6_an_embedded_statement_is_wrapped_in_braces()
     {
         Invoke("Embedded", false, 0);
@@ -360,7 +360,7 @@ public class RewriteSpecs
         Assert.StartsWith("Verify failed: x > 1\n  x → 0\n", Fail("Embedded", true, 0).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Rule_7_await_stays_in_the_condition()
     {
         var task = (Task)Cases.Value.GetMethod("Awaited__Verified")!.Invoke(null, null)!;
@@ -372,7 +372,7 @@ public class RewriteSpecs
             failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_8_property_pattern_members_are_not_read_again_and_skipped_members_stay_unevaluated()
     {
         var order = NewOrder();
@@ -384,7 +384,7 @@ public class RewriteSpecs
         Assert.Equal(["  order       → order", "  order.Total → <unavailable>", "  order.Name  → <unavailable>"], failure.Message.Split('\n')[1..^1]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_9_a_ref_struct_is_not_captured()
     {
         var failure = Fail("RefStruct", new[] { 1, 2 });
@@ -392,7 +392,7 @@ public class RewriteSpecs
         Assert.Equal(["  values.AsSpan().Length → 2", "  values.AsSpan()        → <unavailable>", "  values                 → System.Int32[]"], failure.Message.Split('\n')[1..^1]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_10_a_mutable_struct_receiver_is_not_copied()
     {
         var shared = Cases.Value.GetField("Shared")!;
@@ -403,7 +403,7 @@ public class RewriteSpecs
         Assert.Equal(["  Shared.Next() → 1", "  Shared        → <unavailable>"], failure.Message.Split('\n')[1..^1]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_11_a_part_whose_type_has_no_name_is_declared_from_the_part()
     {
         var failure = Fail("Anonymous");
@@ -412,7 +412,7 @@ public class RewriteSpecs
         Assert.Contains("= false ? (item) : default;", CopyText("Anonymous"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Rule_11_a_part_with_no_type_name_that_declares_a_variable_is_text_only()
     {
         var failure = Fail("AnonymousWithDeclaration");
@@ -429,25 +429,25 @@ public class RewriteSpecs
             failure.Message.Split('\n')[1..^1]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_copied_call_passes_the_original_name_to_CallerMemberName()
     {
         Assert.Equal("CallerName", Invoke("CallerName"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_copy_binds_with_the_using_aliases_of_its_file()
     {
         Assert.StartsWith("Verify failed: text.Length == 3\n  text.Length → 2\n", Fail("UsesAlias").Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_copy_calls_extension_methods_of_its_file()
     {
         Assert.StartsWith("Verify failed: items.Second() == 5\n  items.Second() → 2\n", Fail("UsesExtension", new List<int> { 1, 2 }).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_direct_call_to_an_extension_method_is_sent_to_its_copy()
     {
         var thrown = Assert.Throws<TargetInvocationException>(() => Cases.Value.GetMethod("CallsExtension")!.Invoke(null, [new List<int> { 1 }]));
@@ -455,7 +455,7 @@ public class RewriteSpecs
         Assert.StartsWith("Verify failed: items.Count == count\n  items.Count → 1\n  items       → System.Collections.Generic.List`1[System.Int32]\n  count       → 3\n", thrown.InnerException!.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Check_failures_are_reported_when_the_scope_ends()
     {
         var checks = Cases.Value.GetMethod("Checks__Verified")!;
@@ -478,7 +478,7 @@ public class RewriteSpecs
             failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Because_adds_its_reason()
     {
         Assert.Equal(
@@ -486,7 +486,7 @@ public class RewriteSpecs
             Fail("WithReason", 2).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_interpolated_message_is_added()
     {
         Assert.Equal(
@@ -494,7 +494,7 @@ public class RewriteSpecs
             Fail("WithMessage", 2).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_call_in_a_lambda_keeps_its_tier_2_message()
     {
         Assert.Equal(
@@ -502,7 +502,7 @@ public class RewriteSpecs
             Fail("InLambda", 2).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Throws_in_a_copy_keeps_its_tier_2_message()
     {
         Assert.Equal(
@@ -510,7 +510,7 @@ public class RewriteSpecs
             Fail("ThrowsInCopy").Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_direct_call_to_a_Verify_method_is_sent_to_its_copy()
     {
         var thrown = Assert.Throws<TargetInvocationException>(() => Cases.Value.GetMethod("CallsHelper")!.Invoke(null, [2]));
@@ -520,18 +520,18 @@ public class RewriteSpecs
             thrown.InnerException!.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_call_in_a_copy_to_a_Verify_method_calls_its_copy()
     {
         Assert.StartsWith("Verify failed: x == 1\n  x → 2\n", Fail("HelperFromCopy", 2).Message);
         Assert.Contains("Helper__Verified(x)", CopyText("HelperFromCopy"));
     }
 
-    [Fact]
-    public void The_rewritten_check_maps_to_its_original_line()
+    [VerifyTest]
+    public void The_rewritten_check_maps_to_its_original_line(CancellationToken cancellationToken)
     {
         var copy = CopyTree("Checks");
-        var statements = copy.GetRoot(TestContext.Current.CancellationToken).DescendantNodes().OfType<IfStatementSyntax>().ToArray();
+        var statements = copy.GetRoot(cancellationToken).DescendantNodes().OfType<IfStatementSyntax>().ToArray();
 
         var mapped = statements.Select(statement => statement.GetLocation().GetMappedLineSpan()).ToArray();
 
@@ -539,7 +539,7 @@ public class RewriteSpecs
         Assert.Equal([LineOf("Check(x > 1)"), LineOf("Check(x > 2)")], mapped.Select(span => span.StartLinePosition.Line + 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_original_method_still_gives_tier_2_messages()
     {
         Assert.Equal(
@@ -547,7 +547,7 @@ public class RewriteSpecs
             Fail("Helper", 2, copy: false).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void With_rewriting_off_no_copy_or_redirect_is_written()
     {
         var result = GeneratorHarness.Generate(GeneratorHarness.Compilation((Path, Source)), new VerificationGlueGenerator(), out _);
@@ -556,7 +556,7 @@ public class RewriteSpecs
         Assert.All(result.GeneratedTrees, tree => Assert.EndsWith(".Interceptors.g.cs", tree.FilePath));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_method_whose_file_declares_a_file_type_is_not_rewritten()
     {
         var source = """
@@ -577,7 +577,7 @@ public class RewriteSpecs
         Assert.Null(type.GetMethod("M__Verified"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_method_with_syntax_errors_is_not_copied()
     {
         var source = """
@@ -596,7 +596,7 @@ public class RewriteSpecs
         Assert.DoesNotContain(result.GeneratedTrees, tree => tree.FilePath.EndsWith(".Verified.g.cs", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_call_in_a_method_the_runner_calls_through_its_copy_gets_no_interceptor()
     {
         var source = """

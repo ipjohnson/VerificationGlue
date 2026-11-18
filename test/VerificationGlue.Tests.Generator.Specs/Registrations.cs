@@ -63,11 +63,11 @@ internal static class Registrations
     {
         var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
         GeneratorHarness.Driver(rewrite, generators)
-            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, TestContext.Current.CancellationToken);
+            .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, CancellationToken.None);
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         using var stream = new MemoryStream();
-        var emitted = output.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        var emitted = output.Emit(stream, cancellationToken: CancellationToken.None);
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
 
         stream.Position = 0;

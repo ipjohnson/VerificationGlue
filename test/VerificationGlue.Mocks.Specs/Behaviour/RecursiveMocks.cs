@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class RecursiveMocks
 {
-    [Fact]
+    [VerifyTest]
     public void A_member_of_an_unconfigured_member_can_be_set_up()
     {
         var calc = Mock.Of<ICalculator>();
@@ -17,7 +17,7 @@ public class RecursiveMocks
         Assert.Equal(5, calc.History.Last);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_same_arguments_return_the_same_mock()
     {
         var history = Mock.Of<ICalculator>().History;
@@ -26,7 +26,7 @@ public class RecursiveMocks
         Assert.NotSame(history.Find(1), history.Find(2));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_configured_member_returns_its_value_and_not_a_mock()
     {
         var calc = Mock.Of<ICalculator>();
@@ -37,7 +37,7 @@ public class RecursiveMocks
         Assert.Same(history, calc.History);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_typed_surface_configures_a_recursive_mock()
     {
         var calc = Mock.Of<ICalculator>();
@@ -47,7 +47,7 @@ public class RecursiveMocks
         Assert.Null(calc.History.Find(3));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_member_beyond_the_depth_returns_null()
     {
         var entry = Mock.Of<ICalculator>().History.Find(1);
@@ -56,7 +56,7 @@ public class RecursiveMocks
         Assert.Null(entry.Next);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_check_with_Received_returns_null_and_creates_no_mock()
     {
         var calc = Mock.Of<ICalculator>();

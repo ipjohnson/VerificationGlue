@@ -23,7 +23,7 @@ public class RowSpecs
         }
         """;
 
-    [Fact]
+    [VerifyTest]
     public async Task Each_row_is_a_test_that_gets_its_own_values()
     {
         var tests = Registrations.Load(Source("[Row(2, 10, \"gift\")]", "[Row(3, 5, null)]"), rewrite: false, new TestGenerator());
@@ -40,7 +40,7 @@ public class RowSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void Inserted_and_reordered_rows_keep_their_ids()
     {
         var before = Registrations.Names(Source("[Row(2, 10, \"gift\")]", "[Row(3, 5, null)]"));
@@ -50,7 +50,7 @@ public class RowSpecs
         Assert.All(before, row => Assert.Contains(row, after));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Identical_rows_get_an_occurrence_suffix()
     {
         var names = Registrations.Names(Source("[Row(2, 10, null)]", "[Row(3, 5, null)]", "[Row(2, 10, null)]"));
@@ -60,7 +60,7 @@ public class RowSpecs
         Assert.Equal("Totals(qty: 2, price: 10, note: null)", names[2].DisplayName);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_row_value_is_converted_to_its_parameter_type_before_the_id_is_computed()
     {
         var spelled = Registrations.Names(Source("[Row((short)2, 10, null)]"));
@@ -69,7 +69,7 @@ public class RowSpecs
         Assert.Equal(plain, spelled);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Whole_numbers_and_chars_are_converted_to_decimal_nint_and_nuint_parameters()
     {
         var tests = Registrations.Load("""
@@ -101,7 +101,7 @@ public class RowSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_default_name_lists_each_row_value_with_its_parameter_name()
     {
         var names = Registrations.Names("""
@@ -127,7 +127,7 @@ public class RowSpecs
             names.Select(name => name.DisplayName));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_narrowest_name_formatter_writes_the_display_name()
     {
         var names = Registrations.Names("""

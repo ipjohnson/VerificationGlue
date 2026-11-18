@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The code that both sides of docs/guide/migrate-from-xunit.md test. -->
+</Project>

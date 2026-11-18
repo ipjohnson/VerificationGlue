@@ -16,6 +16,9 @@
   <Folder Name="/samples/">
     <Project Path="samples/Billing/Billing.csproj" />
     <Project Path="samples/Messages/Messages.csproj" />
+    <Project Path="samples/MigrateFromXunit/After/MigrateFromXunit.After.csproj" />
+    <Project Path="samples/MigrateFromXunit/Before/MigrateFromXunit.Before.csproj" />
+    <Project Path="samples/MigrateFromXunit/Checkout/Checkout.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/After/MigrateFromXunitAssert.After.csproj" />
     <Project Path="samples/MigrateFromXunitAssert/Before/MigrateFromXunitAssert.Before.csproj" />
     <Project Path="samples/MigrateFromNSubstitute/After/MigrateFromNSubstitute.After.csproj" />

@@ -4,7 +4,7 @@ public class InventorySpecs
 {
     private const string DesignDoc = "docs/design/hardening.md";
 
-    [Fact]
+    [VerifyTest]
     public void The_checked_in_inventory_is_valid()
     {
         var inventory = ContractInventory.Load(RepositoryRoot.Path);
@@ -12,7 +12,7 @@ public class InventorySpecs
         AssertNoProblems(new InventoryValidator(RepositoryRoot.Path).Validate(inventory));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_gap_list_and_decisions_in_the_design_doc_match_the_inventory()
     {
         var inventory = ContractInventory.Load(RepositoryRoot.Path);
@@ -21,7 +21,7 @@ public class InventorySpecs
         AssertNoProblems(new InventoryValidator(RepositoryRoot.Path).ValidateDesignDoc(inventory, markdown));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_inventory_covers_each_area_that_step_1_names()
     {
         var inventory = ContractInventory.Load(RepositoryRoot.Path);

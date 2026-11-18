@@ -31,6 +31,16 @@ jobs:
       - name: Run specs
         run: dotnet test --solution VerificationGlue.slnx -c Release --no-build
 
+      # The .Specs projects run on VerificationGlue.Tests. The conformance suites also run on xunit v3,
+      # so a defect in VerificationGlue.Tests cannot hide a defect in VerificationGlue or
+      # VerificationGlue.Mocks. test/Directory.Build.props describes the xunit build.
+      - name: Run the conformance suites on xunit v3
+        run: |
+          for suite in VerificationGlue.Specs VerificationGlue.Generator.Specs VerificationGlue.Mocks.Specs \
+                       VerificationGlue.Mocks.Generator.Specs NSubstituteComparison.Specs; do
+            dotnet test --project "test/$suite" -c Release -p:SpecsRunner=xunit
+          done
+
       - name: Run generator benchmarks
         run: >
           dotnet run --project test/Generator.Benchmarks -c Release --no-build --

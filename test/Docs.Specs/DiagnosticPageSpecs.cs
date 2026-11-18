@@ -25,13 +25,13 @@ public class DiagnosticPageSpecs
 
     private static readonly string DiagnosticsDirectory = Path.Combine(RepositoryRoot.Path, "docs", "diagnostics");
 
-    [Fact]
+    [VerifyTest]
     public void Descriptors_are_found()
     {
         Assert.Contains(Descriptors(), descriptor => descriptor.Id == "VGT0007");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_descriptor_has_a_page()
     {
         var missing = Descriptors()
@@ -42,13 +42,13 @@ public class DiagnosticPageSpecs
         Assert.Empty(missing);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Build_errors_are_found()
     {
         Assert.Contains(BuildErrors(), error => error.Id == "VGT1001");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_build_error_has_a_page_and_links_to_it()
     {
         var problems = BuildErrors()
@@ -63,7 +63,7 @@ public class DiagnosticPageSpecs
         Assert.Empty(problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_page_has_a_descriptor()
     {
         var ids = Descriptors().Select(descriptor => descriptor.Id).Concat(BuildErrors().Select(error => error.Id)).ToHashSet();
@@ -77,7 +77,7 @@ public class DiagnosticPageSpecs
         Assert.Empty(orphans);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_descriptor_links_to_its_page()
     {
         var wrong = Descriptors()
@@ -88,7 +88,7 @@ public class DiagnosticPageSpecs
         Assert.Empty(wrong);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_page_has_the_standard_sections()
     {
         var problems = new List<string>();

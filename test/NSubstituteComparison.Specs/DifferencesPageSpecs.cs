@@ -8,7 +8,7 @@ public class DifferencesPageSpecs
 {
     private const string AcceptVariable = "VERIFICATIONGLUE_ACCEPT_DIFFERENCES";
 
-    [Fact]
+    [VerifyTest]
     public async Task The_page_matches_a_fresh_comparison_run()
     {
         var root = RepositoryRoot();

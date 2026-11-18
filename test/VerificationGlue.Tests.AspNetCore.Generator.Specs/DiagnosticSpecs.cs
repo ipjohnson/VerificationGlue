@@ -5,7 +5,7 @@ namespace VerificationGlue.Tests.AspNetCore.Generator.Specs;
 
 public class DiagnosticSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void An_assembly_the_project_does_not_reference_is_VGA0001_with_the_referenced_assemblies()
     {
         var source = """[VerificationGlue.Tests.AspNetCore.WebAppEntry("ShopApi")] public sealed partial class ShopApiEntry;""";
@@ -22,7 +22,7 @@ public class DiagnosticSpecs
         Assert.Equal("""VerificationGlue.Tests.AspNetCore.WebAppEntry("ShopApi")""", Text(source, diagnostic));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_assembly_with_no_entry_point_is_VGA0001()
     {
         var library = Library("Clock", "public interface IClock { System.DateTime Now { get; } } public static class Clocks { public static void Main(int seconds) { } }");
@@ -35,7 +35,7 @@ public class DiagnosticSpecs
             diagnostic.GetMessage());
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_assembly_with_entry_points_in_two_types_is_VGA0001_with_each_entry_point()
     {
         var library = Library(
@@ -50,10 +50,10 @@ public class DiagnosticSpecs
             diagnostic.GetMessage());
     }
 
-    [Theory]
-    [InlineData("public sealed class ShopEntry;", "ShopEntry", "is not partial")]
-    [InlineData("public sealed partial class ShopEntry<T>;", "ShopEntry", "is generic")]
-    [InlineData("public static partial class Outer { [WebAppEntry(\"VoidApp\")] public sealed partial class ShopEntry; }", "ShopEntry", "is nested in 'Specs.Outer'")]
+    [VerifyTest]
+    [Row("public sealed class ShopEntry;", "ShopEntry", "is not partial")]
+    [Row("public sealed partial class ShopEntry<T>;", "ShopEntry", "is generic")]
+    [Row("public static partial class Outer { [WebAppEntry(\"VoidApp\")] public sealed partial class ShopEntry; }", "ShopEntry", "is nested in 'Specs.Outer'")]
     public void A_class_the_generator_cannot_add_to_is_VGA0002(string declaration, string name, string reason)
     {
         var source = "namespace Specs; using VerificationGlue.Tests.AspNetCore; " +

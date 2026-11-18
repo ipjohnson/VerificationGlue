@@ -2,10 +2,15 @@ namespace Generator.Harness.Specs;
 
 public class SnapshotSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Mismatch_writes_the_received_file_and_names_the_first_different_line()
     {
-        Assert.SkipWhen(Environment.GetEnvironmentVariable(Snapshot.AcceptVariable) == "1", "Accepting snapshots would overwrite this spec's verified file.");
+        // Accepting snapshots would overwrite this spec's verified file.
+        if (Environment.GetEnvironmentVariable(Snapshot.AcceptVariable) == "1")
+        {
+            return;
+        }
+
         var received = Path.Combine(ProjectDirectory(), "Snapshots", $"{nameof(SnapshotSpecs)}.{nameof(Mismatch_writes_the_received_file_and_names_the_first_different_line)}.received.txt");
         try
         {
@@ -21,7 +26,7 @@ public class SnapshotSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void Match_ignores_carriage_returns()
     {
         Snapshot.Match(typeof(SnapshotSpecs), nameof(Match_ignores_carriage_returns), "first\r\nsecond\r\n");

@@ -56,7 +56,7 @@ public class MockPipelineSpecs
     private static readonly CSharpParseOptions ParseOptions = MockCompiler.ParseOptions
         .WithFeatures([new("InterceptorsNamespaces", MockEmitter.GeneratedNamespace)]);
 
-    [Fact]
+    [VerifyTest]
     public void An_unrelated_edit_regenerates_nothing()
     {
         var harness = Harness();
@@ -66,7 +66,7 @@ public class MockPipelineSpecs
         AssertNotRegenerated(harness, MockGenerator.MocksStep, MockGenerator.RegistryStep, MockGenerator.ArgFilesStep);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_edit_above_an_Arg_call_regenerates_its_interceptors_and_not_the_mocks()
     {
         var harness = Harness();
@@ -78,7 +78,7 @@ public class MockPipelineSpecs
         Assert.Empty(harness.OutputCompilationDiagnostics());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_member_added_to_an_interface_in_the_project_regenerates_its_mock()
     {
         var harness = Harness();
@@ -90,7 +90,7 @@ public class MockPipelineSpecs
         Assert.Empty(harness.OutputCompilationDiagnostics());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_member_added_in_a_referenced_project_regenerates_its_mock()
     {
         var harness = Harness();
@@ -102,7 +102,7 @@ public class MockPipelineSpecs
         Assert.Empty(harness.OutputCompilationDiagnostics());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_method_body_changed_in_a_referenced_project_regenerates_nothing()
     {
         var harness = Harness();
@@ -112,7 +112,7 @@ public class MockPipelineSpecs
         AssertNotRegenerated(harness, MockGenerator.MocksStep, MockGenerator.RegistryStep, MockGenerator.ArgFilesStep);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_referenced_DLL_replaced_with_a_new_member_regenerates_its_mock()
     {
         var harness = Harness(image: true);
@@ -129,7 +129,7 @@ public class MockPipelineSpecs
     /// old mock after the interface changes, and the output fails with CS0535 in a long-lived IDE
     /// process. Three changes in a row each have to reach the generated code.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void A_mock_never_goes_stale_across_successive_interface_changes()
     {
         var harness = Harness();
@@ -146,7 +146,7 @@ public class MockPipelineSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void Output_is_the_same_whatever_order_the_sources_arrive_in()
     {
         var forward = new GeneratorDriverHarness(new MockGenerator(), References, ParseOptions)

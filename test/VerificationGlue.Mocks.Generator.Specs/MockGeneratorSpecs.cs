@@ -4,7 +4,7 @@ namespace VerificationGlue.Mocks.Generator.Specs;
 
 public class MockGeneratorSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Runs_without_output_or_diagnostics()
     {
         var result = GeneratorHarness.Run(new MockGenerator(), "class C { }");

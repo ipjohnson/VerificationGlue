@@ -101,19 +101,19 @@ public class WillRewriteContractSpecs
     private static readonly CSharpParseOptions ParseOptions = new CSharpParseOptions(LanguageVersion.Latest)
         .WithFeatures([new("InterceptorsNamespaces", "VerificationGlue.Generated;VerificationGlue.Mocks.Generated")]);
 
-    public static TheoryData<bool, bool> Combinations => new()
-    {
-        { false, false },
-        { false, true },
-        { true, false },
-        { true, true },
-    };
+    public static IEnumerable<(bool Rewrite, bool ReverseOrder)> Combinations =>
+    [
+        (false, false),
+        (false, true),
+        (true, false),
+        (true, true),
+    ];
 
-    [Theory]
-    [MemberData(nameof(Combinations))]
-    public async Task Every_runner_call_binds_and_runs(bool rewrite, bool reverseOrder)
+    [VerifyTest]
+    [RowSource(nameof(Combinations))]
+    public async Task Every_runner_call_binds_and_runs(bool rewrite, bool reverseOrder, CancellationToken cancellationToken)
     {
-        var runner = Build(rewrite, reverseOrder);
+        var runner = Build(rewrite, reverseOrder, cancellationToken);
 
         var expected = new Dictionary<string, (string Target, string Message)>
         {
@@ -144,17 +144,16 @@ public class WillRewriteContractSpecs
         }
     }
 
-    [Fact]
-    public void A_copy_exists_exactly_when_rewriting_is_on_and_WillRewrite_is_true()
+    [VerifyTest]
+    public void A_copy_exists_exactly_when_rewriting_is_on_and_WillRewrite_is_true(CancellationToken token)
     {
         foreach (var rewrite in new[] { false, true })
         {
-            var (input, output) = Run(rewrite, reverseOrder: false);
+            var (input, output) = Run(rewrite, reverseOrder: false, token);
 
             foreach (var tree in input.SyntaxTrees)
             {
                 var model = input.GetSemanticModel(tree);
-                var token = TestContext.Current.CancellationToken;
                 foreach (var declaration in tree.GetRoot(token).DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>())
                 {
                     var method = (IMethodSymbol)model.GetDeclaredSymbol(declaration, token)!;
@@ -172,8 +171,8 @@ public class WillRewriteContractSpecs
         }
     }
 
-    [Fact]
-    public void A_test_with_syntax_errors_is_neither_copied_nor_called_through_a_copy()
+    [VerifyTest]
+    public void A_test_with_syntax_errors_is_neither_copied_nor_called_through_a_copy(CancellationToken cancellationToken)
     {
         var source = """
             using static VerificationGlue.VerifySyntax;
@@ -191,17 +190,17 @@ public class WillRewriteContractSpecs
             """;
         var compilation = Compilation(("/repo/Contract/Broken.cs", source));
 
-        var result = Driver(rewrite: true, reverseOrder: false).RunGenerators(compilation, TestContext.Current.CancellationToken).GetRunResult();
+        var result = Driver(rewrite: true, reverseOrder: false).RunGenerators(compilation, cancellationToken).GetRunResult();
 
         Assert.DoesNotContain(result.GeneratedTrees, tree => tree.FilePath.EndsWith(".Verified.g.cs", StringComparison.Ordinal));
         Assert.Contains("[\"Contract.BrokenTests.Broken\"] = (\"Broken\"", result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith("Runner.g.cs", StringComparison.Ordinal)).ToString());
     }
 
-    private static Dictionary<string, (string Target, Func<Task> Run)> Build(bool rewrite, bool reverseOrder)
+    private static Dictionary<string, (string Target, Func<Task> Run)> Build(bool rewrite, bool reverseOrder, CancellationToken cancellationToken)
     {
-        var (_, output) = Run(rewrite, reverseOrder);
+        var (_, output) = Run(rewrite, reverseOrder, cancellationToken);
         using var stream = new MemoryStream();
-        var emitted = output.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        var emitted = output.Emit(stream, cancellationToken: cancellationToken);
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
 
         stream.Position = 0;
@@ -210,10 +209,10 @@ public class WillRewriteContractSpecs
         return (Dictionary<string, (string, Func<Task>)>)tests;
     }
 
-    private static (CSharpCompilation Input, Compilation Output) Run(bool rewrite, bool reverseOrder)
+    private static (CSharpCompilation Input, Compilation Output) Run(bool rewrite, bool reverseOrder, CancellationToken cancellationToken)
     {
         var input = Compilation(("/repo/Contract/CalculatorTests.cs", Tests), ("/repo/Contract/FileTypeTests.cs", FileTypeTests));
-        var driver = Driver(rewrite, reverseOrder).RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, TestContext.Current.CancellationToken);
+        var driver = Driver(rewrite, reverseOrder).RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, cancellationToken);
         Assert.DoesNotContain(diagnostics.Concat(driver.GetRunResult().Diagnostics), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         return (input, output);
     }
