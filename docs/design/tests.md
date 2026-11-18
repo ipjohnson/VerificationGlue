@@ -387,7 +387,7 @@ Needs: Phase 2. Nothing new from the other packages.
 
 - [ ] `[Row]`, `[RowSource]`, `ITestDataSource`, and analyzers VGT0002 and VGT0005.
 - [ ] `ITestNameFormatter` and the default format.
-- [ ] Schedule groups, resources, `[RunAfter]`, VGT0003 and `ITestScheduler`.
+- [x] Schedule groups, resources, `[RunAfter]`, VGT0003 and `ITestScheduler`. The generator writes each test's group, limit, `[RunAfter]` groups and `[Resource]` keys into its descriptor. A test with no `[ScheduleGroup]` is in `default` with the processor count as its limit. A group declared with different limits takes the smallest, and its `[RunAfter]` groups are the union over its classes. `DefaultTestScheduler` is public, so a custom scheduler can pass its share of the tests to it. `[Scheduler<T>]` needs `T : new()`. A test the scheduler does not run is reported as skipped. `test/VerificationGlue.Tests.Specs/SchedulingSpecs.cs` and `SchedulerSpecs.cs` check them, and the Phase 2 lifecycle cases pass with tests running in parallel.
 - [ ] `--vg-filter`.
 - [ ] Gate data-row UID filtering and fresh-process retry support on cases for inserted/reordered literal rows, reordered keyed runtime sources, reordered sources of primitive values, throwing and empty sources, duplicate runtime keys, and explicit deterministic index replay; each retry must execute the intended row and invalid sources must fail rather than select different data.
 - [ ] Pages: the guides "Data rows", "Scheduling groups and resources" and "CI setup with TRX and retries", `docs/diagnostics/VGT0002.md`, `VGT0003.md` and `VGT0005.md`, the sections of `docs/guide/extending.md` for data sources, name formatters and schedulers, the migration guide from xunit, and `llms.txt`.
