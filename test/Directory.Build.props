@@ -2,21 +2,21 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
     <IsSpecsProject>$(MSBuildProjectName.EndsWith('.Specs'))</IsSpecsProject>
-    <_SpecsOnVerificationGlueTests>;VerificationGlue.Specs;ColdBuild.Specs;Docs.Specs;Generator.Harness.Specs;Inventory.Specs;Shared.Generator.Specs;Contract.Specs;NSubstituteComparison.Specs;VerificationGlue.Mocks.Specs;VerificationGlue.Mocks.Generator.Specs;VerificationGlue.Generator.Specs;VerificationGlue.Tests.Generator.Specs;VerificationGlue.Tests.AspNetCore.Generator.Specs;VerificationGlue.Tests.AspNetCore.Specs;</_SpecsOnVerificationGlueTests>
-    <_SpecsMoved>$(_SpecsOnVerificationGlueTests.Contains(';$(MSBuildProjectName);'))</_SpecsMoved>
+    <_IsRunnerSpecs Condition="'$(MSBuildProjectName)' == 'VerificationGlue.Tests.Specs'">true</_IsRunnerSpecs>
   </PropertyGroup>
 
   <!--
-    SpecsRunner picks the runner of a .Specs project: VerificationGlue.Tests or xunit. Pass
-    -p:SpecsRunner=xunit to run a project that is on VerificationGlue.Tests on xunit v3 instead.
-    CI does so for the conformance suites. That build compiles XunitShim.cs, which gives
-    [VerifyTest], [Row] and [RowSource] to xunit, and writes to its own bin and obj folders.
+    SpecsRunner picks the runner of a .Specs project. The .Specs projects run on VerificationGlue.Tests,
+    except VerificationGlue.Tests.Specs, which stays on xunit v3 because a runner cannot be the only
+    check of itself. Pass -p:SpecsRunner=xunit to run another .Specs project on xunit v3. CI does so
+    for the conformance suites. That build compiles XunitShim.cs, which gives [VerifyTest], [Row] and
+    [RowSource] to xunit, and writes to its own bin and obj folders.
   -->
   <PropertyGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == ''">
-    <SpecsRunner Condition="'$(_SpecsMoved)' == 'true'">VerificationGlue.Tests</SpecsRunner>
-    <SpecsRunner Condition="'$(SpecsRunner)' == ''">xunit</SpecsRunner>
+    <SpecsRunner Condition="'$(_IsRunnerSpecs)' == 'true'">xunit</SpecsRunner>
+    <SpecsRunner Condition="'$(_IsRunnerSpecs)' != 'true'">VerificationGlue.Tests</SpecsRunner>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'xunit' and '$(_SpecsMoved)' == 'true'">
+  <PropertyGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'xunit' and '$(_IsRunnerSpecs)' != 'true'">
     <_SpecsOnXunitShim>true</_SpecsOnXunitShim>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)../artifacts/xunit/$(MSBuildProjectName)/obj/</BaseIntermediateOutputPath>
     <BaseOutputPath>$(MSBuildThisFileDirectory)../artifacts/xunit/$(MSBuildProjectName)/bin/</BaseOutputPath>
