@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -18,7 +19,7 @@ namespace VerificationGlue.Tests.AspNetCore;
 /// <see cref="DiagnosticListener"/> named Microsoft.Extensions.Hosting, which it creates on the thread
 /// that builds the host, so each app's thread sees only its own host.
 /// </summary>
-internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
+internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOnlyDictionary<string, string?> settings, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
 {
     private static readonly AsyncLocal<HostCapture?> s_current = new();
     private static readonly IDisposable s_subscription = DiagnosticListener.AllListeners.Subscribe(new Listeners());
@@ -40,7 +41,15 @@ internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, ITestOu
     {
         if (value.Key == "HostBuilding")
         {
-            ((IHostBuilder)value.Value!).ConfigureServices((_, services) =>
+            var builder = (IHostBuilder)value.Value!;
+            if (settings.Count > 0)
+            {
+                // The entry point also receives the settings as arguments, but an app that does not
+                // pass args to its builder sees them only through this source.
+                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(settings));
+            }
+
+            builder.ConfigureServices((_, services) =>
             {
                 services.AddSingleton<IHostLifetime, NoopLifetime>();
                 services.AddSingleton<IServer, TestServer>();

@@ -11,13 +11,18 @@
 - A test takes `HttpClient`, `IHost` and any service the app registers as parameters. A scoped service comes from the test's own scope.
 - A `[Mock] IClock clock` parameter replaces the app's `IClock` registration for that test, in minimal API endpoints and in controllers alike. Set it up before the first request.
 - Do not share state between tests. Each test has its own app, so a store starts empty in every test.
-- Only `Scope = ContainerScope.Test`, the default, is built. A shared app per class or assembly, `[AppSetting]`, `[AppEnvironment]` and `[Kestrel]` are planned and do not exist yet.
+- Set a configuration value with `[AppSetting("Orders:MaxQuantity", "5")]` on the test, the class or the assembly. Values add up, and a narrower value for the same key wins. It replaces the value from `appsettings.json`.
+- Set the environment name with `[AppEnvironment("Staging")]`. The narrowest one wins. The default is `Development`.
+- The app does not watch its configuration files. `[WatchAppConfiguration]` turns the watcher on.
+- These reach the app through `args`. An app that calls `WebApplication.CreateBuilder()` without `args` sees a test's values only from `Build()` on, and keeps its own environment name.
+- Only `Scope = ContainerScope.Test`, the default, is built. A shared app per class or assembly and `[Kestrel]` are planned and do not exist yet.
 - The app's log at level `Information` and above is in the test's output.
 - VGA0001 means the generator found no entry point in the named assembly, or found more than one type with one. Check the assembly name and the project reference. VGA0002 means the class is not partial, is generic or is nested.
 
 ## Docs
 
 - [Getting started](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/getting-started-aspnetcore.md): install, name the app and write a test with a mock.
+- [Configure the app for a test](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/configure-the-app-for-a-test.md): `[AppSetting]`, `[AppEnvironment]` and `[WatchAppConfiguration]`.
 - [Generated entry types](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/generated/web-app-entry.md): the code the generator writes for each entry point shape.
 - [VGA0001](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGA0001.md) and [VGA0002](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGA0002.md)
 - [Design](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/design/aspnet.md): the phases that are built and the ones that are planned.

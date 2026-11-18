@@ -193,7 +193,7 @@ No type of ours wraps the client or the host. A wrapper would add a name to lear
 
 A test sets configuration with attributes, which the bootstrap turns into command-line arguments for the entry point. Command-line arguments are the last configuration source of `WebApplication.CreateBuilder` and `Host.CreateDefaultBuilder`, so a test's value replaces the value from `appsettings.json` or an environment variable.
 
-This works when the app passes `args` to its builder, which the ASP.NET Core templates do. For an app that does not, the bootstrap also adds the values as an in-memory source on `HostBuilding`. Code that reads configuration before `Build()` then does not see them **(inference)**. Phase 2 tests both cases, and the guide says so.
+This works when the app passes `args` to its builder, which the ASP.NET Core templates do. For an app that does not, the bootstrap also adds the values as an in-memory source on `HostBuilding`. Code that reads configuration before `Build()` then does not see them, and the app keeps its own environment name and its configuration watcher **(verified)**. `test/VerificationGlue.Tests.AspNetCore.Fixture/ConfigurationTests.cs` tests both cases, and the guide "Configure the app for a test" says so.
 
 `[Kestrel]` binds `http://127.0.0.1:0`. The bootstrap reads the bound address from `IServerAddressesFeature` after the app starts. The spike ran a test on Kestrel on the JIT and under Native AOT **(verified)**.
 
@@ -300,10 +300,12 @@ When done, a user sets configuration values, the environment name and Kestrel on
 
 Needs: Phase 1.
 
-- [ ] `[AppSetting]`, `[AppEnvironment]`, `[Kestrel]` and `[WatchAppConfiguration]`, with the placement rules above.
-- [ ] Tests for an app that passes `args` to its builder and one that does not.
+- [x] `[AppSetting]`, `[AppEnvironment]` and `[WatchAppConfiguration]`, with the placement rules above. `ConfigurationSpecs`.
+- [ ] `[Kestrel]`.
+- [x] Tests for an app that passes `args` to its builder and one that does not. `NoArgsApp` in `test/VerificationGlue.Tests.AspNetCore.Apps`.
 - [ ] Class and assembly scope, with a child per test, and VGA0003.
-- [ ] Pages: the guides "Configure the app for a test", "Share an app across a class" and "Test an app on a real port", `docs/diagnostics/VGA0003.md`, and the migration guide from `WebApplicationFactory`.
+- [x] The guide "Configure the app for a test", `docs/guide/configure-the-app-for-a-test.md`.
+- [ ] Pages: the guides "Share an app across a class" and "Test an app on a real port", `docs/diagnostics/VGA0003.md`, and the migration guide from `WebApplicationFactory`.
 
 ## Risks and open questions
 

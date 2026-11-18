@@ -135,6 +135,7 @@ public partial class ConcurrentStartTests
         var outputs = Enumerable.Range(0, Apps).Select(_ => new Lines()).ToArray();
         var starts = Enumerable.Range(0, Apps).Select(i => WebAppBootstrap<FixtureShopEntry>.StartAsync(
             $"app {i}",
+            [],
             [new TestOverride(typeof(IClock), new FixedClock(new DateTime(2030, 1, 1).AddDays(i)), null)],
             outputs[i],
             CancellationToken.None)).ToArray();
