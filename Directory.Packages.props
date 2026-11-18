@@ -18,5 +18,6 @@
     <PackageVersion Include="NUnit3TestAdapter" Version="5.2.0" />
     <PackageVersion Include="TUnit" Version="1.85.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
+    <PackageVersion Include="xunit.v3.assert" Version="4.0.3" />
   </ItemGroup>
 </Project>

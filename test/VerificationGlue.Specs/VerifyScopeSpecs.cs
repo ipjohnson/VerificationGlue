@@ -6,7 +6,7 @@ namespace VerificationGlue.Specs;
 // This project does not run the generator, so every call here gives a tier 1 message.
 public class VerifyScopeSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Check_failures_are_reported_together_when_the_scope_ends()
     {
         var count = 2;
@@ -21,7 +21,7 @@ public class VerifyScopeSpecs
         Assert.Equal("2 checks failed\n\nCheck failed: count == 3\n\nCheck failed: name.Length > 1", failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Check_lets_the_code_after_it_run()
     {
         var reached = false;
@@ -34,8 +34,8 @@ public class VerifyScopeSpecs
         Assert.True(reached);
     }
 
-    [Fact]
-    public void A_scope_with_no_failures_ends_quietly()
+    [VerifyTest]
+    public Task A_scope_with_no_failures_ends_quietly() => OutsideTheRunnersScope(() =>
     {
         using (VerifyScope.Begin())
         {
@@ -43,17 +43,17 @@ public class VerifyScopeSpecs
         }
 
         Assert.Null(VerifyScope.Current);
-    }
+    });
 
-    [Fact]
-    public void Check_with_no_scope_throws_like_Verify()
+    [VerifyTest]
+    public Task Check_with_no_scope_throws_like_Verify() => OutsideTheRunnersScope(() =>
     {
         var failure = Assert.Throws<VerifyException>(() => Check(1 > 2));
 
         Assert.Equal("Check failed: 1 > 2", failure.Message);
-    }
+    });
 
-    [Fact]
+    [VerifyTest]
     public void An_inner_scope_reports_its_own_failures_and_restores_the_outer_scope()
     {
         var outer = VerifyScope.Begin();
@@ -68,7 +68,7 @@ public class VerifyScopeSpecs
         outer.Dispose();
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_check_in_an_awaited_method_reports_to_the_scope()
     {
         var scope = VerifyScope.Begin();
@@ -78,7 +78,7 @@ public class VerifyScopeSpecs
         Assert.Throws<VerifyException>(scope.Dispose);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Ending_a_scope_twice_reports_once()
     {
         var scope = VerifyScope.Begin();
@@ -88,13 +88,23 @@ public class VerifyScopeSpecs
         scope.Dispose();
     }
 
-    [Fact]
+    [VerifyTest]
     public void Verify_still_throws_inside_a_scope()
     {
         using var scope = VerifyScope.Begin();
 
         Assert.Throws<VerifyException>(() => Verify(false));
         Assert.Empty(scope.Failures);
+    }
+
+    // VerificationGlue.Tests runs each test inside a VerifyScope. The body runs without the
+    // execution context, so it starts with no scope.
+    private static Task OutsideTheRunnersScope(Action body)
+    {
+        using (ExecutionContext.SuppressFlow())
+        {
+            return Task.Run(body);
+        }
     }
 
     private static async Task CheckLater(int value)
