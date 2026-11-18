@@ -7,7 +7,7 @@ namespace VerificationGlue.Tests.AspNetCore.Specs;
 /// </summary>
 public class WebAppSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void The_fixture_names_each_app_only_by_its_assembly_name()
     {
         var sources = Directory.GetFiles(Path.Combine(Fixture.FindRoot(), "test", "VerificationGlue.Tests.AspNetCore.Fixture"), "*.cs")
@@ -27,13 +27,13 @@ public class WebAppSpecs
     private const string StartsAtOnce = "Apps_that_start_at_once_get_their_own_host_and_overrides";
     private const string Returned = "[Information] FixtureShop: The entry point of FixtureShop is returning";
 
-    [Fact]
+    [VerifyTest]
     public void A_test_calls_an_endpoint_with_its_HttpClient_and_reads_the_response()
     {
         AssertPassed("Reads_the_response_of_an_endpoint");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Each_test_gets_its_own_app()
     {
         AssertPassed("First_app_lists_only_its_own_order");
@@ -43,35 +43,35 @@ public class WebAppSpecs
             result => Assert.Single(Lines(result.Value.Output), line => line.Contains(" started in ", StringComparison.Ordinal)));
     }
 
-    [Theory]
-    [InlineData("Top_level_void_starts_with_the_mock", "VoidApp")]
-    [InlineData("Top_level_int_starts_with_the_mock", "IntApp")]
-    [InlineData("Top_level_Task_starts_with_the_mock", "TaskApp")]
-    [InlineData("Top_level_Task_of_int_starts_with_the_mock", "TaskIntApp")]
-    [InlineData("Explicit_Main_in_a_static_class_starts_with_the_mock", "MainApp")]
-    [InlineData("Internal_Program_starts_with_the_mock", "InternalApp")]
-    [InlineData("Internal_Program_with_InternalsVisibleTo_starts_with_the_mock", "InternalIvtApp")]
-    [InlineData("Startup_class_with_the_generic_host_starts_with_the_mock", "StartupApp")]
+    [VerifyTest]
+    [Row("Top_level_void_starts_with_the_mock", "VoidApp")]
+    [Row("Top_level_int_starts_with_the_mock", "IntApp")]
+    [Row("Top_level_Task_starts_with_the_mock", "TaskApp")]
+    [Row("Top_level_Task_of_int_starts_with_the_mock", "TaskIntApp")]
+    [Row("Explicit_Main_in_a_static_class_starts_with_the_mock", "MainApp")]
+    [Row("Internal_Program_starts_with_the_mock", "InternalApp")]
+    [Row("Internal_Program_with_InternalsVisibleTo_starts_with_the_mock", "InternalIvtApp")]
+    [Row("Startup_class_with_the_generic_host_starts_with_the_mock", "StartupApp")]
     public void A_generated_entry_type_starts_each_entry_point_shape_with_the_mock(string test, string app)
     {
         AssertPassed(test);
         Assert.Single(Lines(Fixture.Results[test].Output), line => line.StartsWith(app + " started in ", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_mock_parameter_is_the_instance_that_an_endpoint_and_a_controller_receive()
     {
         AssertPassed("Minimal_api_endpoint_receives_the_mock");
         AssertPassed("Controller_receives_the_mock");
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_test_takes_a_service_of_the_app()
     {
         AssertPassed("Takes_a_service_of_the_app");
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_scoped_service_parameter_is_disposed_when_the_test_ends_while_the_app_runs()
     {
         var name = "Takes_a_scoped_service_that_is_disposed_when_the_test_ends";
@@ -84,20 +84,20 @@ public class WebAppSpecs
         Assert.True(disposed < Array.IndexOf(lines, Returned));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_app_does_not_watch_its_configuration_files()
     {
         AssertPassed("Does_not_watch_its_configuration_files");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Apps_that_start_at_once_get_their_own_host_and_overrides()
     {
         AssertPassed(StartsAtOnce);
         Assert.Contains("Dynamic code: True.", Fixture.Results[StartsAtOnce].Output);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Without_dynamic_code_apps_that_start_at_once_build_their_hosts_one_at_a_time()
     {
         var result = Fixture.SerialResults[StartsAtOnce];
@@ -106,7 +106,7 @@ public class WebAppSpecs
         Assert.Contains("Dynamic code: False. Most entry points before Build at once: 1.", result.Output);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Without_dynamic_code_the_other_tests_have_the_same_outcomes()
     {
         Assert.Equal(
@@ -114,7 +114,7 @@ public class WebAppSpecs
             Fixture.SerialResults.ToDictionary(result => result.Key, result => result.Value.Outcome));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_failing_test_lists_the_log_of_its_own_app()
     {
         var result = Fixture.Results["Fails_after_saving_an_order"];
@@ -126,7 +126,7 @@ public class WebAppSpecs
         Assert.Single(Lines(result.Output), line => line.StartsWith(Started, StringComparison.Ordinal) && line.EndsWith(" ms", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_entry_point_has_returned_before_the_result_is_published()
     {
         Assert.All(
@@ -134,7 +134,7 @@ public class WebAppSpecs
             name => Assert.Equal(Returned, Lines(Fixture.Results[name].Output)[^1]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_app_that_throws_while_it_starts_fails_its_test_with_the_exception_of_the_app()
     {
         var result = Fixture.Results["Fails_with_the_exception_of_the_app"];
@@ -144,7 +144,7 @@ public class WebAppSpecs
         Assert.Contains("ThrowApp/Program.cs:line 4", result.StackTrace.Replace('\\', '/'));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_app_that_returns_before_it_builds_a_host_fails_its_test_with_the_exit_code()
     {
         var result = Fixture.Results["Fails_with_the_exit_code_of_the_app"];
@@ -155,7 +155,7 @@ public class WebAppSpecs
             result.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_other_tests_run_after_an_app_fails_to_start()
     {
         Assert.Equal(33, Fixture.Results.Count);

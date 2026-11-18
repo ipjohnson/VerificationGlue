@@ -6,21 +6,21 @@ namespace VerificationGlue.Tests.AspNetCore.Specs;
 /// </summary>
 public class ConfigurationSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void A_test_value_is_what_the_app_reads_and_replaces_the_value_from_appsettings_json()
     {
         AssertPassed("Reads_the_value_from_appsettings_json");
         AssertPassed("A_test_value_replaces_the_value_from_appsettings_json");
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_narrowest_value_of_a_key_wins_and_values_of_other_keys_from_each_level_are_present()
     {
         AssertPassed("The_narrowest_value_of_a_key_wins_and_the_other_keys_add_up");
         AssertPassed("Without_a_method_value_the_class_value_wins");
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_environment_name_is_the_narrowest_one_and_defaults_to_Development()
     {
         AssertPassed("The_default_environment_is_Development");
@@ -30,7 +30,7 @@ public class ConfigurationSpecs
         AssertPassed("The_narrowest_of_the_assembly_class_and_method_wins");
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_app_that_does_not_pass_args_to_its_builder_reads_a_test_value_after_Build()
     {
         AssertPassed("An_app_that_does_not_pass_args_reads_the_value_after_Build");
@@ -38,7 +38,7 @@ public class ConfigurationSpecs
         AssertPassed("An_app_that_does_not_pass_args_watches_its_configuration_files");
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_app_watches_its_configuration_files_only_with_WatchAppConfiguration()
     {
         AssertPassed("Does_not_watch_its_configuration_files");
