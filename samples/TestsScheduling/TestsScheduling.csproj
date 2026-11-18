@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The sample in docs/guide/scheduling-groups-and-resources.md and the scheduler section of
+    docs/guide/extending.md. test/VerificationGlue.Tests.Specs runs it with VG_SHARD set and checks
+    which tests each shard runs.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

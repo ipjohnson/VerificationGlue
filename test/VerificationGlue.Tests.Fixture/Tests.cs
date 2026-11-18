@@ -92,6 +92,7 @@ public class NotPartialTests
     private static int Total(int value) => value + 1;
 }
 
+[ScheduleGroup("disposable", MaxParallel = 1)]
 public sealed class DisposableTests : IDisposable
 {
     private static int s_disposed;

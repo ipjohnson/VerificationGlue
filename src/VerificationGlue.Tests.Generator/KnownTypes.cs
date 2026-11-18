@@ -7,6 +7,9 @@ internal static class KnownTypes
     public const string VerifyTestAttribute = "VerificationGlue.Tests.VerifyTestAttribute";
     public const string GeneratedNamespace = "VerificationGlue.Tests.Generated";
     public const string ContainerAttribute = "VerificationGlue.Tests.ContainerAttribute";
+    public const string ScheduleGroupAttribute = "VerificationGlue.Tests.ScheduleGroupAttribute";
+    public const string ResourceAttribute = "VerificationGlue.Tests.ResourceAttribute";
+    public const string RunAfterAttribute = "VerificationGlue.Tests.RunAfterAttribute";
     public const string ISupportsChildOverrides = "VerificationGlue.Tests.ISupportsChildOverrides";
     public const string RowAttribute = "VerificationGlue.Tests.RowAttribute";
     public const string NameFormatterAttribute = "VerificationGlue.Tests.NameFormatterAttribute";

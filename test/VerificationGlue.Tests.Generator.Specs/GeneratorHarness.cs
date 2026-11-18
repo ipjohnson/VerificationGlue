@@ -15,7 +15,7 @@ internal static class GeneratorHarness
     /// </summary>
     private static readonly string[] RuntimeFiles =
     [
-        "VerifyTestAttribute.cs", "TestDescriptor.cs", "TestRegistry.cs", "TestContext.cs", "TestRuntime.cs", "TestParameter.cs",
+        "Scheduling.cs", "VerifyTestAttribute.cs", "TestDescriptor.cs", "TestRegistry.cs", "TestContext.cs", "TestRuntime.cs", "TestParameter.cs",
         "TestScope.cs", "TestContainer.cs", "ContainerAttribute.cs", "ExtensionPoints.cs", "TestRunner.cs",
         "RowAttribute.cs", "NameFormatter.cs",
     ];

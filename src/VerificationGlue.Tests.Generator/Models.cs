@@ -52,7 +52,19 @@ internal sealed record TestMethodModel(
     EquatableArray<AttributeModel> Attributes,
     bool HasRows,
     EquatableArray<RowModel> Rows,
-    string NameFormatter);
+    string NameFormatter,
+    ScheduleModel Schedule);
+
+/// <summary>
+/// The schedule group of a test, from the narrowest <c>[ScheduleGroup]</c>, the groups its class runs
+/// after, and its resource keys.
+/// </summary>
+internal sealed record ScheduleModel(string Group, int MaxParallel, EquatableArray<string> RunAfter, EquatableArray<string> Resources)
+{
+    public const string DefaultGroup = "default";
+
+    public bool IsDefault => Group == DefaultGroup && MaxParallel == 0 && RunAfter.Count == 0 && Resources.Count == 0;
+}
 
 /// <summary>The type that declares test methods, as the registration file names it.</summary>
 internal sealed record TestClassModel(

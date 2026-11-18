@@ -36,6 +36,10 @@ public sealed class TestDescriptor
     /// <param name="parameters">The parameters of the test method.</param>
     /// <param name="createInstance">Creates the test class, or is null for a static test.</param>
     /// <param name="invoke">Runs the test on the instance.</param>
+    /// <param name="scheduleGroup">The schedule group, from the narrowest <c>[ScheduleGroup]</c>.</param>
+    /// <param name="maxParallel">The <c>MaxParallel</c> of that <c>[ScheduleGroup]</c>, where 0 means the processor count.</param>
+    /// <param name="runAfter">The groups in the <c>[RunAfter]</c> attributes of the class.</param>
+    /// <param name="resources">The <c>[Resource]</c> keys of the class and the method.</param>
     public TestDescriptor(
         string uid,
         Func<TestNameContext, string> formatName,
@@ -52,8 +56,16 @@ public sealed class TestDescriptor
         TestParameter[] constructorParameters,
         TestParameter[] parameters,
         Func<TestContext, object>? createInstance,
-        Func<TestContext, object?, ValueTask> invoke)
+        Func<TestContext, object?, ValueTask> invoke,
+        string scheduleGroup = ScheduleGroupAttribute.DefaultName,
+        int maxParallel = 0,
+        string[]? runAfter = null,
+        string[]? resources = null)
     {
+        ScheduleGroup = scheduleGroup;
+        MaxParallel = maxParallel;
+        RunAfter = runAfter ?? [];
+        Resources = resources ?? [];
         Uid = uid;
         _formatName = formatName;
         Arguments = arguments;
@@ -128,6 +140,18 @@ public sealed class TestDescriptor
 
     /// <summary>Runs the test on the instance, which is null for a static test.</summary>
     public Func<TestContext, object?, ValueTask> Invoke { get; }
+
+    /// <summary>The schedule group, from the narrowest <c>[ScheduleGroup]</c>.</summary>
+    public string ScheduleGroup { get; }
+
+    /// <summary>The <c>MaxParallel</c> of the narrowest <c>[ScheduleGroup]</c>, where 0 means the processor count.</summary>
+    public int MaxParallel { get; }
+
+    /// <summary>The groups in the <c>[RunAfter]</c> attributes of the class.</summary>
+    public IReadOnlyList<string> RunAfter { get; }
+
+    /// <summary>The <c>[Resource]</c> keys of the class and the method, widest first.</summary>
+    public IReadOnlyList<string> Resources { get; }
 
     /// <summary>The full name of <see cref="TestClass"/>, with <c>+</c> between nested types.</summary>
     internal string FullTypeName => Namespace.Length == 0 ? TypeName : Namespace + "." + TypeName;

@@ -1,6 +1,6 @@
 # Extending VerificationGlue.Tests
 
-At the end of this page you can write a container bootstrap, a parameter provider, middleware, a scope listener and a name formatter for `VerificationGlue.Tests`.
+At the end of this page you can write a container bootstrap, a parameter provider, middleware, a scope listener, a name formatter and a scheduler for `VerificationGlue.Tests`.
 
 Every extension point is a public interface in the `VerificationGlue.Tests` namespace. The runner finds them through the test's attributes, which the generator creates without reflection, so extensions work under Native AOT. A breaking change to any of these interfaces needs a major version.
 
@@ -118,7 +118,7 @@ public sealed class LogMiddleware : ITestMiddleware
     }
 }
 ```
-<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L52-L68' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-middleware' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L55-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-middleware' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `[Use<T>]` can go on the assembly, a class or a method, more than once. Middleware from the assembly runs outside middleware from the class, which runs outside middleware from the method. An exception that `next` throws reaches the middleware, and the runner reports it whether or not the middleware catches it. An exception the middleware throws on leaving is reported after it.
@@ -154,7 +154,7 @@ public sealed class LogScopesAttribute : Attribute, ITestScopeListener
     };
 }
 ```
-<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L26-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-scope-listener' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L29-L53' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-scope-listener' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `OnCreatedAsync` for a test scope runs before the runner creates mocks and builds the container. A listener can add an override there with `TestScope.AddOverride`. After the container is built, `AddOverride` throws.
@@ -207,8 +207,59 @@ The two rows show as `Ships 1 / "standard"` and `Ships 5 / "express"`. Without t
 
 The generator calls `Format` directly, so a formatter works under Native AOT. The runner calls it when it first needs the name. When `Format` throws, the test gets the default name. The display name does not change the test ID, so a new formatter keeps every filter and retry working.
 
+## Schedulers
+
+A scheduler decides when each selected test runs. `DefaultTestScheduler` runs the rules in [Scheduling groups and resources](scheduling-groups-and-resources.md). To replace it, implement `ITestScheduler` and name the type on the assembly. The type needs a public parameterless constructor:
+
+<!-- snippet: tests-scheduler-attribute -->
+<a id='snippet-tests-scheduler-attribute'></a>
+```cs
+[assembly: Scheduler<TestsScheduling.ShardScheduler>]
+```
+<sup><a href='/samples/TestsScheduling/SchedulingTests.cs#L8-L10' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-scheduler-attribute' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The runner calls `RunAsync` once per run with these arguments:
+
+- `tests` is every selected test, ordered by UID. Each `ScheduledTest` has its `Uid`, `DisplayName`, `TestClass`, `Group`, the group's `MaxParallel` and `RunAfter`, and its `Resources`. `MaxParallel` is at least 1, and every test of a group has the same `MaxParallel` and `RunAfter`.
+- `run` runs one test through its scopes and reports its result. Call it at most once for each test. A failed test does not make it throw, but a second call for the same test throws `InvalidOperationException`.
+- `cancellationToken` is cancelled when the run is cancelled. Start no more tests after that.
+
+Return after every call to `run` has finished, because the runner disposes the class and assembly scopes when `RunAsync` returns. A test the scheduler never runs is reported as skipped. When `RunAsync` throws, each test it did not run fails with its message.
+
+This scheduler splits the tests between machines. It picks its share, and passes it to `DefaultTestScheduler`, so groups, resources and `[RunAfter]` still apply within the share:
+
+<!-- snippet: tests-shard-scheduler -->
+<a id='snippet-tests-shard-scheduler'></a>
+```cs
+/// <summary>
+/// Runs every n-th test when <c>VG_SHARD</c> is set to "index/count", such as "0/2" on one machine and
+/// "1/2" on another, and leaves the rest to the default scheduler's rules.
+/// </summary>
+public sealed class ShardScheduler : ITestScheduler
+{
+    private readonly DefaultTestScheduler _default = new();
+
+    public ValueTask RunAsync(IReadOnlyList<ScheduledTest> tests, Func<ScheduledTest, ValueTask> run, CancellationToken cancellationToken)
+    {
+        if (Environment.GetEnvironmentVariable("VG_SHARD")?.Split('/') is not [var index, var count])
+        {
+            return _default.RunAsync(tests, run, cancellationToken);
+        }
+
+        var shard = tests.Where((test, position) => position % int.Parse(count) == int.Parse(index)).ToArray();
+        return _default.RunAsync(shard, run, cancellationToken);
+    }
+}
+```
+<sup><a href='/samples/TestsScheduling/SchedulingTests.cs#L96-L116' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-shard-scheduler' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+Tests are ordered by UID, so every machine computes the same split. `test/VerificationGlue.Tests.Specs/SchedulerSpecs.cs` runs the sample with `VG_SHARD` set to `0/2` and `1/2`, and checks that each test runs on exactly one of them.
+
 ## Next
 
 - [Containers and scopes](containers-and-scopes.md)
 - [Data rows](data-rows.md)
 - [Test lifecycle](test-lifecycle.md)
+- [Scheduling groups and resources](scheduling-groups-and-resources.md)

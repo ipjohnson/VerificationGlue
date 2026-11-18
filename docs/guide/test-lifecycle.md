@@ -6,6 +6,8 @@ At the end of this page you know when the runner creates and disposes each scope
 
 There are three scope levels: the assembly, each test class, and each test. A scope is created when its first selected test starts, so a test that a filter leaves out creates nothing. A scope is disposed after its last selected test, and the assembly scope is disposed last.
 
+Tests run at the same time, as [Scheduling groups and resources](scheduling-groups-and-resources.md) describes. When two tests of one class start together, the first one creates the class scope and the other waits for it, whichever schedule group each test is in. The class scope is still disposed once, after the last of its tests ends.
+
 Each test runs these steps in order:
 
 ```mermaid
@@ -56,10 +58,10 @@ public sealed partial class LifecycleTests : IAsyncDisposable
     }
 }
 ```
-<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L107-L134' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-lifecycle-sample' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/TestsLifecycle/LifecycleTests.cs#L110-L137' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-lifecycle-sample' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-Running it writes these steps to `lifecycle.log`:
+The sample also sets `[assembly: ScheduleGroup("default", MaxParallel = 1)]`, so its two tests run one after the other and their steps do not mix in the log. Running it writes these steps to `lifecycle.log`:
 
 <!-- snippet: LifecycleSampleSpecs.Logs_every_step.verified.txt -->
 <a id='snippet-LifecycleSampleSpecs.Logs_every_step.verified.txt'></a>
@@ -156,4 +158,5 @@ Each attempt of the [MTP Retry extension](https://learn.microsoft.com/dotnet/cor
 
 - [Containers and scopes](containers-and-scopes.md)
 - [Parameters and where they come from](test-parameters.md)
+- [Scheduling groups and resources](scheduling-groups-and-resources.md)
 - [Extending VerificationGlue.Tests](extending.md)

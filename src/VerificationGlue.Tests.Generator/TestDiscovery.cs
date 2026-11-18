@@ -230,10 +230,53 @@ internal static class TestDiscovery
             AttributeMaterializer.Materialize(method.GetAttributes().Where(attribute => !RowReader.IsRow(attribute)).ToImmutableArray(), compilation),
             rows.Count > 0,
             rows.Where(row => row.Row is not null).Select(row => row.Row!).ToArray(),
-            NameFormatter(method, compilation));
+            NameFormatter(method, compilation),
+            Schedule(method, compilation));
 
         return new TestEntry(testClass, testMethod);
     }
+
+    /// <summary>
+    /// The schedule group of <paramref name="method"/> from the narrowest <c>[ScheduleGroup]</c>: the
+    /// method's, the class's, then the assembly's. The <c>[RunAfter]</c> groups come from the class, and
+    /// the <c>[Resource]</c> keys from the class and the method, widest first.
+    /// </summary>
+    public static ScheduleModel Schedule(IMethodSymbol method, Compilation compilation)
+    {
+        var type = method.ContainingType;
+        var group = FindLast(method.GetAttributes(), KnownTypes.ScheduleGroupAttribute)
+            ?? FindLast(type.GetAttributes(), KnownTypes.ScheduleGroupAttribute)
+            ?? FindLast(compilation.Assembly.GetAttributes(), KnownTypes.ScheduleGroupAttribute);
+        var name = group is null ? null : StringArgument(group);
+        var maxParallel = group?.NamedArguments.FirstOrDefault(pair => pair.Key == "MaxParallel").Value.Value is int limit ? limit : 0;
+
+        return new ScheduleModel(
+            name ?? ScheduleModel.DefaultGroup,
+            name is null ? 0 : maxParallel,
+            Strings(type.GetAttributes(), KnownTypes.RunAfterAttribute),
+            Strings(type.GetAttributes().Concat(method.GetAttributes()), KnownTypes.ResourceAttribute));
+    }
+
+    /// <summary>The <c>[RunAfter]</c> attributes of the class that declares <paramref name="method"/>, with their group names.</summary>
+    public static IEnumerable<(AttributeData Attribute, string Group)> RunAfter(IMethodSymbol method) =>
+        method.ContainingType.GetAttributes()
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.RunAfterAttribute)
+            .Select(attribute => (attribute, StringArgument(attribute)!))
+            .Where(pair => pair.Item2 is not null);
+
+    private static AttributeData? FindLast(IEnumerable<AttributeData> attributes, string name) =>
+        attributes.LastOrDefault(attribute => attribute.AttributeClass?.ToDisplayString() == name);
+
+    private static string? StringArgument(AttributeData attribute) =>
+        attribute.ConstructorArguments.Length == 1 && attribute.ConstructorArguments[0].Value is string { Length: > 0 } value ? value : null;
+
+    private static string[] Strings(IEnumerable<AttributeData> attributes, string name) =>
+        attributes
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == name)
+            .Select(StringArgument)
+            .OfType<string>()
+            .Distinct(System.StringComparer.Ordinal)
+            .ToArray();
 
     /// <summary>A name for the registration file that no other class shares.</summary>
     private static string MetadataName(INamedTypeSymbol type)

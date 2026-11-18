@@ -10,16 +10,18 @@ namespace VerificationGlue.Tests;
 
 /// <summary>
 /// Runs the selected tests of one request through their assembly, class and test scopes, in the order
-/// docs/design/tests.md gives under "Scopes".
+/// docs/design/tests.md gives under "Scopes". Tests can run at the same time. The first test of a class
+/// to start creates its class scope, and the others wait for it.
 /// </summary>
 internal sealed class TestRunner
 {
     private readonly CancellationToken _cancellationToken;
+    private readonly object _gate = new();
     private readonly Dictionary<Type, int> _remaining = [];
-    private readonly Dictionary<Type, TestScope> _classes = [];
-    private readonly List<TestScope> _openClasses = [];
+    private readonly Dictionary<Type, Lazy<Task<TestScope>>> _classes = [];
+    private readonly List<Lazy<Task<TestScope>>> _openClasses = [];
     private readonly ForwardingOutput _sharedOutput = new();
-    private TestScope? _assembly;
+    private Lazy<Task<TestScope>>? _assembly;
 
     public TestRunner(IEnumerable<TestDescriptor> selected, CancellationToken cancellationToken)
     {
@@ -92,23 +94,31 @@ internal sealed class TestRunner
     /// <summary>Disposes the test's class scope when <paramref name="test"/> was its last selected test.</summary>
     public async Task<ScopeFailure?> CompleteAsync(TestDescriptor test)
     {
-        _remaining[test.TestClass]--;
-        if (_remaining[test.TestClass] > 0 || !_classes.Remove(test.TestClass, out var scope))
+        Lazy<Task<TestScope>>? scope;
+        lock (_gate)
         {
-            return null;
+            _remaining[test.TestClass]--;
+            if (_remaining[test.TestClass] > 0 || !_classes.Remove(test.TestClass, out scope))
+            {
+                return null;
+            }
+
+            _openClasses.Remove(scope);
         }
 
-        _openClasses.Remove(scope);
-        return await DisposeScopeAsync(scope);
+        return await DisposeScopeAsync(await scope.Value);
     }
 
-    /// <summary>Disposes the class scopes still open, newest first, and then the assembly scope.</summary>
+    /// <summary>
+    /// Disposes the class scopes still open, newest first, and then the assembly scope. Call it after
+    /// every test has finished.
+    /// </summary>
     public async Task<IReadOnlyList<ScopeFailure>> DisposeAsync()
     {
         var failures = new List<ScopeFailure>();
         for (var i = _openClasses.Count - 1; i >= 0; i--)
         {
-            if (await DisposeScopeAsync(_openClasses[i]) is { } failure)
+            if (await DisposeScopeAsync(await _openClasses[i].Value) is { } failure)
             {
                 failures.Add(failure);
             }
@@ -116,7 +126,7 @@ internal sealed class TestRunner
 
         _openClasses.Clear();
         _classes.Clear();
-        if (_assembly is not null && await DisposeScopeAsync(_assembly) is { } assemblyFailure)
+        if (_assembly is not null && await DisposeScopeAsync(await _assembly.Value) is { } assemblyFailure)
         {
             failures.Add(assemblyFailure);
         }
@@ -127,29 +137,40 @@ internal sealed class TestRunner
 
     private async ValueTask<TestScope> ClassScopeAsync(TestDescriptor test)
     {
-        _assembly ??= await CreateSharedScopeAsync(
-            TestScopeKind.Assembly,
-            test.TestClass.Assembly.GetName().Name ?? "",
-            null,
-            static _ => TestRegistry.CreateAssemblyAttributes(),
-            test);
-        if (_assembly.Failure is { } assemblyFailure)
+        Lazy<Task<TestScope>> assemblyScope;
+        lock (_gate)
         {
-            throw ScopeFailed(_assembly, "could not be created", assemblyFailure);
+            assemblyScope = _assembly ??= new(() => CreateSharedScopeAsync(
+                TestScopeKind.Assembly,
+                test.TestClass.Assembly.GetName().Name ?? "",
+                null,
+                static _ => TestRegistry.CreateAssemblyAttributes(),
+                test));
         }
 
-        if (!_classes.TryGetValue(test.TestClass, out var scope))
+        var assembly = await assemblyScope.Value;
+        if (assembly.Failure is { } assemblyFailure)
         {
-            scope = await CreateSharedScopeAsync(
-                TestScopeKind.Class,
-                test.FullTypeName,
-                _assembly,
-                static test => [.. TestRegistry.CreateAssemblyAttributes(), .. test.CreateClassAttributes()],
-                test);
-            _classes.Add(test.TestClass, scope);
-            _openClasses.Add(scope);
+            throw ScopeFailed(assembly, "could not be created", assemblyFailure);
         }
 
+        Lazy<Task<TestScope>>? classScope;
+        lock (_gate)
+        {
+            if (!_classes.TryGetValue(test.TestClass, out classScope))
+            {
+                classScope = new(() => CreateSharedScopeAsync(
+                    TestScopeKind.Class,
+                    test.FullTypeName,
+                    assembly,
+                    static test => [.. TestRegistry.CreateAssemblyAttributes(), .. test.CreateClassAttributes()],
+                    test));
+                _classes.Add(test.TestClass, classScope);
+                _openClasses.Add(classScope);
+            }
+        }
+
+        var scope = await classScope.Value;
         if (scope.Failure is { } classFailure)
         {
             throw ScopeFailed(scope, "could not be created", classFailure);
@@ -158,7 +179,7 @@ internal sealed class TestRunner
         return scope;
     }
 
-    private async ValueTask<TestScope> CreateSharedScopeAsync(
+    private async Task<TestScope> CreateSharedScopeAsync(
         TestScopeKind kind,
         string uid,
         TestScope? parent,
@@ -306,21 +327,18 @@ internal sealed class TestRunner
 
     private async ValueTask<ITestContainer> SharedContainerAsync(TestScope scope, ContainerAttribute binding)
     {
-        var entry = scope.Containers.Find(candidate => candidate.Bootstrap == binding.Bootstrap);
-        if (entry is null)
+        SharedContainer? entry;
+        lock (scope.Containers)
         {
-            entry = new SharedContainer(binding.Bootstrap);
-            scope.Containers.Add(entry);
-            try
+            entry = scope.Containers.Find(candidate => candidate.Bootstrap == binding.Bootstrap);
+            if (entry is null)
             {
-                entry.Container = await binding.BuildAsync(new TestContainerContext(scope, [], [], null, scope.Output, _cancellationToken));
-            }
-            catch (Exception failure)
-            {
-                entry.Failure = failure;
+                entry = new SharedContainer(binding.Bootstrap, () => binding.BuildAsync(new TestContainerContext(scope, [], [], null, scope.Output, _cancellationToken)));
+                scope.Containers.Add(entry);
             }
         }
 
+        await entry.BuildAsync();
         return entry.Container ?? throw ScopeFailed(scope, $"could not build its {binding.Bootstrap.Name} container", entry.Failure!);
     }
 
@@ -398,9 +416,16 @@ internal sealed class TestRunner
     private static TestScopeException ScopeFailed(TestScope scope, string what, Exception failure) =>
         new($"The {scope.Kind.ToString().ToLowerInvariant()} scope {scope.Uid} {what}: {failure.Message}", failure);
 
+    /// <summary>The output of a class or assembly scope, which goes to the test whose code writes to it.</summary>
     private sealed class ForwardingOutput : ITestOutput
     {
-        public TestOutput? Target { get; set; }
+        private readonly AsyncLocal<TestOutput?> _target = new();
+
+        public TestOutput? Target
+        {
+            get => _target.Value;
+            set => _target.Value = value;
+        }
 
         public void WriteLine(string message) => Target?.WriteLine(message);
     }

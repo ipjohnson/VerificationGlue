@@ -65,7 +65,9 @@ internal static class TestEmitter
         text.Append("                ").Append(CreateInstance(testClass, method)).Append(",\n");
         text.Append("                static async (context, instance) =>\n                {\n");
         AppendInvoke(text, testClass, method, rewrite);
-        text.Append("                }));\n");
+        text.Append("                }");
+        AppendSchedule(text, method.Schedule);
+        text.Append("));\n");
     }
 
     /// <summary>The assembly's attributes, which every scope's attribute list starts with.</summary>
@@ -136,6 +138,30 @@ internal static class TestEmitter
             .Append(Arguments(method.Parameters, "Argument"))
             .Append(");\n");
     }
+
+    /// <summary>The schedule as named arguments, left out when the test is in the default group with no resources.</summary>
+    private static void AppendSchedule(StringBuilder text, ScheduleModel schedule)
+    {
+        if (schedule.IsDefault)
+        {
+            return;
+        }
+
+        text.Append(",\n                scheduleGroup: ").Append(Literal(schedule.Group))
+            .Append(",\n                maxParallel: ").Append(schedule.MaxParallel);
+        if (schedule.RunAfter.Count > 0)
+        {
+            text.Append(",\n                runAfter: ").Append(Strings(schedule.RunAfter));
+        }
+
+        if (schedule.Resources.Count > 0)
+        {
+            text.Append(",\n                resources: ").Append(Strings(schedule.Resources));
+        }
+    }
+
+    private static string Strings(EquatableArray<string> values) =>
+        "new string[] { " + string.Join(", ", values.Select(Literal)) + " }";
 
     private static string Arguments(EquatableArray<ParameterModel> parameters, string helper) =>
         string.Join(", ", parameters.Select((parameter, position) =>

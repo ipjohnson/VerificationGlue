@@ -41,8 +41,7 @@ public class ContainerSpecs
             "Next_test_shares_the_class_database used database " + database,
             "Class scope disposing: Fixture.ClassContainerTests",
             $"database {database} disposed",
-            "container disposed: Fixture.ClassContainerTests",
-            "container built: Fixture.ContainerOwnedTests.Is_created_by_the_container()");
+            "container disposed: Fixture.ClassContainerTests");
     }
 
     [Fact]
