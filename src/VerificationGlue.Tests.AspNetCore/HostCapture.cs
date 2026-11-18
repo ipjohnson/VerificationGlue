@@ -19,7 +19,7 @@ namespace VerificationGlue.Tests.AspNetCore;
 /// <see cref="DiagnosticListener"/> named Microsoft.Extensions.Hosting, which it creates on the thread
 /// that builds the host, so each app's thread sees only its own host.
 /// </summary>
-internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOnlyDictionary<string, string?> settings, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
+internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOnlyDictionary<string, string?> settings, bool kestrel, ITestOutput output) : IObserver<KeyValuePair<string, object?>>
 {
     private static readonly AsyncLocal<HostCapture?> s_current = new();
     private static readonly IDisposable s_subscription = DiagnosticListener.AllListeners.Subscribe(new Listeners());
@@ -52,7 +52,11 @@ internal sealed class HostCapture(IReadOnlyList<TestOverride> overrides, IReadOn
             builder.ConfigureServices((_, services) =>
             {
                 services.AddSingleton<IHostLifetime, NoopLifetime>();
-                services.AddSingleton<IServer, TestServer>();
+                if (!kestrel)
+                {
+                    services.AddSingleton<IServer, TestServer>();
+                }
+
                 services.RemoveAll<ILoggerProvider>();
                 services.AddSingleton<ILoggerProvider>(new OutputLoggerProvider(output));
                 foreach (var entry in overrides)

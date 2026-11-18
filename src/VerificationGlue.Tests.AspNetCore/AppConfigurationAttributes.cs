@@ -39,21 +39,33 @@ public sealed class AppEnvironmentAttribute(string name) : Attribute
 [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class WatchAppConfigurationAttribute : Attribute;
 
+/// <summary>
+/// Runs the app on Kestrel at <c>http://127.0.0.1</c> on a free port instead of on TestServer. The test's
+/// <see cref="System.Net.Http.HttpClient"/> has the app's address as its <c>BaseAddress</c>. Goes on the
+/// method, the class or the assembly.
+/// </summary>
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+public sealed class KestrelAttribute : Attribute;
+
 /// <summary>What the configuration attributes of a scope ask of the app.</summary>
 internal sealed class AppConfiguration
 {
     public const string DefaultEnvironment = "Development";
+    public const string LoopbackUrl = "http://127.0.0.1:0";
 
-    private AppConfiguration(string environment, bool watch, Dictionary<string, string?> settings)
+    private AppConfiguration(string environment, bool watch, bool kestrel, Dictionary<string, string?> settings)
     {
         Environment = environment;
         Watch = watch;
+        Kestrel = kestrel;
         Settings = settings;
     }
 
     public string Environment { get; }
 
     public bool Watch { get; }
+
+    public bool Kestrel { get; }
 
     public IReadOnlyDictionary<string, string?> Settings { get; }
 
@@ -62,6 +74,7 @@ internal sealed class AppConfiguration
     {
         var environment = DefaultEnvironment;
         var watch = false;
+        var kestrel = false;
         var settings = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var attribute in attributes)
         {
@@ -76,10 +89,20 @@ internal sealed class AppConfiguration
                 case WatchAppConfigurationAttribute:
                     watch = true;
                     break;
+                case KestrelAttribute:
+                    kestrel = true;
+                    break;
             }
         }
 
-        return new AppConfiguration(environment, watch, settings);
+        if (kestrel)
+        {
+            // GenericWebHostService reads urls from the app's configuration when the server starts, so
+            // the in-memory source also reaches an app that does not pass args to its builder.
+            settings["urls"] = LoopbackUrl;
+        }
+
+        return new AppConfiguration(environment, watch, kestrel, settings);
     }
 
     /// <summary>The command-line arguments for the entry point of <paramref name="applicationName"/>.</summary>

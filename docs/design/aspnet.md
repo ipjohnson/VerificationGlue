@@ -303,7 +303,7 @@ When done, a user sets configuration values, the environment name and Kestrel on
 Needs: Phase 1.
 
 - [x] `[AppSetting]`, `[AppEnvironment]` and `[WatchAppConfiguration]`, with the placement rules above. `ConfigurationSpecs`.
-- [ ] `[Kestrel]`.
+- [x] `[Kestrel]`. `KestrelSpecs`.
 - [x] Tests for an app that passes `args` to its builder and one that does not. `NoArgsApp` in `test/VerificationGlue.Tests.AspNetCore.Apps`.
 - [ ] Class and assembly scope, with a child per test, and VGA0003.
 - [x] The guide "Configure the app for a test", `docs/guide/configure-the-app-for-a-test.md`.
