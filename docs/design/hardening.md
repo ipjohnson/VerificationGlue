@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: proposed exercise. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The existing suites below are foundations to extend. The coverage inventory, generated campaigns, and completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. The generated campaigns and completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -43,29 +43,35 @@ The [sweep compiler](../../test/MockSweep/MockCompiler.cs) calls the model build
 
 Create one inventory that maps contracts to executable evidence. Reuse existing tests before adding cases. A directory or test name is a starting point for review, not proof that every dimension is covered.
 
-The inventory is a checked-in machine-readable file. It is built at a named baseline commit, which step 1 records. CI does not write to it. Each CI run writes a separate run report, and reports join to the inventory by Scenario ID.
+The inventory is the checked-in file [`hardening-inventory.json`](hardening-inventory.json). It is built at a named baseline commit, which its `baseline` field records. CI does not write to it. Each CI run writes a separate run report, and reports join to the inventory by Scenario ID.
 
 Each inventory entry needs these fields:
 
-| Field | Purpose |
-|---|---|
-| Scenario ID | Stable reference for reports and regression cases |
-| User-visible contract | Expected result, failure, diagnostic, or fallback |
-| Support status | Supported, deliberately unsupported, or not yet classified |
-| Contract decision | For an unresolved observable behavior, the decision needed, its owner, and whether it is approved |
-| Dimensions | Expression, member shape, setup style, scope, framework, and other applicable factors |
-| Configuration constraints | Combinations that are valid, with reasons for exclusions |
-| Evidence | Exact test cases and consumer projects that exercise the contract |
-| Follow-up | Missing evidence, defect, or decision needed, with its issue |
+| Field | JSON | Purpose |
+|---|---|---|
+| Scenario ID | `id` | Stable reference for reports and regression cases, of the form `AREA-000` with an area from `areas` |
+| User-visible contract | `contract`, `source` | Expected result, failure, diagnostic, or fallback, and the guide or design that states it |
+| Support status | `support` | `supported`, `unsupported` for a deliberate boundary, or `unclassified` |
+| Expected outcome | `outcome` | For an unsupported entry, the refusal, diagnostic, throwing member, fallback or failure that the boundary gives |
+| Contract decision | `decision`, and `decisions` at the top | For an unresolved observable behavior, the decision needed, its proposed owner, and whether it is approved |
+| Dimensions | `dimensions` | Expression, member shape, setup style, scope, framework, and other applicable factors |
+| Configuration constraints | `constraints` | Combinations that are valid, with reasons for exclusions |
+| Evidence | `evidence` | Exact test methods as `path#Type.Method`, and consumer projects, scripts or case files as paths |
+| Gap | `gap` | Missing evidence, with its size and the step that fills it |
+| Follow-up | `followUp` | Defect or decision needed, with its issue |
 
 Verification status and run details live in the run reports, not in the inventory. A run report records, for each Scenario ID, the status (not yet verified, passed, failed, or blocked), the commit, the configuration, the environment, the seed where applicable, and the report location.
 
-CI validates the inventory on each pull request:
+CI validates the inventory on each pull request. [`test/Inventory.Specs`](../../test/Inventory.Specs) holds the checks and runs in the `Run specs` step of the build job:
 
-- Every Scenario ID is unique and every report entry names an existing ID.
-- Every evidence reference names a test or project that exists.
-- While step 1 builds the inventory, an entry may record an explicit gap in place of evidence.
-- At completion, a supported entry with missing required evidence fails the check.
+- Every Scenario ID is unique and names a declared area, and every decision names an existing ID. Report entries will join the same check when step 5 adds run reports.
+- Every evidence reference names a test method with a test attribute, a project, or a file that exists.
+- Every source names an existing file, and its heading when it names one.
+- An unsupported entry names its expected outcome.
+- While `allowGaps` is true, an entry may record an explicit gap in place of evidence. Each gap gives a size and a step.
+- The gap list and the contract decisions in this doc match the inventory.
+- At completion, step 5 sets `allowGaps` to false, and a supported entry with a gap fails the check.
+- Verification status and run details are not inventory fields, so an entry that carries them fails to load.
 
 A report separates results at the current commit and configuration from historical passes. A pass at an earlier commit or in another configuration does not count as current evidence.
 
@@ -229,12 +235,12 @@ Review surviving mutations. They may expose missing assertions or an equivalent 
 
 Pull request cases from this exercise run in their own CI job, separate from the existing build and test jobs.
 
-The pull request budget is not fixed yet. The review proposed two limits, and they disagree:
+The review proposed two limits for the pull request budget:
 
 - A separate job that finishes within 10 minutes.
 - At most five minutes added to the pull request critical path.
 
-Step 1 measures the initial harnesses and proposes case counts and a time budget against those measurements. The user settles the budget at the step 1 gate. The settled limits are recorded in configuration.
+Step 1 measured the existing suites, and the user settled the budget at the step 1 gate. [Measured run time and CI budget](#measured-run-time-and-ci-budget) has the settled limits. The settled limits are recorded in configuration.
 
 A run that exceeds its budget reports the overrun. It does not drop a required check to fit. A timed-out or truncated campaign reports incomplete coverage rather than success for its intended case budget.
 
@@ -268,6 +274,169 @@ Step 1 ends with a user approval gate. It delivers:
 The approval decides which of steps 2 to 4 run, in what order, and which run in parallel. It also settles the CI budget.
 
 Expand scope only when a newly discovered feature or platform is added to the supported contract. A defect found during the exercise should become a reduced regression and a tracked fix, not an unreviewed change in expected behavior.
+
+The [step 1 gate summary](#step-1-gate-summary) below holds these deliverables.
+
+## Step 1 gate summary
+
+The inventory holds 166 entries at baseline commit `b28d1d6fcc103afd8687b9d860ef16ee77c9a0fd`, the head of `main` when step 1 started. 129 entries are supported, 30 are deliberately unsupported with an expected outcome, and 7 are not yet classified because they wait on a contract decision. 20 entries have no evidence. 48 entries have a gap, which includes partial gaps in entries that have some evidence.
+
+| Area | Prefix | Entries |
+|---|---|---|
+| `Verify`, messages and the assertion analyzers | `VERIFY` | 15 |
+| `Check` | `CHECK` | 7 |
+| `VerifyScope` | `SCOPE` | 7 |
+| `Throws` and `ThrowsAsync` | `THROWS` | 7 |
+| Tier 3 rewriting | `REWRITE` | 20 |
+| Mock behavior | `MOCK` | 54 |
+| Mock shapes and the shape sweep | `SHAPE` | 10 |
+| Test parameter resolution | `PARAM` | 11 |
+| Test lifecycle and ownership | `LIFE` | 15 |
+| Test registration and the runner process | `RUN` | 8 |
+| Packages, frameworks and environments | `PKG` | 6 |
+| Higher-order interactions | `MIX` | 6 |
+
+The approval covers each of the following parts.
+
+### Contract decisions
+
+Each decision settles an observable behavior that no guide or design states. Its entries report as unverified until the decision is approved. The proposed owner is the component design that records the answer. The user approved all ten answers at the gate, and each owner design records its answer when the step that tests it starts.
+
+| ID | Decision | Proposed owner | Scenarios | Proposed answer |
+|---|---|---|---|---|
+| `CD-01` | What a failure message shows, and which exception surfaces, when formatting a captured value or an interpolated message hole throws or changes state. | verification-glue.md | `VERIFY-013`, `VERIFY-014` | The `VerifyException` still surfaces. The value shows a placeholder that names the formatting exception's type. |
+| `CD-02` | Which setup wins when typed and NSubstitute-style setups, or overlapping matchers, configure the same call. | mocks.md | `MOCK-008` | The last matching setup wins, whatever its style. |
+| `CD-03` | Which argument equality decides recursive mock identity, what a recursive member returns after its parent is reconfigured, and whether the default returned at the depth limit is a contract tests may rely on. | mocks.md | `MOCK-045`, `MOCK-048` | The equality that exact matching uses. A new setup on the parent replaces the recursive mock. The default at the limit is a contract. |
+| `CD-04` | Which orderings of pending setups, matchers and checks are legal across awaits, child tasks and parallel calls. | mocks.md | `MOCK-038`, `MOCK-039`, `MOCK-040`, `MOCK-041` | Step 3 writes the legal orderings into mocks.md before it generates cases. Other orderings are unsupported. |
+| `CD-05` | The order of failures when a scope listener, a class scope or the assembly scope fails during cleanup, and when cancellation arrives during cleanup. | tests.md | `LIFE-007`, `LIFE-009`, `LIFE-013` | Failures in the order they happen. Cleanup still runs every step after cancellation. |
+| `CD-06` | Whether the scope's exception keeps the exception the test threw, which check.md says it replaces outside VerificationGlue.Tests. | verification-glue.md | `SCOPE-006` | Keep both. The test's exception becomes the `InnerException`, tracked as a fix. |
+| `CD-07` | How a scope collects Check failures from child tasks that run in parallel, and in what order it reports them. | verification-glue.md | `SCOPE-007` | Every failure is kept. Their order is not part of the contract. |
+| `CD-08` | What a test reports when a parameter provider or the container throws while resolving a parameter. | tests.md | `PARAM-004` | The test fails with the exception, naming the parameter and the source. The body does not run, and cleanup runs. |
+| `CD-09` | What happens when an Arg.Is predicate throws, and the state of the next mock operation after any misuse failure. | mocks.md | `MOCK-023`, `MOCK-042` | The predicate's exception leaves the mock call unchanged. A misuse failure clears the pending state. |
+| `CD-10` | Whether a type nested in a generic type whose type arguments come from an extern-aliased assembly gets a VGM0001 refusal or is supported. | mocks.md | `SHAPE-010` | Refuse it with a new VGM0001 reason. |
+
+### Supported matrix
+
+| Dimension | Proposed support | Run today |
+|---|---|---|
+| SDK | .NET SDK 10.0.403 and later 10.0.4xx patches, from `global.json` | CI and local |
+| Framework | `net10.0` for `VerificationGlue`, `VerificationGlue.Mocks` and `VerificationGlue.Tests`. The generators target `netstandard2.0` and need the Roslyn 4.14 compiler of that SDK. | CI and local |
+| Test hosts | xunit.v3 4.0.3, NUnit 4.6.1, MSTest 4.5.3, TUnit 1.85.0, and Microsoft.Testing.Platform 3.0.0-preview.26566.9 for `VerificationGlue.Tests` | CI |
+| OS and architecture | Linux x64 as the release guarantee. macOS arm64 and Windows x64 join the release candidate matrix in step 5. | Linux x64 in CI. macOS arm64 on the development machine only. Windows x64 never. |
+| Native AOT | linux-x64 | CI, through `eng/pack-and-consume.sh` |
+
+An earlier .NET version, .NET Framework and an IDE's debugger are outside the matrix. `docs/research/ide-report.md` records the IDE state.
+
+### Non-goals
+
+- Proving every C# program. The exercise covers the declared grammar, matrix and interactions.
+- Class mocks and `[Row]` data rows. They are planned features, and the inventory lists them only as unsupported boundaries.
+- A line coverage target.
+- Compatibility with NSubstitute beyond the bounded comparison. NSubstitute is a reference, not the definition of the API.
+- New performance budgets. The existing benchmark and cold-build budgets stay as they are.
+- Features merged after the baseline commit, such as the `VerificationGlue.Tests.AspNetCore` package. Each adds its own entries in its pull request.
+
+### Measured run time and CI budget
+
+The five most recent green CI runs on `main`, on `ubuntu-latest`, took these times:
+
+| Job or step | Time |
+|---|---|
+| `cold-build` job, the critical path | 639 to 1,033 s |
+| `build` job | 233 to 299 s |
+| `Run specs` step in `build` | 16 to 38 s |
+| `Run generator benchmarks` and `Check generator budgets` | 103 to 133 s together |
+| `Pack, consume, run tests under Native AOT and check version mismatch` | 31 to 79 s |
+| `mock-sweep` job | 39 to 77 s |
+| `docs` job | 10 to 21 s |
+
+On the development machine, an Apple M3 Pro with 11 cores, `dotnet test --solution VerificationGlue.slnx -c Release --no-build` ran 457 tests in 9.5 s of wall time. The slowest projects were `VerificationGlue.Tests.Specs` at 8.6 s, which starts fixture processes, and `VerificationGlue.Tests.Generator.Specs` at 5.3 s. `Inventory.Specs`, which checks the inventory, took 0.5 s alone and 1.9 s in the parallel run.
+
+The two limits from the review do not conflict on today's CI. A separate `hardening` job runs beside `cold-build`, which never took less than 10.6 minutes. A job that finishes within 10 minutes therefore adds nothing to the critical path. The approved budget:
+
+- A separate `hardening` job with `timeout-minutes: 10`.
+- A pull request case budget of 5 minutes inside it, which leaves room for checkout, SDK setup and the build. Step 2 gets 2 minutes, step 3 gets 2 minutes and step 4 gets 1 minute.
+- If `cold-build` becomes shorter than the `hardening` job, the 5-minute limit on the critical path applies instead.
+- Step 5 records the approved limits in configuration.
+
+### Recommended order for steps 2 to 4
+
+The completion criteria name two defects that block completion: a change to normal C# evaluation, and a failure lost in setup or cleanup. Step 2 and step 4 look for those, so they come first.
+
+1. Start step 2 and step 4 in parallel. They touch separate projects. Step 2 adds the `hardening` CI job in its first pull request, and step 4 puts its cases in that job.
+2. Start step 3 after step 2 merges. Step 3 reuses the seed, replay and shrinking that step 2 builds, and `CD-04` must be settled first.
+
+| Step | Gaps | Sizes |
+|---|---|---|
+| 2 | 12 | 2 l, 1 m, 6 s, 3 xs |
+| 3 | 15 | 2 l, 2 m, 5 s, 6 xs |
+| 4 | 15 | 1 l, 1 m, 7 s, 6 xs |
+| 5 | 6 | 2 m, 2 s, 2 xs |
+
+### Gap list
+
+Sizes: xs is one case in an existing spec. s is a few cases or one fixture test. m is a new spec class or fixture scenario. l is a new harness component.
+
+| Scenario ID | Missing | Size | Step |
+|---|---|---|---|
+| `VERIFY-005` | No case runs a hole with side effects under tier 3, where the rewritten statement builds the message. | s | 2 |
+| `VERIFY-008` | No test compares tier 1 or tier 2 execution with plain C# across the expression and placement matrix. | l | 2 |
+| `VERIFY-013` | No design or guide says what the message shows, and no test exercises it. | s | 2 |
+| `VERIFY-014` | No design or guide says which exception surfaces, and no test exercises it. | s | 2 |
+| `SCOPE-006` | No test exercises it. The documented behavior loses the test's exception, which the completion criteria treat as a blocking defect unless approved. | xs | 2 |
+| `SCOPE-007` | No test runs Check from parallel child tasks, and no guide states the order of their failures. | s | 2 |
+| `THROWS-005` | No test gives ThrowsAsync a different exception, a synchronous throw or a cancelled task. | s | 2 |
+| `REWRITE-003` | Fixed cases only. No generated comparison with plain C# across the expression and placement matrix. | l | 2 |
+| `REWRITE-006` | The messages page has a case for the conditional logical operators only. No case covers ?: or ??, or checks that the skipped side has no side effect. | s | 2 |
+| `REWRITE-007` | No case covers a pointer part. | xs | 2 |
+| `REWRITE-014` | No test covers these eligibility rules one by one. | m | 2 |
+| `REWRITE-015` | No case covers a local function. | xs | 2 |
+| `MOCK-008` | No case mixes setup styles or overlapping predicates on one call, and no guide states the rule for them. | m | 3 |
+| `MOCK-020` | No case covers a ref argument. | xs | 3 |
+| `MOCK-023` | No guide states the outcome, and no test exercises it. | s | 3 |
+| `MOCK-030` | No test checks a sequence after Received, or repeats a check. | s | 3 |
+| `MOCK-035` | No test returns a cancelled task. | xs | 3 |
+| `MOCK-041` | Existing cases use fixed timing. No controlled scheduling, and the legal orderings are not written down. | l | 3 |
+| `MOCK-042` | No test checks the state of the next mock operation after the failure. | s | 3 |
+| `MOCK-045` | No case uses arguments that are equal but not identical, or reconfigures the parent after access. | s | 3 |
+| `MOCK-047` | No test covers either rule. | xs | 3 |
+| `MOCK-048` | No test sets the depth to 0. | xs | 3 |
+| `SHAPE-001` | Shape files check compilation only. No consumer case creates, configures, invokes and verifies each shape through the public generator. | l | 3 |
+| `SHAPE-002` | CI fails on a compile error but not when a previously compiled interface becomes refused. The expected classifications are not checked in. | m | 3 |
+| `SHAPE-007` | No test calls such a member and checks for NotSupportedException, or checks that the other members still work. | xs | 3 |
+| `SHAPE-008` | No test raises the event at run time. | xs | 3 |
+| `SHAPE-010` | No shape case exists, and the failure has no diagnostic. | s | 3 |
+| `CHECK-007` | Only xunit runs a Check sample. NUnit, MSTest and TUnit have none. | s | 4 |
+| `REWRITE-016` | No framework project checks the tier of a reflection-invoked test and of a direct helper call. | s | 4 |
+| `PARAM-001` | No case puts competing providers on the method, the class and the assembly at once. | s | 4 |
+| `PARAM-004` | No guide states the outcome, and no test exercises it. | s | 4 |
+| `PARAM-005` | No case has more than one accessible constructor. | xs | 4 |
+| `PARAM-007` | No test checks that the token is cancelled when the run is cancelled. | xs | 4 |
+| `LIFE-002` | The filter spec checks which tests run, not that the filtered-out class creates no scope or container. | s | 4 |
+| `LIFE-006` | No test checks that a disposable override is not disposed by the container. | xs | 4 |
+| `LIFE-007` | Only the documented test-level combination is covered. Listener and middleware entry failures, and their order, are not. | m | 4 |
+| `LIFE-009` | No case covers the assembly scope. | xs | 4 |
+| `LIFE-011` | No fixture has a container that fails to build. | s | 4 |
+| `LIFE-013` | No failure-injection fixture. Existing specs cover single hand-picked boundaries. | l | 4 |
+| `LIFE-015` | Only failed checks are covered. No test leaves a pending matcher or setup and checks the next test. | s | 4 |
+| `RUN-005` | No case for a method declared in an interface. | xs | 4 |
+| `RUN-007` | No case for an inaccessible constructor, an inaccessible named argument or an argument that cannot be written as C#. | xs | 4 |
+| `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
+| `MIX-001` | No test combines the three factors. | s | 5 |
+| `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |
+| `MIX-004` | No test combines the factors. | s | 5 |
+| `MIX-005` | Needs the controlled scheduling from step 3. | m | 5 |
+| `MIX-006` | PackageConsumer does not turn tier 3 rewriting on, so the AOT run does not check a captured-value message. | xs | 5 |
+
+### Gate approval
+
+The user approved the step 1 gate on 2026-11-17, with every part as proposed:
+
+- The inventory at baseline `b28d1d6fcc103afd8687b9d860ef16ee77c9a0fd`, the gap list and the non-goals.
+- Contract decisions `CD-01` to `CD-10`, with their proposed owners and answers. The inventory marks each one approved.
+- The order: steps 2 and 4 in parallel, then step 3 after step 2 merges.
+- The CI budget: a separate `hardening` job with `timeout-minutes: 10`, and a 5-minute case budget split 2, 2 and 1 minutes across steps 2, 3 and 4.
+- The matrix: Linux x64 as the release guarantee, with macOS arm64 and Windows x64 in the release candidate matrix from step 5.
 
 ## Completion criteria
 

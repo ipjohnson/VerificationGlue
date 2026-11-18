@@ -1,0 +1,1764 @@
+{
+  "baseline": "b28d1d6fcc103afd8687b9d860ef16ee77c9a0fd",
+  "allowGaps": true,
+  "areas": [
+    { "prefix": "VERIFY", "name": "Verify, messages and the assertion analyzers" },
+    { "prefix": "CHECK", "name": "Check" },
+    { "prefix": "SCOPE", "name": "VerifyScope" },
+    { "prefix": "THROWS", "name": "Throws and ThrowsAsync" },
+    { "prefix": "REWRITE", "name": "Tier 3 rewriting" },
+    { "prefix": "MOCK", "name": "Mock behavior" },
+    { "prefix": "SHAPE", "name": "Mock shapes and the shape sweep" },
+    { "prefix": "PARAM", "name": "Test parameter resolution" },
+    { "prefix": "LIFE", "name": "Test lifecycle and ownership" },
+    { "prefix": "RUN", "name": "Test registration and the runner process" },
+    { "prefix": "PKG", "name": "Packages, frameworks and environments" },
+    { "prefix": "MIX", "name": "Higher-order interactions" }
+  ],
+  "decisions": [
+    {
+      "id": "CD-01",
+      "question": "What a failure message shows, and which exception surfaces, when formatting a captured value or an interpolated message hole throws or changes state.",
+      "proposedOwner": "verification-glue.md",
+      "approved": true,
+      "scenarios": ["VERIFY-013", "VERIFY-014"]
+    },
+    {
+      "id": "CD-02",
+      "question": "Which setup wins when typed and NSubstitute-style setups, or overlapping matchers, configure the same call.",
+      "proposedOwner": "mocks.md",
+      "approved": true,
+      "scenarios": ["MOCK-008"]
+    },
+    {
+      "id": "CD-03",
+      "question": "Which argument equality decides recursive mock identity, what a recursive member returns after its parent is reconfigured, and whether the default returned at the depth limit is a contract tests may rely on.",
+      "proposedOwner": "mocks.md",
+      "approved": true,
+      "scenarios": ["MOCK-045", "MOCK-048"]
+    },
+    {
+      "id": "CD-04",
+      "question": "Which orderings of pending setups, matchers and checks are legal across awaits, child tasks and parallel calls.",
+      "proposedOwner": "mocks.md",
+      "approved": true,
+      "scenarios": ["MOCK-038", "MOCK-039", "MOCK-040", "MOCK-041"]
+    },
+    {
+      "id": "CD-05",
+      "question": "The order of failures when a scope listener, a class scope or the assembly scope fails during cleanup, and when cancellation arrives during cleanup.",
+      "proposedOwner": "tests.md",
+      "approved": true,
+      "scenarios": ["LIFE-007", "LIFE-009", "LIFE-013"]
+    },
+    {
+      "id": "CD-06",
+      "question": "Whether the scope's exception keeps the exception the test threw, which check.md says it replaces outside VerificationGlue.Tests.",
+      "proposedOwner": "verification-glue.md",
+      "approved": true,
+      "scenarios": ["SCOPE-006"]
+    },
+    {
+      "id": "CD-07",
+      "question": "How a scope collects Check failures from child tasks that run in parallel, and in what order it reports them.",
+      "proposedOwner": "verification-glue.md",
+      "approved": true,
+      "scenarios": ["SCOPE-007"]
+    },
+    {
+      "id": "CD-08",
+      "question": "What a test reports when a parameter provider or the container throws while resolving a parameter.",
+      "proposedOwner": "tests.md",
+      "approved": true,
+      "scenarios": ["PARAM-004"]
+    },
+    {
+      "id": "CD-09",
+      "question": "What happens when an Arg.Is predicate throws, and the state of the next mock operation after any misuse failure.",
+      "proposedOwner": "mocks.md",
+      "approved": true,
+      "scenarios": ["MOCK-023", "MOCK-042"]
+    },
+    {
+      "id": "CD-10",
+      "question": "Whether a type nested in a generic type whose type arguments come from an extern-aliased assembly gets a VGM0001 refusal or is supported.",
+      "proposedOwner": "mocks.md",
+      "approved": true,
+      "scenarios": ["SHAPE-010"]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "VERIFY-001",
+      "contract": "Verify returns without effect when the condition is true.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Verify_passes_when_the_condition_holds",
+        "samples/VerifyInXunit/OrderTests.cs#OrderTests.Checkout_reports_an_empty_cart",
+        "samples/VerifyInNUnit",
+        "samples/VerifyInMSTest",
+        "samples/VerifyInTUnit"
+      ]
+    },
+    {
+      "id": "VERIFY-002",
+      "contract": "Without the generator, a false condition throws VerifyException with 'Verify failed: ' and the condition's source text, and no shape line, file or line.",
+      "source": "docs/guide/getting-started-verify.md#without-the-generator",
+      "support": "supported",
+      "dimensions": ["execution path: generator absent"],
+      "evidence": ["test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Verify_reports_the_source_text"]
+    },
+    {
+      "id": "VERIFY-003",
+      "contract": "With the generator, a failure gives the shape line for the condition and the call's file, relative to the project, and line.",
+      "source": "docs/guide/getting-started-verify.md#read-a-failure",
+      "support": "supported",
+      "dimensions": ["expression shape: each row of the shape table", "execution path: interceptor"],
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Each_shape_reports_its_message_file_and_line",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Paths_are_relative_to_the_project",
+        "test/VerificationGlue.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Interceptors_for_the_xunit_sample",
+        "samples/VerifyInXunit/OrderTests.cs#OrderTests.A_failure_names_the_shape_file_and_line"
+      ]
+    },
+    {
+      "id": "VERIFY-004",
+      "contract": "A call written on several lines reports the line where it starts, and an operand written on several lines gives no shape line.",
+      "source": "docs/guide/getting-started-verify.md#read-a-failure",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.A_multi_line_call_reports_the_line_where_it_starts",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.An_operand_on_several_lines_gives_no_shape_line"
+      ]
+    },
+    {
+      "id": "VERIFY-005",
+      "contract": "A passing call neither throws nor formats its message, and the holes of an interpolated message run only when the condition is false.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "dimensions": ["outcome: pass, failure", "execution path: generator absent, interceptor"],
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Message_holes_run_only_on_failure",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Passing_calls_do_not_throw_or_format_the_message"
+      ],
+      "gap": { "size": "s", "step": 2, "missing": "No case runs a hole with side effects under tier 3, where the rewritten statement builds the message." }
+    },
+    {
+      "id": "VERIFY-006",
+      "contract": "An interpolated message appears in the failure before the file and line.",
+      "source": "docs/guide/messages.md#an-interpolated-message",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.An_interpolated_message_is_added",
+        "test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run"
+      ]
+    },
+    {
+      "id": "VERIFY-007",
+      "contract": "A method of another type named Verify is neither intercepted nor analyzed.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.A_method_of_another_type_named_Verify_is_not_intercepted",
+        "test/VerificationGlue.Generator.Specs/VerifyAnalyzerSpecs.cs#VerifyAnalyzerSpecs.Another_method_named_Verify_reports_nothing"
+      ]
+    },
+    {
+      "id": "VERIFY-008",
+      "contract": "Verify at tiers 1 and 2 keeps C# evaluation: each part of the condition runs once, in order, with short-circuiting, and an exception from the condition propagates unchanged.",
+      "source": "docs/design/hardening.md#assertion-conformance",
+      "support": "supported",
+      "dimensions": ["expression shape", "values", "effects", "placement", "outcome: pass, failure, expression exception, cancellation"],
+      "evidence": [],
+      "gap": { "size": "l", "step": 2, "missing": "No test compares tier 1 or tier 2 execution with plain C# across the expression and placement matrix." }
+    },
+    {
+      "id": "VERIFY-009",
+      "contract": "Each message on the messages page matches a fresh run of its sample.",
+      "source": "docs/guide/messages.md",
+      "support": "supported",
+      "evidence": [
+        "test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_case_has_one_block_and_every_block_has_a_case",
+        "test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run",
+        "samples/Messages"
+      ]
+    },
+    {
+      "id": "VERIFY-010",
+      "contract": "A Native AOT build reports the same message, file and line as a JIT build.",
+      "source": "docs/guide/getting-started-verify.md#native-aot",
+      "support": "supported",
+      "constraints": "Checked on linux-x64 only, in the build job.",
+      "evidence": ["eng/pack-and-consume.sh", "samples/VerifyAot"]
+    },
+    {
+      "id": "VERIFY-011",
+      "contract": "VG0002 warns about a constant condition, and VG0003 about a condition with a side effect. Plain conditions report nothing.",
+      "source": "docs/guide/getting-started-verify.md#build-warnings",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/VerifyAnalyzerSpecs.cs#VerifyAnalyzerSpecs.VG0002_reports_a_constant_condition",
+        "test/VerificationGlue.Generator.Specs/VerifyAnalyzerSpecs.cs#VerifyAnalyzerSpecs.VG0003_reports_a_side_effect",
+        "test/VerificationGlue.Generator.Specs/VerifyAnalyzerSpecs.cs#VerifyAnalyzerSpecs.Plain_conditions_report_nothing"
+      ]
+    },
+    {
+      "id": "VERIFY-012",
+      "contract": "VG0004 warns about an exact == or != comparison of float or double values.",
+      "source": "docs/diagnostics/VG0004.md",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Generator.Specs/VerifyAnalyzerSpecs.cs#VerifyAnalyzerSpecs.VG0004_reports_an_exact_floating_point_comparison"]
+    },
+    {
+      "id": "VERIFY-013",
+      "contract": "A captured value whose ToString throws or changes state still gives a failure that reports the original condition.",
+      "source": "docs/design/hardening.md#generated-expression-harness",
+      "support": "unclassified",
+      "decision": "CD-01",
+      "evidence": [],
+      "gap": { "size": "s", "step": 2, "missing": "No design or guide says what the message shows, and no test exercises it." }
+    },
+    {
+      "id": "VERIFY-014",
+      "contract": "An interpolated message hole that throws on failure does not hide the assertion failure.",
+      "source": "docs/design/hardening.md#generated-expression-harness",
+      "support": "unclassified",
+      "decision": "CD-01",
+      "evidence": [],
+      "gap": { "size": "s", "step": 2, "missing": "No design or guide says which exception surfaces, and no test exercises it." }
+    },
+    {
+      "id": "VERIFY-015",
+      "contract": "Every diagnostic has a page with the standard sections, and each descriptor links to it.",
+      "source": "docs/guide/getting-started-verify.md#build-warnings",
+      "support": "supported",
+      "evidence": [
+        "test/Docs.Specs/DiagnosticPageSpecs.cs#DiagnosticPageSpecs.Every_descriptor_has_a_page",
+        "test/Docs.Specs/DiagnosticPageSpecs.cs#DiagnosticPageSpecs.Every_descriptor_links_to_its_page",
+        "test/Docs.Specs/DiagnosticPageSpecs.cs#DiagnosticPageSpecs.Every_page_has_a_descriptor",
+        "test/Docs.Specs/DiagnosticPageSpecs.cs#DiagnosticPageSpecs.Every_page_has_the_standard_sections",
+        "test/Docs.Specs/DiagnosticPageSpecs.cs#DiagnosticPageSpecs.Every_build_error_has_a_page_and_links_to_it"
+      ]
+    },
+    {
+      "id": "CHECK-001",
+      "contract": "A failed Check records the failure in the current scope and lets the code after it run.",
+      "source": "docs/guide/check.md#check-records-a-failure-and-continues",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Check_lets_the_code_after_it_run"]
+    },
+    {
+      "id": "CHECK-002",
+      "contract": "When the scope ends, it throws one VerifyException that gives the count and lists every failed Check in order.",
+      "source": "docs/guide/check.md#check-records-a-failure-and-continues",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Check_failures_are_reported_together_when_the_scope_ends",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.A_check_in_a_scope_is_reported_when_the_scope_ends",
+        "test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run"
+      ]
+    },
+    {
+      "id": "CHECK-003",
+      "contract": "With no open scope, Check throws at once, as Verify does.",
+      "source": "docs/guide/check.md#check-with-no-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Check_with_no_scope_throws_like_Verify"]
+    },
+    {
+      "id": "CHECK-004",
+      "contract": "A Check in a static constructor, a finalizer or a module initializer runs where no scope can be open.",
+      "source": "docs/diagnostics/VG0007.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VG0007 warns at the call. At run time Check throws at once, as with no scope." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0007_reports_Check_where_no_scope_can_be_open",
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0007_does_not_report_Check_in_a_method"
+      ]
+    },
+    {
+      "id": "CHECK-005",
+      "contract": "In a method that tier 3 rewrites, each failed Check lists its values.",
+      "source": "docs/guide/check.md#values-in-a-check",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Check_failures_are_reported_when_the_scope_ends"]
+    },
+    {
+      "id": "CHECK-006",
+      "contract": "In VerificationGlue.Tests, Check needs no setup, and its failures are reported with the test that made them.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Check_failures_are_reported_with_their_own_test"]
+    },
+    {
+      "id": "CHECK-007",
+      "contract": "Check with VerifyScope.Begin() works the same in xunit, NUnit, MSTest and TUnit.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
+      "evidence": ["samples/MigrateFromXunitAssert/After/OrderTests.cs#OrderTests.Several_checks"],
+      "gap": { "size": "s", "step": 4, "missing": "Only xunit runs a Check sample. NUnit, MSTest and TUnit have none." }
+    },
+    {
+      "id": "SCOPE-001",
+      "contract": "A scope with no failures ends without throwing and leaves no current scope.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.A_scope_with_no_failures_ends_quietly"]
+    },
+    {
+      "id": "SCOPE-002",
+      "contract": "A scope begun inside another reports its own failures when it ends, and the outer scope becomes current again.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.An_inner_scope_reports_its_own_failures_and_restores_the_outer_scope"]
+    },
+    {
+      "id": "SCOPE-003",
+      "contract": "The scope flows with async and await, so a Check in an awaited method reports to the caller's scope.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.A_check_in_an_awaited_method_reports_to_the_scope"]
+    },
+    {
+      "id": "SCOPE-004",
+      "contract": "Ending a scope twice reports its failures once.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Ending_a_scope_twice_reports_once"]
+    },
+    {
+      "id": "SCOPE-005",
+      "contract": "Verify inside a scope still throws at the first failure.",
+      "source": "docs/guide/check.md#check-records-a-failure-and-continues",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Verify_still_throws_inside_a_scope"]
+    },
+    {
+      "id": "SCOPE-006",
+      "contract": "When a test outside VerificationGlue.Tests throws after failed checks, the scope's exception replaces the exception the test threw.",
+      "source": "docs/guide/check.md#when-the-test-throws",
+      "support": "unclassified",
+      "decision": "CD-06",
+      "evidence": [],
+      "gap": { "size": "xs", "step": 2, "missing": "No test exercises it. The documented behavior loses the test's exception, which the completion criteria treat as a blocking defect unless approved." }
+    },
+    {
+      "id": "SCOPE-007",
+      "contract": "Check failures from child tasks that run in parallel inside one scope are all reported.",
+      "source": "docs/guide/check.md#open-a-scope",
+      "support": "unclassified",
+      "decision": "CD-07",
+      "evidence": [],
+      "gap": { "size": "s", "step": 2, "missing": "No test runs Check from parallel child tasks, and no guide states the order of their failures." }
+    },
+    {
+      "id": "THROWS-001",
+      "contract": "Throws<T> returns the exception the action throws, also when it derives from T.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Throws_returns_the_exception",
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Throws_accepts_a_derived_exception"
+      ]
+    },
+    {
+      "id": "THROWS-002",
+      "contract": "Throws<T> fails with 'no exception was thrown' when the action throws nothing.",
+      "source": "docs/guide/getting-started-verify.md#read-a-failure",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Throws_reports_no_exception"]
+    },
+    {
+      "id": "THROWS-003",
+      "contract": "Throws<T> fails on an exception that is not a T, names its type and message, and keeps it as the InnerException.",
+      "source": "docs/guide/getting-started-verify.md#read-a-failure",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Throws_reports_a_different_exception"]
+    },
+    {
+      "id": "THROWS-004",
+      "contract": "ThrowsAsync<T> awaits the action and returns its exception, or fails when it throws nothing.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.ThrowsAsync_returns_the_exception",
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.ThrowsAsync_reports_no_exception"
+      ]
+    },
+    {
+      "id": "THROWS-005",
+      "contract": "ThrowsAsync<T> fails on an exception that is not a T, as Throws<T> does, including an exception the action throws before it returns a task and a cancelled task.",
+      "source": "docs/guide/getting-started-verify.md#write-checks",
+      "support": "supported",
+      "dimensions": ["outcome: different exception, synchronous throw, cancellation"],
+      "evidence": [],
+      "gap": { "size": "s", "step": 2, "missing": "No test gives ThrowsAsync a different exception, a synchronous throw or a cancelled task." }
+    },
+    {
+      "id": "THROWS-006",
+      "contract": "A Throws or ThrowsAsync failure reports the shape line 'expected call to throw T' with the file and line, and a type parameter T names the type at run time.",
+      "source": "docs/guide/messages.md#throws",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.ThrowsAsync_reports_its_message_file_and_line",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Throws_with_a_type_parameter_names_the_type_at_run_time",
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Each_shape_reports_its_message_file_and_line"
+      ]
+    },
+    {
+      "id": "THROWS-007",
+      "contract": "Throws in a method that tier 3 rewrites keeps its tier 2 message.",
+      "source": "docs/guide/tiers.md#what-tier-3-does",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Throws_in_a_copy_keeps_its_tier_2_message"]
+    },
+    {
+      "id": "REWRITE-001",
+      "contract": "An eligible [Verify] method gets a __Verified copy, and each direct call, including an extension call, runs the copy.",
+      "source": "docs/guide/tiers.md#what-tier-3-does",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_direct_call_to_a_Verify_method_is_sent_to_its_copy",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_direct_call_to_an_extension_method_is_sent_to_its_copy",
+        "test/VerificationGlue.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Rewritten_method_for_the_messages_sample",
+        "test/VerificationGlue.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Redirects_for_the_messages_sample"
+      ]
+    },
+    {
+      "id": "REWRITE-002",
+      "contract": "A call to an eligible method from inside another copy calls the copy.",
+      "source": "docs/guide/tiers.md#when-the-copy-runs",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_copy_to_a_Verify_method_calls_its_copy"]
+    },
+    {
+      "id": "REWRITE-003",
+      "contract": "In the copy each part of the condition runs once, in the original order, and nothing runs a second time to build the message.",
+      "source": "docs/guide/tiers.md#what-tier-3-does",
+      "support": "supported",
+      "dimensions": ["expression shape", "effects", "placement"],
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_1_each_part_runs_once_in_the_original_order",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_1_a_getter_that_throws_on_a_second_read_is_read_once",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_8_property_pattern_members_are_not_read_again_and_skipped_members_stay_unevaluated"
+      ],
+      "gap": { "size": "l", "step": 2, "missing": "Fixed cases only. No generated comparison with plain C# across the expression and placement matrix." }
+    },
+    {
+      "id": "REWRITE-004",
+      "contract": "A passing check in the copy does not allocate, and constants and literals are not captured.",
+      "source": "docs/design/verification-glue.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_2_a_passing_check_does_not_allocate",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_3_constants_and_literals_are_not_captured"
+      ]
+    },
+    {
+      "id": "REWRITE-005",
+      "contract": "Rewriting keeps statement structure: an embedded statement gets braces, an out variable stays in scope after the call, and an await stays in the condition.",
+      "source": "docs/design/verification-glue.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_6_an_embedded_statement_is_wrapped_in_braces",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_6_an_out_variable_stays_in_scope_after_the_call",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_7_await_stays_in_the_condition"
+      ]
+    },
+    {
+      "id": "REWRITE-006",
+      "contract": "A part on the side of &&, ||, ?: or ?? that did not run is not evaluated and shows <not evaluated>.",
+      "source": "docs/guide/tiers.md#values-that-are-not-captured",
+      "support": "supported",
+      "dimensions": ["expression shape: &&, ||, ?:, ??"],
+      "evidence": ["test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run"],
+      "gap": { "size": "s", "step": 2, "missing": "The messages page has a case for the conditional logical operators only. No case covers ?: or ??, or checks that the skipped side has no side effect." }
+    },
+    {
+      "id": "REWRITE-007",
+      "contract": "A ref struct value, a pointer, or the receiver of a call on a mutable struct is not captured.",
+      "source": "docs/guide/tiers.md#values-that-are-not-captured",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "The message shows <unavailable> for the part, and VG0006 reports it as information." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_9_a_ref_struct_is_not_captured",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_10_a_mutable_struct_receiver_is_not_copied",
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0006_reports_a_part_that_cannot_be_captured"
+      ],
+      "gap": { "size": "xs", "step": 2, "missing": "No case covers a pointer part." }
+    },
+    {
+      "id": "REWRITE-008",
+      "contract": "A part whose type has no name is declared from the part, and one that declares a variable is reported as text only.",
+      "source": "docs/design/verification-glue.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_11_a_part_whose_type_has_no_name_is_declared_from_the_part",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_11_a_part_with_no_type_name_that_declares_a_variable_is_text_only"
+      ]
+    },
+    {
+      "id": "REWRITE-009",
+      "contract": "A failure in the copy lists the captured values, and Because adds its reason.",
+      "source": "docs/guide/messages.md#values",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_failure_lists_the_captured_values",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Because_adds_its_reason"
+      ]
+    },
+    {
+      "id": "REWRITE-010",
+      "contract": ".Because or .WithMessage after a Verify that tier 3 does not rewrite never runs.",
+      "source": "docs/diagnostics/VG0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VG0001 warns at the chained call. The failure message has no reason." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0001_reports_Because_outside_a_rewritten_statement",
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0001_does_not_report_Because_in_a_rewritten_statement"
+      ]
+    },
+    {
+      "id": "REWRITE-011",
+      "contract": "A [Verify] method in a type that is not partial is not rewritten.",
+      "source": "docs/diagnostics/VG0005.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VG0005 warns, with a code fix that makes each containing type partial. The method keeps tier 2 messages." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0005_reports_a_Verify_method_in_a_type_that_is_not_partial",
+        "test/VerificationGlue.Generator.Specs/MakePartialCodeFixSpecs.cs#MakePartialCodeFixSpecs.The_fix_adds_partial_to_a_type_with_no_modifiers",
+        "test/VerificationGlue.Generator.Specs/MakePartialCodeFixSpecs.cs#MakePartialCodeFixSpecs.The_fix_for_VG0005_makes_every_containing_type_partial"
+      ]
+    },
+    {
+      "id": "REWRITE-012",
+      "contract": "A [Verify] method whose file declares a file type is not rewritten.",
+      "source": "docs/diagnostics/VG0008.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VG0008 warns. The method keeps tier 2 messages." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0008_reports_a_Verify_method_whose_file_declares_a_file_type",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_method_whose_file_declares_a_file_type_is_not_rewritten"
+      ]
+    },
+    {
+      "id": "REWRITE-013",
+      "contract": "A [Verify] method with syntax errors is not copied.",
+      "source": "docs/guide/tiers.md#when-a-method-gets-tier-3",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "No copy is written and the method keeps tier 2 messages. Other generators see WillRewrite as false." },
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_method_with_syntax_errors_is_not_copied",
+        "test/Contract.Specs/WillRewriteContractSpecs.cs#WillRewriteContractSpecs.A_test_with_syntax_errors_is_neither_copied_nor_called_through_a_copy"
+      ]
+    },
+    {
+      "id": "REWRITE-014",
+      "contract": "A [Verify] method that is generic, virtual, abstract, override or extern, returns by reference, is an instance method of a struct, has #if directives, sits in a generic, private or protected type, or uses a private nested, pointer or dynamic type in its signature is not rewritten.",
+      "source": "docs/guide/tiers.md#when-a-method-gets-tier-3",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "No copy is written, no diagnostic is reported, and the method keeps tier 2 messages." },
+      "dimensions": ["member shape: each eligibility rule"],
+      "evidence": [],
+      "gap": { "size": "m", "step": 2, "missing": "No test covers these eligibility rules one by one." }
+    },
+    {
+      "id": "REWRITE-015",
+      "contract": "A Verify or Check inside a lambda or a local function in a copy keeps its tier 2 message.",
+      "source": "docs/guide/tiers.md#when-a-method-gets-tier-3",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "The call keeps its tier 2 message." },
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_lambda_keeps_its_tier_2_message"],
+      "gap": { "size": "xs", "step": 2, "missing": "No case covers a local function." }
+    },
+    {
+      "id": "REWRITE-016",
+      "contract": "The original method still gives tier 2 messages, so a framework that calls a [Verify] test through reflection gets tier 2.",
+      "source": "docs/guide/tiers.md#when-the-copy-runs",
+      "support": "supported",
+      "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.The_original_method_still_gives_tier_2_messages"],
+      "gap": { "size": "s", "step": 4, "missing": "No framework project checks the tier of a reflection-invoked test and of a direct helper call." }
+    },
+    {
+      "id": "REWRITE-017",
+      "contract": "The copy maps to the original file and line, passes the original name to CallerMemberName, and binds with the using aliases and extension methods of its file.",
+      "source": "docs/guide/tiers.md#what-tier-3-does",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.The_rewritten_check_maps_to_its_original_line",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_copied_call_passes_the_original_name_to_CallerMemberName",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_copy_binds_with_the_using_aliases_of_its_file",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_copy_calls_extension_methods_of_its_file"
+      ]
+    },
+    {
+      "id": "REWRITE-018",
+      "contract": "With VerificationGlueRewrite off, no copy or redirect is written.",
+      "source": "docs/guide/tiers.md#turn-on-tier-3",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.With_rewriting_off_no_copy_or_redirect_is_written"]
+    },
+    {
+      "id": "REWRITE-019",
+      "contract": "Other generators see WillRewrite true exactly when a copy exists, and each runner call binds and runs.",
+      "source": "docs/design/verification-glue.md",
+      "support": "supported",
+      "evidence": [
+        "test/Contract.Specs/WillRewriteContractSpecs.cs#WillRewriteContractSpecs.A_copy_exists_exactly_when_rewriting_is_on_and_WillRewrite_is_true",
+        "test/Contract.Specs/WillRewriteContractSpecs.cs#WillRewriteContractSpecs.Every_runner_call_binds_and_runs"
+      ]
+    },
+    {
+      "id": "REWRITE-020",
+      "contract": "A [VerifyTest] method runs its copy, because the runner calls it directly and only when WillRewrite is true.",
+      "source": "docs/guide/tiers.md#when-the-copy-runs",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Each_registration_calls_the_copy_only_when_WillRewrite_is_true",
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Calls_the_rewritten_copy_when_WillRewrite_is_true",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_method_the_runner_calls_through_its_copy_gets_no_interceptor"
+      ]
+    },
+    {
+      "id": "MOCK-001",
+      "contract": "Mock.Of<T>() creates a mock whose unconfigured members return auto-values.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Mocks.Generator.Specs/MockRuntimeSpecs.cs#MockRuntimeSpecs.Unconfigured_members_return_auto_values"]
+    },
+    {
+      "id": "MOCK-002",
+      "contract": "Every call is recorded with its arguments, including 1,000 parallel calls.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/MockRuntimeSpecs.cs#MockRuntimeSpecs.Every_call_is_recorded_with_its_arguments",
+        "test/NSubstituteComparison/Cases/Parallel.cs#Parallel.Parallel_calls_are_counted"
+      ]
+    },
+    {
+      "id": "MOCK-003",
+      "contract": "Returns answers calls whose arguments match and leaves other calls unconfigured.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Returns_answers_matching_calls_and_leaves_others_unconfigured",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Exact_arguments"
+      ]
+    },
+    {
+      "id": "MOCK-004",
+      "contract": "Returns with several values answers each in turn and then repeats the last. Matching calls share one sequence, and a new setup replaces it.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Returns_with_several_values_answers_each_in_turn_and_repeats_the_last",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Values_in_turn",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Sequence_shared_by_matching_calls",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.New_setup_replaces_a_sequence"
+      ]
+    },
+    {
+      "id": "MOCK-005",
+      "contract": "A Returns factory runs on each call, reads the arguments through CallInfo, and can set an out argument. A factory that throws makes the call throw.",
+      "source": "docs/guide/arguments-and-matchers.md#read-the-arguments",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.A_factory_reads_the_arguments_and_sets_an_out_argument",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Factory_reads_arguments",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Factory_runs_each_call",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Factory_throws",
+        "samples/MocksGuide/Matchers.cs#Matchers.A_response_can_read_the_arguments"
+      ]
+    },
+    {
+      "id": "MOCK-006",
+      "contract": "Throws makes matching calls throw, on void members too.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Throws_makes_matching_calls_throw",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/CallbacksAndEvents.cs#CallbacksAndEvents.When_Throw_makes_a_void_member_throw",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.A_void_member_can_throw"
+      ]
+    },
+    {
+      "id": "MOCK-007",
+      "contract": "When(...).Do(...) runs its callback on each matching call, and the call that selects the member is not recorded.",
+      "source": "docs/guide/arguments-and-matchers.md#read-the-arguments",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/CallbacksAndEvents.cs#CallbacksAndEvents.When_Do_runs_the_callback_on_each_matching_call",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/CallbacksAndEvents.cs#CallbacksAndEvents.When_does_not_record_the_selecting_call",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.When_do_and_returns",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Two_callbacks"
+      ]
+    },
+    {
+      "id": "MOCK-008",
+      "contract": "The last setup for a call wins, whether it is exact or uses Arg.Any.",
+      "source": "docs/guide/nsubstitute-differences.md",
+      "support": "supported",
+      "decision": "CD-02",
+      "dimensions": ["setup style: typed, NSubstitute-style, mixed", "matching: exact, any, predicate, overlapping"],
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.The_last_setup_for_a_call_wins",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Later_setup_wins",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Any_after_exact",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Exact_after_any"
+      ],
+      "gap": { "size": "m", "step": 3, "missing": "No case mixes setup styles or overlapping predicates on one call, and no guide states the rule for them." }
+    },
+    {
+      "id": "MOCK-009",
+      "contract": "The call inside a setup is not a received call, in either setup style.",
+      "source": "docs/guide/choose-a-setup-style.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.The_setup_call_is_not_a_received_call",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Setup_does_not_record_a_call",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Setup_call_is_not_received"
+      ]
+    },
+    {
+      "id": "MOCK-010",
+      "contract": "A setup call runs the response set up before it, as in NSubstitute.",
+      "source": "docs/guide/nsubstitute-differences.md",
+      "support": "supported",
+      "evidence": ["test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Setup_after_throws"]
+    },
+    {
+      "id": "MOCK-011",
+      "contract": "A property returns the value set on it, a set after Returns wins, and Returns null on a string member wins over the empty-string auto-value.",
+      "source": "docs/guide/nsubstitute-differences.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.A_set_property_returns_the_value_it_was_set_to",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Property_set_then_get",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Property_set_after_returns",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Returns_null_for_a_string"
+      ]
+    },
+    {
+      "id": "MOCK-012",
+      "contract": "Properties, indexers, generic methods and out parameters take setups in both styles, and a generic method matches its type argument.",
+      "source": "docs/guide/choose-a-setup-style.md#the-typed-surface",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Properties_indexers_and_generic_methods_take_setups",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Properties_indexers_and_out_parameters_can_be_set_up",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.A_generic_method_matches_its_type_argument"
+      ]
+    },
+    {
+      "id": "MOCK-013",
+      "contract": "Two mocks of one interface share no configuration and no recorded calls.",
+      "source": "docs/design/hardening.md#operations-and-sequences",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Two_mocks_of_one_interface_share_nothing"]
+    },
+    {
+      "id": "MOCK-014",
+      "contract": "The typed surface and the NSubstitute style drive the same mock, and Throws, Does and sequences apply to matching calls in the typed surface.",
+      "source": "docs/guide/choose-a-setup-style.md#mix-them",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Both_styles_drive_the_same_mock",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Setup_with_a_value_and_Arg_Any_configures_the_mock",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Throws_Does_and_sequences_apply_to_matching_calls",
+        "samples/MocksGuide/SetupStyles.cs#SetupStyles.Both_styles_on_one_mock"
+      ]
+    },
+    {
+      "id": "MOCK-015",
+      "contract": "Arg.Any<T>() matches every value including null, Arg.Is matches by predicate or by value, and other arguments must be equal.",
+      "source": "docs/guide/arguments-and-matchers.md#any-and-is",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.Any_matches_every_value",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.Is_matches_values_for_which_the_predicate_holds",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.Is_with_a_value_matches_equal_values",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Any_matches_null",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Null_argument",
+        "samples/MocksGuide/Matchers.cs#Matchers.Any_and_Is"
+      ]
+    },
+    {
+      "id": "MOCK-016",
+      "contract": "A matcher applies to the argument it is written at, also when another argument holds the default value.",
+      "source": "docs/guide/arguments-and-matchers.md#a-matcher-belongs-to-the-argument-it-is-written-at",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.A_matcher_binds_to_the_argument_it_is_written_in_when_another_argument_holds_the_default",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Matcher_after_a_default_argument",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Matcher_before_a_default_argument",
+        "samples/MocksGuide/Matchers.cs#Matchers.A_matcher_belongs_to_the_argument_it_is_written_at"
+      ]
+    },
+    {
+      "id": "MOCK-017",
+      "contract": "An array argument, params or not, matches an array with equal elements.",
+      "source": "docs/guide/arguments-and-matchers.md#any-and-is",
+      "support": "supported",
+      "evidence": [
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Params_argument",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Array_argument"
+      ]
+    },
+    {
+      "id": "MOCK-018",
+      "contract": "Typed matchers Arg<T>.Any() and Arg<T>.Is(...) match by predicate or value, a plain value matches exactly, and a default argument matches the default value.",
+      "source": "docs/guide/arguments-and-matchers.md#typed-matchers",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Arg_Is_matches_by_predicate_and_by_value",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.An_interface_typed_parameter_matches_an_exact_value_through_Arg_Is",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.A_default_argument_matches_the_default_value",
+        "samples/MocksGuide/Matchers.cs#Matchers.Typed_matchers"
+      ]
+    },
+    {
+      "id": "MOCK-019",
+      "contract": "A matcher on an indexer argument matches.",
+      "source": "docs/guide/arguments-and-matchers.md#any-and-is",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.A_matcher_on_an_indexer_argument_matches"]
+    },
+    {
+      "id": "MOCK-020",
+      "contract": "Arg.Any<T>() stands in for an out or ref argument, and a Returns factory sets it through its index.",
+      "source": "docs/guide/arguments-and-matchers.md#out-and-ref-arguments",
+      "support": "supported",
+      "dimensions": ["member: out, ref"],
+      "evidence": [
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Out_argument",
+        "samples/MocksGuide/Matchers.cs#Matchers.Out_arguments"
+      ],
+      "gap": { "size": "xs", "step": 3, "missing": "No case covers a ref argument." }
+    },
+    {
+      "id": "MOCK-021",
+      "contract": "An Arg matcher stored in a local has no position.",
+      "source": "docs/diagnostics/VGM0002.md",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "VGM0002 warns. At run time the matcher takes the first argument that holds the default value, as NSubstitute does." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_matcher_that_is_not_an_argument_of_a_mock_call_reports_VGM0002",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Matcher_in_a_local"
+      ]
+    },
+    {
+      "id": "MOCK-022",
+      "contract": "An NSubstitute-style matcher passed to the typed Setup() or Calls() surface would match only the default value.",
+      "source": "docs/guide/arguments-and-matchers.md#typed-matchers",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGM0002 is reported as an error and the build fails." },
+      "evidence": ["test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.An_NSubstitute_style_matcher_passed_to_Setup_or_Calls_reports_VGM0002_as_an_error"]
+    },
+    {
+      "id": "MOCK-023",
+      "contract": "An Arg.Is predicate that throws during matching does not corrupt the mock.",
+      "source": "docs/design/hardening.md#operations-and-sequences",
+      "support": "unclassified",
+      "decision": "CD-09",
+      "evidence": [],
+      "gap": { "size": "s", "step": 3, "missing": "No guide states the outcome, and no test exercises it." }
+    },
+    {
+      "id": "MOCK-024",
+      "contract": "Received passes for a call that was made and fails with the expected call and the calls received.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.Received_passes_for_a_call_that_was_made",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.Received_fails_with_the_expected_call_and_the_calls_received"
+      ]
+    },
+    {
+      "id": "MOCK-025",
+      "contract": "Received with a count and DidNotReceive fail on the wrong count.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.Received_with_a_count_and_DidNotReceive_fail_on_the_wrong_count",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Received_with_the_wrong_count"
+      ]
+    },
+    {
+      "id": "MOCK-026",
+      "contract": "Received checks property reads and writes.",
+      "source": "docs/guide/getting-started-mocks.md#create-a-mock-and-set-it-up",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.Received_checks_property_reads_and_writes"]
+    },
+    {
+      "id": "MOCK-027",
+      "contract": "A Received or DidNotReceive check is not recorded as a call.",
+      "source": "docs/design/hardening.md#operations-and-sequences",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.A_check_is_not_recorded_as_a_call",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Received_is_not_a_call"
+      ]
+    },
+    {
+      "id": "MOCK-028",
+      "contract": "Calls() counts the matching calls, and a failed Verify on the count lists up to 10 calls the member received.",
+      "source": "docs/guide/choose-a-setup-style.md#the-typed-surface",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Calls_counts_the_matching_calls",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.A_failed_Verify_lists_the_calls_the_member_received",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.The_call_count_lists_up_to_10_calls_to_the_member"
+      ]
+    },
+    {
+      "id": "MOCK-029",
+      "contract": "Received, DidNotReceive and Calls() take the same matchers as setups.",
+      "source": "docs/guide/arguments-and-matchers.md#matchers-in-checks",
+      "support": "supported",
+      "evidence": [
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Received_with_matchers",
+        "samples/MocksGuide/Matchers.cs#Matchers.Matchers_in_checks"
+      ]
+    },
+    {
+      "id": "MOCK-030",
+      "contract": "Verification does not consume response sequences, and repeating a check gives the same result.",
+      "source": "docs/design/hardening.md#operations-and-sequences",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "s", "step": 3, "missing": "No test checks a sequence after Received, or repeats a check." }
+    },
+    {
+      "id": "MOCK-031",
+      "contract": "Raise.Event invokes the handlers with the arguments, and with no handler adds none and records no call.",
+      "source": "docs/design/mocks.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/CallbacksAndEvents.cs#CallbacksAndEvents.Raise_Event_invokes_the_handlers_with_the_arguments",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/CallbacksAndEvents.cs#CallbacksAndEvents.Raise_Event_with_no_handler_adds_no_handler_and_records_no_call"
+      ]
+    },
+    {
+      "id": "MOCK-032",
+      "contract": "Returns on a Task<T> or ValueTask<T> member wraps a T in a completed task, and also takes a task.",
+      "source": "docs/guide/mock-async-members.md#return-a-value",
+      "support": "supported",
+      "dimensions": ["async result: Task, Task<T>, ValueTask, ValueTask<T>"],
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Returns_on_a_task_wraps_the_value",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/TypedSurface.cs#TypedSurface.Async_members_take_the_result_value",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Returns_a_value_for_a_task",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Returns_a_task",
+        "samples/MocksGuide/AsyncMembers.cs#AsyncMembers.Returns_wraps_the_value_in_a_task",
+        "samples/MocksGuide/AsyncMembers.cs#AsyncMembers.Typed_setup_wraps_the_value_in_a_task"
+      ]
+    },
+    {
+      "id": "MOCK-033",
+      "contract": "An unconfigured async member returns a completed task holding the auto-value of T.",
+      "source": "docs/guide/mock-async-members.md#unconfigured-members",
+      "support": "supported",
+      "evidence": [
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Unconfigured_task_of_int",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Unconfigured_task_of_string",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Unconfigured_task_and_value_task",
+        "samples/MocksGuide/AsyncMembers.cs#AsyncMembers.Unconfigured_members_return_completed_tasks"
+      ]
+    },
+    {
+      "id": "MOCK-034",
+      "contract": "A faulted task fails the await, and Throws makes the call itself throw before there is a task.",
+      "source": "docs/guide/mock-async-members.md#faults",
+      "support": "supported",
+      "evidence": [
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Returns_a_faulted_task",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Throws_on_an_async_member",
+        "samples/MocksGuide/AsyncMembers.cs#AsyncMembers.Faulted_tasks_and_throws"
+      ]
+    },
+    {
+      "id": "MOCK-035",
+      "contract": "A cancelled task passed to Returns cancels the await.",
+      "source": "docs/guide/mock-async-members.md#return-a-value",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "xs", "step": 3, "missing": "No test returns a cancelled task." }
+    },
+    {
+      "id": "MOCK-036",
+      "contract": "The link between a mock call and its Returns survives an await in the argument, also in 200 parallel setups.",
+      "source": "docs/guide/mock-async-members.md#await-inside-a-setup",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.Returns_with_an_await_binds_to_its_own_call_in_200_parallel_setups",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.A_pending_check_and_a_matcher_flow_across_an_await_in_the_arguments",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Returns_with_an_await",
+        "test/NSubstituteComparison/Cases/Parallel.cs#Parallel.Parallel_setups_with_an_await",
+        "test/NSubstituteComparison/Cases/Parallel.cs#Parallel.Parallel_setups_on_one_mock",
+        "samples/MocksGuide/AsyncMembers.cs#AsyncMembers.A_setup_can_await_its_value"
+      ]
+    },
+    {
+      "id": "MOCK-037",
+      "contract": "Each documented difference from NSubstitute is intended and listed on the differences page, and every other compared case behaves the same.",
+      "source": "docs/guide/nsubstitute-differences.md",
+      "support": "supported",
+      "evidence": [
+        "test/NSubstituteComparison.Specs/ComparisonSpecs.cs#ComparisonSpecs.Each_case_matches_NSubstitute_or_records_why_it_differs",
+        "test/NSubstituteComparison.Specs/ComparisonSpecs.cs#ComparisonSpecs.Each_area_of_the_bounded_comparison_has_cases",
+        "test/NSubstituteComparison.Specs/DifferencesPageSpecs.cs#DifferencesPageSpecs.The_page_matches_a_fresh_comparison_run"
+      ]
+    },
+    {
+      "id": "MOCK-038",
+      "contract": "A child task starts with its parent's last call, its own calls stay in the child, and a setup finished in a child task applies.",
+      "source": "docs/guide/nsubstitute-differences.md#parallel-use",
+      "support": "supported",
+      "decision": "CD-04",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.A_child_task_starts_with_its_parents_last_call_and_its_own_calls_stay_in_the_child",
+        "test/NSubstituteComparison/Cases/Parallel.cs#Parallel.Setup_finished_in_a_child_task"
+      ]
+    },
+    {
+      "id": "MOCK-039",
+      "contract": "A matcher abandoned in a child task does not reach the parent, and one abandoned in the same flow fails the next call it cannot fit.",
+      "source": "docs/guide/nsubstitute-differences.md#last-call-hazards",
+      "support": "supported",
+      "decision": "CD-04",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.A_matcher_abandoned_in_a_child_task_does_not_reach_the_parent",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.A_matcher_abandoned_in_the_same_flow_fails_the_next_call_it_cannot_fit",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Abandoned_matcher"
+      ]
+    },
+    {
+      "id": "MOCK-040",
+      "contract": "A call from another thread while Received waits for its arguments is recorded and not checked.",
+      "source": "docs/guide/nsubstitute-differences.md#parallel-use",
+      "support": "supported",
+      "decision": "CD-04",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.A_background_call_during_Received_is_recorded_and_not_checked",
+        "test/NSubstituteComparison/Cases/Parallel.cs#Parallel.Background_call_during_received"
+      ]
+    },
+    {
+      "id": "MOCK-041",
+      "contract": "Every legal interleaving of setups, matchers and checks across awaits, child tasks and parallel operations gives the observations the async context rules declare.",
+      "source": "docs/design/hardening.md#operations-and-sequences",
+      "support": "unclassified",
+      "decision": "CD-04",
+      "dimensions": ["context: sequential, awaits, child tasks, parallel, abandoned setup state"],
+      "evidence": [],
+      "gap": { "size": "l", "step": 3, "missing": "Existing cases use fixed timing. No controlled scheduling, and the legal orderings are not written down." }
+    },
+    {
+      "id": "MOCK-042",
+      "contract": "Returns or Throws with no mock call before it in the async flow cannot attach to a call.",
+      "source": "docs/diagnostics/VGM0005.md",
+      "support": "unsupported",
+      "decision": "CD-09",
+      "outcome": { "kind": "throws", "detail": "VGM0005 warns at build. At run time the setup throws MockSetupException saying no mock call came before it." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.Returns_with_no_mock_call_before_it_fails",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Returns_with_no_mock_call",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005"
+      ],
+      "gap": { "size": "s", "step": 3, "missing": "No test checks the state of the next mock operation after the failure." }
+    },
+    {
+      "id": "MOCK-043",
+      "contract": "Returns on a value that is not a mock call, a setup through a local, and a mock call inside the argument of Returns apply to the last mock call in the flow.",
+      "source": "docs/diagnostics/VGM0005.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VGM0005 warns where the value is not a mock call. At run time the setup applies to the last mock call in the same async flow, as NSubstitute does." },
+      "evidence": [
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Returns_on_a_value_after_a_mock_call",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Setup_through_a_local",
+        "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Mock_call_inside_returns",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005"
+      ]
+    },
+    {
+      "id": "MOCK-044",
+      "contract": "An unconfigured member that returns an interface returns a mock, created on the first call and returned again later, which both styles can set up.",
+      "source": "docs/guide/recursive-mocks.md#set-up-a-member-of-a-member",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.A_member_of_an_unconfigured_member_can_be_set_up",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.The_typed_surface_configures_a_recursive_mock",
+        "samples/MocksGuide/RecursiveMocks.cs#RecursiveMocks.A_member_of_an_unconfigured_member_can_be_set_up"
+      ]
+    },
+    {
+      "id": "MOCK-045",
+      "contract": "A recursive member with parameters keeps one mock for each set of arguments.",
+      "source": "docs/guide/recursive-mocks.md#set-up-a-member-of-a-member",
+      "support": "supported",
+      "decision": "CD-03",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.The_same_arguments_return_the_same_mock",
+        "samples/MocksGuide/RecursiveMocks.cs#RecursiveMocks.Each_set_of_arguments_gets_its_own_mock"
+      ],
+      "gap": { "size": "s", "step": 3, "missing": "No case uses arguments that are equal but not identical, or reconfigures the parent after access." }
+    },
+    {
+      "id": "MOCK-046",
+      "contract": "A configured recursive member returns its value and not a mock, and a Received or DidNotReceive check creates no mock.",
+      "source": "docs/guide/recursive-mocks.md#set-up-a-member-of-a-member",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.A_configured_member_returns_its_value_and_not_a_mock",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.A_check_with_Received_returns_null_and_creates_no_mock"
+      ]
+    },
+    {
+      "id": "MOCK-047",
+      "contract": "A recursive member that returns Task<T> or ValueTask<T> returns a completed task with default, and an interface in a System namespace gets no recursive mock.",
+      "source": "docs/guide/recursive-mocks.md#set-up-a-member-of-a-member",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "The member returns a completed task with default, or default for a System interface." },
+      "evidence": [],
+      "gap": { "size": "xs", "step": 3, "missing": "No test covers either rule." }
+    },
+    {
+      "id": "MOCK-048",
+      "contract": "The generator writes recursive mocks up to VerificationGlueMocksRecursionDepth steps from each mocked type, default 2 and 0 for off, and a type named at Mock.Of<T>() starts its own walk.",
+      "source": "docs/guide/recursive-mocks.md#the-depth",
+      "support": "supported",
+      "decision": "CD-03",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.The_default_depth_generates_mocks_two_steps_from_the_named_type",
+        "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.VerificationGlueMocksRecursionDepth_sets_how_far_the_generator_goes",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007"
+      ],
+      "gap": { "size": "xs", "step": 3, "missing": "No test sets the depth to 0." }
+    },
+    {
+      "id": "MOCK-049",
+      "contract": "A member of a mock at the recursion depth returns default instead of a mock.",
+      "source": "docs/diagnostics/VGM0007.md",
+      "support": "unsupported",
+      "outcome": { "kind": "fallback", "detail": "The member returns default, and VGM0007 reports it as information where the walk starts." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.A_member_beyond_the_depth_returns_null",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_member_beyond_the_default_depth_reports_VGM0007_where_the_walk_starts",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.VerificationGlueMocksRecursionDepth_sets_the_depth_VGM0007_reports_beyond",
+        "samples/MocksGuide/RecursiveMocks.cs#RecursiveMocks.The_walk_stops_at_the_depth"
+      ]
+    },
+    {
+      "id": "MOCK-050",
+      "contract": "A [Mock] attribute, or an attribute named in VerificationGlueMockAttribute, marks a mock. Other attributes mark nothing.",
+      "source": "docs/guide/getting-started-mocks.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.An_attribute_named_in_VerificationGlueMockAttribute_marks_a_mock_like_Mock",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.An_attribute_not_named_in_VerificationGlueMockAttribute_marks_nothing",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Correct_use_reports_nothing",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Typed_setup_and_call_counts_report_nothing"
+      ]
+    },
+    {
+      "id": "MOCK-051",
+      "contract": "MockRegistry creates a mock for a type named in a [Mock] attribute or in [assembly: GenerateMock], and a generic helper can create it.",
+      "source": "docs/guide/mock-a-type-from-a-generic-helper.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Registry.cs#Registry.MockRegistry_creates_a_mock_from_a_type_named_only_in_a_Mock_attribute",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Registry.cs#Registry.A_generic_helper_creates_a_mock_named_in_GenerateMock",
+        "test/VerificationGlue.Mocks.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Registry_for_the_billing_sample",
+        "samples/MocksGuide/GenericHelper.cs#GenericHelper.A_helper_creates_a_mock_named_in_GenerateMock"
+      ]
+    },
+    {
+      "id": "MOCK-052",
+      "contract": "Mock.Of<T>() in a generic helper reaches a type that no call site, [Mock] attribute or GenerateMock names.",
+      "source": "docs/diagnostics/VGM0004.md",
+      "support": "unsupported",
+      "outcome": { "kind": "throws", "detail": "VGM0004 warns at build. At run time Mock.Of<T>() throws with a message that names the fix." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_generic_helper_reached_with_an_undiscovered_type_reports_VGM0004",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Registry.cs#Registry.A_type_with_no_generated_mock_fails_with_a_message_that_names_the_fix"
+      ]
+    },
+    {
+      "id": "MOCK-053",
+      "contract": "Mocks work in xunit, NUnit, MSTest and TUnit, created by hand and as [Mock] parameters.",
+      "source": "docs/guide/getting-started-mocks.md#host-frameworks",
+      "support": "supported",
+      "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
+      "evidence": [
+        "samples/MocksInXunit/InvoiceTests.cs#InvoiceTests.Quote_adds_the_prices",
+        "samples/MocksInXunit/InvoiceTests.cs#InvoiceTests.Bill_with_mock_parameters",
+        "samples/MocksInNUnit",
+        "samples/MocksInMSTest",
+        "samples/MocksInTUnit"
+      ]
+    },
+    {
+      "id": "MOCK-054",
+      "contract": "A mock is regenerated when its interface changes, here or in a referenced project or DLL, and not on unrelated edits, so it never goes stale.",
+      "source": "docs/design/mocks.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/MockPipelineSpecs.cs#MockPipelineSpecs.A_mock_never_goes_stale_across_successive_interface_changes",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockPipelineSpecs.cs#MockPipelineSpecs.A_member_added_in_a_referenced_project_regenerates_its_mock",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockPipelineSpecs.cs#MockPipelineSpecs.A_referenced_DLL_replaced_with_a_new_member_regenerates_its_mock",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockPipelineSpecs.cs#MockPipelineSpecs.An_unrelated_edit_regenerates_nothing",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockPipelineSpecs.cs#MockPipelineSpecs.Output_is_the_same_whatever_order_the_sources_arrive_in"
+      ]
+    },
+    {
+      "id": "SHAPE-001",
+      "contract": "A mock compiles for inherited interfaces, overlapping names, overloads, generic constraints, nullability, properties, indexers, events, supported parameter modifiers, obsolete types, extern aliases and InternalsVisibleTo.",
+      "source": "docs/design/mocks-shape-sweep.md#triage",
+      "support": "supported",
+      "dimensions": ["member shape: each shape file"],
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Every_case_mocks_at_least_one_type",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Members.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Collisions.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Constraints.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Nullable.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Names.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Obsolete.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/ExternAlias.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/InternalsVisibleTo.cs"
+      ],
+      "gap": { "size": "l", "step": 3, "missing": "Shape files check compilation only. No consumer case creates, configures, invokes and verifies each shape through the public generator." }
+    },
+    {
+      "id": "SHAPE-002",
+      "contract": "Every interface in the pinned sweep of the BCL and the top 100 packages either compiles or is refused with VGM0001.",
+      "source": "docs/design/mocks-shape-sweep.md#results",
+      "support": "supported",
+      "constraints": "The sweep calls MockModelBuilder and MockEmitter directly, not the public generator.",
+      "evidence": ["test/MockSweep", "test/MockSweep.Packages"],
+      "gap": { "size": "m", "step": 3, "missing": "CI fails on a compile error but not when a previously compiled interface becomes refused. The expected classifications are not checked in." }
+    },
+    {
+      "id": "SHAPE-003",
+      "contract": "An interface with a static abstract member, directly or through a base interface, cannot be mocked.",
+      "source": "docs/diagnostics/VGM0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGM0001 error naming the static abstract member, at each place that names the type. No mock is generated." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/StaticAbstract.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_type_that_cannot_be_mocked_reports_VGM0001_at_each_place_that_names_it"
+      ]
+    },
+    {
+      "id": "SHAPE-004",
+      "contract": "An interface with an abstract member the test project cannot see cannot be mocked.",
+      "source": "docs/diagnostics/VGM0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGM0001 error naming the member that is not accessible." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/InaccessibleMember.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics"
+      ]
+    },
+    {
+      "id": "SHAPE-005",
+      "contract": "An interface with pointer members in a project without AllowUnsafeBlocks cannot be mocked.",
+      "source": "docs/diagnostics/VGM0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGM0001 error saying the members need AllowUnsafeBlocks." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/PointersWithoutUnsafe.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics"
+      ]
+    },
+    {
+      "id": "SHAPE-006",
+      "contract": "A struct, a sealed or static class, a class before class mocks ship, a type the project cannot access, and an open generic type in GenerateMock cannot be mocked.",
+      "source": "docs/diagnostics/VGM0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGM0001 error naming the reason, at the Mock.Of<T>() call, the [Mock] attribute or the GenerateMock attribute." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/NotAnInterface.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Visibility.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_type_that_cannot_be_mocked_reports_VGM0001_at_each_place_that_names_it"
+      ]
+    },
+    {
+      "id": "SHAPE-007",
+      "contract": "A member with a ref struct or pointer parameter, return value or property is implemented, and the rest of the mock works.",
+      "source": "docs/diagnostics/VGM0003.md",
+      "support": "unsupported",
+      "outcome": { "kind": "throws", "detail": "VGM0003 warns where the mock is named. Calling the member throws NotSupportedException." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Pointers.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Parameters.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named"
+      ],
+      "gap": { "size": "xs", "step": 3, "missing": "No test calls such a member and checks for NotSupportedException, or checks that the other members still work." }
+    },
+    {
+      "id": "SHAPE-008",
+      "contract": "An event whose delegate takes a ref struct accepts handlers.",
+      "source": "docs/design/mocks-shape-sweep.md#triage",
+      "support": "unsupported",
+      "outcome": { "kind": "throws", "detail": "Adding and removing handlers works. Raising the event throws NotSupportedException." },
+      "evidence": ["test/VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs"],
+      "gap": { "size": "xs", "step": 3, "missing": "No test raises the event at run time." }
+    },
+    {
+      "id": "SHAPE-009",
+      "contract": "An open generic interface whose type parameter allows ref struct is mocked without the anti-constraint.",
+      "source": "docs/design/mocks-shape-sweep.md#triage",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "A mock closed over a ref struct reports VGM0003 on each member that uses the type parameter." },
+      "evidence": ["test/VerificationGlue.Mocks.Generator.Specs/Shapes/Constraints.cs"]
+    },
+    {
+      "id": "SHAPE-010",
+      "contract": "A type nested in a generic type whose type arguments come from an extern-aliased assembly is written with global::.",
+      "source": "docs/design/mocks-shape-sweep.md#triage",
+      "support": "unsupported",
+      "decision": "CD-10",
+      "outcome": { "kind": "failure", "detail": "The generated mock fails to compile with a C# error and no VerificationGlue diagnostic." },
+      "evidence": [],
+      "gap": { "size": "s", "step": 3, "missing": "No shape case exists, and the failure has no diagnostic." },
+      "followUp": "CD-10 decides between a VGM0001 refusal and support."
+    },
+    {
+      "id": "PARAM-001",
+      "contract": "Each test and constructor parameter comes from the first source with a value: a parameter-level provider, then providers on the method, class and assembly, then the container, then built-in values, then the default value.",
+      "source": "docs/guide/test-parameters.md#the-order",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Parameters_come_from_the_narrowest_provider_then_the_container_then_the_default",
+        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source"
+      ],
+      "gap": { "size": "s", "step": 4, "missing": "No case puts competing providers on the method, the class and the assembly at once." }
+    },
+    {
+      "id": "PARAM-002",
+      "contract": "A provider that returns false passes the parameter to the next source.",
+      "source": "docs/guide/test-parameters.md#write-a-provider",
+      "support": "supported",
+      "evidence": ["samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source"]
+    },
+    {
+      "id": "PARAM-003",
+      "contract": "A parameter with no value fails the test with a message that names the parameter and every source tried.",
+      "source": "docs/guide/test-parameters.md#when-no-source-has-a-value",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Parameters_come_from_the_narrowest_provider_then_the_container_then_the_default"]
+    },
+    {
+      "id": "PARAM-004",
+      "contract": "A parameter provider or container that throws while resolving a parameter fails only that test, and the test body does not run.",
+      "source": "docs/design/hardening.md#parameter-resolution",
+      "support": "unclassified",
+      "decision": "CD-08",
+      "evidence": [],
+      "gap": { "size": "s", "step": 4, "missing": "No guide states the outcome, and no test exercises it." }
+    },
+    {
+      "id": "PARAM-005",
+      "contract": "The runner uses the accessible constructor with the most parameters and resolves them in the same order as test parameters.",
+      "source": "docs/guide/test-parameters.md#constructor-parameters",
+      "support": "supported",
+      "evidence": ["samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock"],
+      "gap": { "size": "xs", "step": 4, "missing": "No case has more than one accessible constructor." }
+    },
+    {
+      "id": "PARAM-006",
+      "contract": "[Mock] parameters of the same type and key share one mock within a test, so the constructor, the method and the container see the same instance.",
+      "source": "docs/guide/test-parameters.md#constructor-parameters",
+      "support": "supported",
+      "evidence": [
+        "samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Mock_parameters_reach_the_system_under_test_at_every_scope",
+        "test/VerificationGlue.Tests.Generator.Specs/ParameterSpecs.cs#ParameterSpecs.A_keyed_mock_is_registered_under_its_key_and_defaults_fill_the_rest"
+      ]
+    },
+    {
+      "id": "PARAM-007",
+      "contract": "CancellationToken is cancelled when the run is cancelled, TestContext holds the test ID, attributes, scope and container, and ITestOutput lines reach the test's result.",
+      "source": "docs/guide/test-parameters.md#built-in-values",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Reports_each_outcome_in_the_trx_file",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Output_written_while_the_container_builds_goes_to_the_test",
+        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source"
+      ],
+      "gap": { "size": "xs", "step": 4, "missing": "No test checks that the token is cancelled when the run is cancelled." }
+    },
+    {
+      "id": "PARAM-008",
+      "contract": "When the container returns the test class, the runner uses that instance and leaves its disposal to the container.",
+      "source": "docs/guide/test-parameters.md#constructor-parameters",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Container_owned_and_runner_owned_instances_are_disposed_exactly_once",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Each_test_scoped_test_builds_and_disposes_its_own_container"
+      ]
+    },
+    {
+      "id": "PARAM-009",
+      "contract": "Data rows with [Row] are planned and not shipped.",
+      "source": "docs/guide/test-parameters.md#the-order",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "There is no [Row] attribute. A generic test method, which would need rows, reports VGT0004 and is not registered." },
+      "evidence": ["test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_the_runner_cannot_call_reports_VGT0004"]
+    },
+    {
+      "id": "PARAM-010",
+      "contract": "A test with [Mock] parameters under a shared container whose bootstrap does not support child overrides would not see its mocks.",
+      "source": "docs/diagnostics/VGT0008.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGT0008 warns at build. At run time the test fails before its body runs." },
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_mock_under_a_shared_container_without_child_overrides_reports_VGT0008",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_container_that_returns_the_mocks_reports_nothing",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.A_shared_container_without_child_overrides_fails_the_test_before_it_runs"
+      ]
+    },
+    {
+      "id": "PARAM-011",
+      "contract": "A mock or listener override reaches the system under test, and each test gets its own mock in its own child container.",
+      "source": "docs/guide/containers-and-scopes.md#replace-a-service-with-a-mock",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.A_listener_override_reaches_the_service",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Mock_parameters_reach_the_system_under_test_at_every_scope",
+        "samples/TestsContainers/ContainerTests.cs#OrderHistoryTests.Each_test_gets_its_own_mock"
+      ]
+    },
+    {
+      "id": "LIFE-001",
+      "contract": "Each test runs setup, body and cleanup in the documented order, with middleware around class creation and the test.",
+      "source": "docs/guide/test-lifecycle.md#a-sample-that-logs-every-step",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/LifecycleSampleSpecs.cs#LifecycleSampleSpecs.Logs_every_step",
+        "samples/TestsLifecycle"
+      ]
+    },
+    {
+      "id": "LIFE-002",
+      "contract": "A scope is created when its first selected test starts, so a test that a filter leaves out creates nothing.",
+      "source": "docs/guide/test-lifecycle.md#scopes",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Runs_only_the_tests_the_uid_filter_selects"],
+      "gap": { "size": "s", "step": 4, "missing": "The filter spec checks which tests run, not that the filtered-out class creates no scope or container." }
+    },
+    {
+      "id": "LIFE-003",
+      "contract": "A class container is shared by its class and disposed after its last test, and an assembly container is shared across classes and disposed last.",
+      "source": "docs/guide/containers-and-scopes.md#share-a-container-across-a-class-or-the-assembly",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.A_class_container_is_shared_by_the_class_and_disposed_after_its_last_test",
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.An_assembly_container_is_shared_across_classes_and_disposed_last",
+        "samples/TestsContainers/ContainerTests.cs#OrderHistoryTests.The_store_is_shared_by_the_class"
+      ]
+    },
+    {
+      "id": "LIFE-004",
+      "contract": "Each test-scoped test builds and disposes its own container.",
+      "source": "docs/guide/containers-and-scopes.md#give-a-test-a-container",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Each_test_scoped_test_builds_and_disposes_its_own_container"]
+    },
+    {
+      "id": "LIFE-005",
+      "contract": "Each instance has one owner that disposes it exactly once: the container for what it creates, and the runner for a test class it created.",
+      "source": "docs/guide/test-lifecycle.md#who-disposes-what",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Container_owned_and_runner_owned_instances_are_disposed_exactly_once"]
+    },
+    {
+      "id": "LIFE-006",
+      "contract": "An override, such as a [Mock] parameter's mock, belongs to whoever added it, and the container does not dispose it.",
+      "source": "docs/guide/test-lifecycle.md#who-disposes-what",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "xs", "step": 4, "missing": "No test checks that a disposable override is not disposed by the container." }
+    },
+    {
+      "id": "LIFE-007",
+      "contract": "Cleanup runs every step when one fails, and the test keeps every failure in the order it happened.",
+      "source": "docs/guide/test-lifecycle.md#a-test-with-more-than-one-failure",
+      "support": "supported",
+      "decision": "CD-05",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Invocation_cleanup_and_check_failures_are_all_kept_in_order"],
+      "gap": { "size": "m", "step": 4, "missing": "Only the documented test-level combination is covered. Listener and middleware entry failures, and their order, are not." }
+    },
+    {
+      "id": "LIFE-008",
+      "contract": "A failed Check or a cleanup failure fails a test that otherwise passed, and a later test starts with no failed checks.",
+      "source": "docs/guide/test-lifecycle.md#a-test-with-more-than-one-failure",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Check_failures_are_reported_with_their_own_test",
+        "test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Invocation_cleanup_and_check_failures_are_all_kept_in_order"
+      ]
+    },
+    {
+      "id": "LIFE-009",
+      "contract": "A class or assembly scope that fails to dispose is reported as a failed node of its own.",
+      "source": "docs/guide/test-lifecycle.md#a-test-with-more-than-one-failure",
+      "support": "supported",
+      "decision": "CD-05",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.A_class_scope_that_fails_to_dispose_is_reported_as_its_own_node"],
+      "gap": { "size": "xs", "step": 4, "missing": "No case covers the assembly scope." }
+    },
+    {
+      "id": "LIFE-010",
+      "contract": "An attribute constructor that throws fails only the tests of the scope that owns it, and other classes still run.",
+      "source": "docs/guide/test-lifecycle.md#failures-outside-the-test",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.An_attribute_that_throws_fails_only_the_tests_it_belongs_to"]
+    },
+    {
+      "id": "LIFE-011",
+      "contract": "A class or assembly container that fails to build fails each test that uses it with the scope named, and is not built again.",
+      "source": "docs/guide/test-lifecycle.md#failures-outside-the-test",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "s", "step": 4, "missing": "No fixture has a container that fails to build." }
+    },
+    {
+      "id": "LIFE-012",
+      "contract": "When the run is cancelled during setup, the runner disposes what setup created and starts no more tests.",
+      "source": "docs/guide/test-lifecycle.md#failures-outside-the-test",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Cancellation_during_setup_disposes_what_setup_acquired"]
+    },
+    {
+      "id": "LIFE-013",
+      "contract": "Failure or cancellation injected at scope creation, container construction, middleware entry, class construction, parameter resolution, the body, middleware exit or disposal, for each scope level, keeps ownership, cleanup and reporting.",
+      "source": "docs/design/hardening.md#failure-injection-and-ownership",
+      "support": "supported",
+      "decision": "CD-05",
+      "dimensions": ["scope: assembly, class, test", "boundary: each of the eight", "fault: exception, cancellation"],
+      "evidence": [],
+      "gap": { "size": "l", "step": 4, "missing": "No failure-injection fixture. Existing specs cover single hand-picked boundaries." }
+    },
+    {
+      "id": "LIFE-014",
+      "contract": "Each retry attempt runs in a new process with fresh static state, scopes and container, and disposes its own.",
+      "source": "docs/guide/test-lifecycle.md#retries",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Each_retry_attempt_gets_fresh_state_and_its_own_cleanup"]
+    },
+    {
+      "id": "LIFE-015",
+      "contract": "A later test inherits no failed checks, mock state, pending matchers or test context from an earlier one.",
+      "source": "docs/design/hardening.md#failure-injection-and-ownership",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Check_failures_are_reported_with_their_own_test"],
+      "gap": { "size": "s", "step": 4, "missing": "Only failed checks are covered. No test leaves a pending matcher or setup and checks the next test." }
+    },
+    {
+      "id": "RUN-001",
+      "contract": "The runner discovers every registered test.",
+      "source": "docs/guide/getting-started-tests.md#run-the-tests",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Discovers_every_test"]
+    },
+    {
+      "id": "RUN-002",
+      "contract": "The executable, dotnet run and dotnet test run only the tests that --filter-uid selects.",
+      "source": "docs/guide/getting-started-tests.md#run-the-tests",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Runs_only_the_tests_the_uid_filter_selects",
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Dotnet_test_runs_the_tests_the_uid_filter_selects",
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Dotnet_run_runs_the_tests_the_uid_filter_selects"
+      ]
+    },
+    {
+      "id": "RUN-003",
+      "contract": "A run with a failed test exits with 2, and a TRX report records each outcome.",
+      "source": "docs/guide/getting-started-tests.md#write-a-trx-report",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Exits_with_2_when_a_test_fails",
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Reports_each_outcome_in_the_trx_file"
+      ]
+    },
+    {
+      "id": "RUN-004",
+      "contract": "dotnet test without the Microsoft.Testing.Platform runner selected in global.json cannot run a VerificationGlue.Tests project.",
+      "source": "docs/diagnostics/VGT1001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGT1001 build error before the VSTest target runs." },
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Dotnet_test_without_the_runner_setting_reports_VGT1001",
+        "eng/pack-and-consume.sh"
+      ]
+    },
+    {
+      "id": "RUN-005",
+      "contract": "A [VerifyTest] method the runner cannot call is not registered and does not run.",
+      "source": "docs/diagnostics/VGT0004.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGT0004 error naming the reason." },
+      "dimensions": ["reason: each row of the VGT0004 table"],
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_the_runner_cannot_call_reports_VGT0004",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_class_the_runner_cannot_use_reports_VGT0004",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_that_reports_VGT0004_is_not_registered"
+      ],
+      "gap": { "size": "xs", "step": 4, "missing": "No case for a method declared in an interface." }
+    },
+    {
+      "id": "RUN-006",
+      "contract": "Two tests with the same test ID cannot both be registered.",
+      "source": "docs/diagnostics/VGT0001.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGT0001 error on each method that shares the ID." },
+      "evidence": ["test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.Tests_with_the_same_id_report_VGT0001"]
+    },
+    {
+      "id": "RUN-007",
+      "contract": "An attribute that the generated registration cannot write is left out of TestContext.Attributes.",
+      "source": "docs/diagnostics/VGT0006.md",
+      "support": "unsupported",
+      "outcome": { "kind": "diagnostic", "detail": "VGT0006 warns with the reason, and the test runs without the attribute." },
+      "dimensions": ["reason: each row of the VGT0006 table"],
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_attribute_the_registration_cannot_create_reports_VGT0006",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_file_local_attribute_reports_VGT0006"
+      ],
+      "gap": { "size": "xs", "step": 4, "missing": "No case for an inaccessible constructor, an inaccessible named argument or an argument that cannot be written as C#." }
+    },
+    {
+      "id": "RUN-008",
+      "contract": "A public test returning void, Task or ValueTask, static or instance, synchronous or async, is registered and runs, with its attributes in TestContext.",
+      "source": "docs/guide/getting-started-tests.md#write-a-test",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.Runnable_tests_report_nothing",
+        "test/VerificationGlue.Tests.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Registration_for_the_getting_started_sample",
+        "test/VerificationGlue.Tests.Generator.Specs/GeneratedCodeSpecs.cs#GeneratedCodeSpecs.Assembly_attributes_for_the_getting_started_sample",
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Reports_each_outcome_in_the_trx_file"
+      ]
+    },
+    {
+      "id": "PKG-001",
+      "contract": "The packed packages build and run in a consumer project with no setup beyond the package references.",
+      "source": "docs/guide/getting-started-verify.md#install",
+      "support": "supported",
+      "evidence": ["eng/pack-and-consume.sh", "samples/PackageConsumer"]
+    },
+    {
+      "id": "PKG-002",
+      "contract": "Verify, mocks and VerificationGlue.Tests run under Native AOT with trimming warnings as errors.",
+      "source": "docs/guide/run-tests-under-native-aot.md#what-ci-checks",
+      "support": "supported",
+      "constraints": "linux-x64 only.",
+      "evidence": [
+        "eng/pack-and-consume.sh",
+        "samples/VerifyAot",
+        "samples/MocksAot",
+        "samples/PackageConsumer/AotTests.cs#AotTests.Uses_a_mock",
+        "samples/PackageConsumer/AotTests.cs#AotTests.Reports_a_message"
+      ]
+    },
+    {
+      "id": "PKG-003",
+      "contract": "A VerificationGlue version that differs from the one VerificationGlue.Tests was built against fails the build. Build metadata is ignored.",
+      "source": "docs/diagnostics/VGT0007.md",
+      "support": "unsupported",
+      "outcome": { "kind": "refusal", "detail": "VGT0007 build error." },
+      "evidence": [
+        "test/VerificationGlue.Tests.Generator.Specs/VersionMismatchSpecs.cs#VersionMismatchSpecs.Different_VerificationGlue_version_reports_VGT0007",
+        "test/VerificationGlue.Tests.Generator.Specs/VersionMismatchSpecs.cs#VersionMismatchSpecs.Matching_VerificationGlue_version_reports_nothing",
+        "test/VerificationGlue.Tests.Generator.Specs/VersionMismatchSpecs.cs#VersionMismatchSpecs.Build_metadata_is_ignored",
+        "test/VerificationGlue.Tests.Generator.Specs/VersionMismatchSpecs.cs#VersionMismatchSpecs.No_VerificationGlue_reference_reports_nothing",
+        "eng/pack-and-consume.sh"
+      ]
+    },
+    {
+      "id": "PKG-004",
+      "contract": "Each runtime assembly carries the repository version, and the runtimes of VerificationGlue.Tests share one version.",
+      "source": "docs/design/tests.md",
+      "support": "supported",
+      "evidence": [
+        "test/VerificationGlue.Specs/PackageVersionSpecs.cs#PackageVersionSpecs.Runtime_has_the_repository_version",
+        "test/VerificationGlue.Mocks.Specs/PackageVersionSpecs.cs#PackageVersionSpecs.Runtime_has_the_repository_version",
+        "test/VerificationGlue.Tests.Specs/PackageVersionSpecs.cs#PackageVersionSpecs.Runtimes_share_one_version"
+      ]
+    },
+    {
+      "id": "PKG-005",
+      "contract": "The migration guides' after-samples build and pass.",
+      "source": "docs/guide/migrate-from-xunit-assert.md",
+      "support": "supported",
+      "evidence": ["samples/MigrateFromXunitAssert/After", "samples/MigrateFromNSubstitute/After"]
+    },
+    {
+      "id": "PKG-006",
+      "contract": "The packages work on each SDK, framework, OS and architecture in the supported matrix.",
+      "source": "docs/design/hardening.md#framework-and-package-consumers",
+      "support": "supported",
+      "constraints": "CI runs ubuntu-latest x64 with SDK 10.0.403 and net10.0 only.",
+      "evidence": ["eng/pack-and-consume.sh"],
+      "gap": { "size": "m", "step": 5, "missing": "Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run." }
+    },
+    {
+      "id": "MIX-001",
+      "contract": "An awaited mock result inside a rewritten assertion with short-circuiting is called once, and skipped branches stay skipped.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "s", "step": 5, "missing": "No test combines the three factors." }
+    },
+    {
+      "id": "MIX-002",
+      "contract": "A constructor mock, a container-created SUT and a test parameter of the same type share identity as the resolution contract says.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": ["samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock"],
+      "gap": { "size": "xs", "step": 5, "missing": "The sample covers class scope only. No case at test or assembly scope." }
+    },
+    {
+      "id": "MIX-003",
+      "contract": "A failed Check, a throwing body and several cleanup failures all survive reporting, and cleanup completes.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Invocation_cleanup_and_check_failures_are_all_kept_in_order"]
+    },
+    {
+      "id": "MIX-004",
+      "contract": "A recursive generic async member set up in mixed styles keeps setup, returned identity and received calls consistent.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "s", "step": 5, "missing": "No test combines the factors." }
+    },
+    {
+      "id": "MIX-005",
+      "contract": "A child task, a pending verification and a background invocation follow the context isolation and recording rules together.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": [],
+      "gap": { "size": "m", "step": 5, "missing": "Needs the controlled scheduling from step 3." }
+    },
+    {
+      "id": "MIX-006",
+      "contract": "A packed consumer with rewriting and Native AOT generates and runs in the supported configuration.",
+      "source": "docs/design/hardening.md#interaction-coverage",
+      "support": "supported",
+      "evidence": ["eng/pack-and-consume.sh", "samples/PackageConsumer/AotTests.cs#AotTests.Reports_a_message"],
+      "gap": { "size": "xs", "step": 5, "missing": "PackageConsumer does not turn tier 3 rewriting on, so the AOT run does not check a captured-value message." }
+    }
+  ]
+}
