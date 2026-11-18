@@ -39,7 +39,7 @@ The production site should retain the existing snippet, link, diagnostic, and st
 
 The preview uses VitePress, which is built on Vite. Its base path is `/VerificationGlue/`, matching the repository's GitHub Pages path. Each guide builds to an HTML file so direct links do not depend on a server fallback.
 
-A proposed workflow is saved in `spikes/docs-site/github-pages.yml.example`. When this direction is approved, place it in `.github/workflows/`, select GitHub Actions as the Pages source, and publish the generated output. The workflow is inactive in this mockup.
+The `.github/workflows/docs-pages.yml` workflow builds the site and deploys it to GitHub Pages on each push to `main` that changes the docs.
 
 See the [VitePress deployment guide](https://vitepress.dev/guide/deploy) for the hosting configuration and the [search reference](https://vitepress.dev/reference/default-theme-search) for the browser search index used here.
 

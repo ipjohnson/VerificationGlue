@@ -1,3 +1,5 @@
+![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup.png)
+
 # VerificationGlue.Tests.AspNetCore
 
 Starts an ASP.NET Core app for each `VerificationGlue.Tests` test. The test takes an `HttpClient` as a parameter, and its `[Mock]` parameters are registered in the app.

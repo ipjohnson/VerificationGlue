@@ -5,6 +5,7 @@
     <IsAotCompatible>true</IsAotCompatible>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Source-generated mocks with NSubstitute-style setup that work under Native AOT.</Description>
+    <PackageTags>testing mocking mocks aot source-generator</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />

@@ -1,3 +1,5 @@
+![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup.png)
+
 # VerificationGlue
 
 Checks for .NET tests whose failure messages name the file, the line and the shape of the condition, and with tier 3 on, the value of each part. They work under xunit, NUnit, MSTest, TUnit and plain application code, and give the same message under Native AOT.

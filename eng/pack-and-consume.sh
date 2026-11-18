@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Packs the four packages into a local feed and checks them as a user would see them:
-#   1. the package layout, one version for all four, and exact dependencies from VerificationGlue.Tests
-#      and VerificationGlue.Tests.AspNetCore;
+#   1. the package layout, one version for all four, the license, author, icon and tags in each nuspec,
+#      and exact dependencies from VerificationGlue.Tests and VerificationGlue.Tests.AspNetCore;
 #   2. samples/PackageConsumer, a test project that references VerificationGlue.Tests, builds, runs and
 #      publishes under Native AOT with warnings as errors without the global.json runner setting. dotnet test
 #      fails with VGT1001 without the setting and runs the tests with it. The Native AOT binary runs every
@@ -64,6 +64,15 @@ expect_entry VerificationGlue.Tests.AspNetCore "lib/net10.0/VerificationGlue.Tes
 expect_entry VerificationGlue.Tests.AspNetCore "analyzers/dotnet/cs/VerificationGlue.Tests.AspNetCore.Generator.dll"
 expect_entry VerificationGlue.Tests.AspNetCore "README.md"
 expect_entry VerificationGlue.Tests.AspNetCore "llms.txt"
+
+for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore; do
+  expect_entry "$package" "icon.png"
+  nuspec="$(unzip -p "$feed/$package.$version.nupkg" "$package.nuspec")"
+  for element in '<license type="expression">MIT</license>' '<icon>icon.png</icon>' '<readme>README.md</readme>' \
+                 '<authors>Ian Johnson</authors>' '<tags>'; do
+    echo "$nuspec" | grep -F "$element" > /dev/null || fail "the nuspec of $package has no $element"
+  done
+done
 
 expect_dependency() {
   local nuspec
