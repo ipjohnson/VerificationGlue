@@ -29,11 +29,9 @@ The build writes `.vitepress/dist`. Source Markdown is copied from `docs/` into 
 
 The root README introduces the packages and links to this preview. It retains the existing sample snippets and build and harness details. The guides under `docs/` are unchanged. The earlier README proposal is kept as a design reference.
 
-## Hosting proposal
+## Hosting
 
-`github-pages.yml.example` is an inactive workflow for review. It builds from this directory and uploads `.vitepress/dist`. Its Pages environment and permissions follow the [VitePress deployment guide](https://vitepress.dev/guide/deploy).
-
-To adopt it, copy it into `.github/workflows/docs-pages.yml`, select GitHub Actions in repository Pages settings, and run the workflow. The configured target is `https://ipjohnson.github.io/VerificationGlue/`. Nothing has been published by this preview.
+The site is published at `https://ipjohnson.github.io/VerificationGlue/`. [`.github/workflows/docs-pages.yml`](../../.github/workflows/docs-pages.yml) builds this directory and deploys `.vitepress/dist` to GitHub Pages. It runs on a push to `main` that changes `docs/`, this directory or the root README, and it can be run by hand from the Actions tab. The repository's Pages source is GitHub Actions. The Pages environment and permissions follow the [VitePress deployment guide](https://vitepress.dev/guide/deploy).
 
 ## Screenshots and validation
 

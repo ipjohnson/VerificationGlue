@@ -142,7 +142,7 @@ public partial class CartTests
 
 ## Explore the documentation site
 
-The [VitePress site preview](spikes/docs-site/README.md) brings the guides and diagnostic pages together with search, package navigation, and runnable sample code. [View the homepage mockup](spikes/docs-site/mockups/home-desktop.png) or run it locally:
+The documentation site at `https://ipjohnson.github.io/VerificationGlue/` brings the guides and diagnostic pages together with search, package navigation, and runnable sample code. Its source is in [`spikes/docs-site`](spikes/docs-site/README.md). To run it locally:
 
 ```sh
 cd spikes/docs-site
@@ -150,7 +150,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173/VerificationGlue/`. The planned public address is `https://ipjohnson.github.io/VerificationGlue/`; publication is pending. The preview includes the GitHub Pages workflow example and setup instructions.
+Open `http://localhost:5173/VerificationGlue/`. The `docs-pages.yml` workflow publishes the site when a change to `docs/`, `spikes/docs-site/` or this README reaches `main`.
 
 ## Build and contribute
 
