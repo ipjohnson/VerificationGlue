@@ -27,13 +27,13 @@ public class ValidatorSpecs
 
     private readonly InventoryValidator validator = new(RepositoryRoot.Path);
 
-    [Fact]
+    [VerifyTest]
     public void A_valid_inventory_has_no_problems()
     {
         Assert.Empty(validator.Validate(Valid));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_Scenario_ID_with_an_unknown_area_is_rejected()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Id = "ASSERT-001" }] });
@@ -41,7 +41,7 @@ public class ValidatorSpecs
         Assert.Equal(["ASSERT-001: the Scenario ID names the unknown area ASSERT"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_Scenario_ID_that_is_not_of_the_form_AREA_000_is_rejected()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Id = "VERIFY-1" }] });
@@ -49,7 +49,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-1: the Scenario ID is not of the form AREA-000"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_Scenario_ID_used_twice_is_rejected()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported, Supported] });
@@ -57,7 +57,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-001: the Scenario ID is used more than once"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_decision_that_names_an_unknown_Scenario_ID_is_rejected()
     {
         var decision = new Decision { Id = "DEC-01", Question = "q", ProposedOwner = "the user", Approved = false, Scenarios = ["VERIFY-002"] };
@@ -67,15 +67,15 @@ public class ValidatorSpecs
         Assert.Equal(["DEC-01: the decision names the unknown Scenario ID VERIFY-002"], problems);
     }
 
-    [Theory]
-    [InlineData("test/Inventory.Specs/Missing.cs#ValidatorSpecs.Any", "the file test/Inventory.Specs/Missing.cs does not exist")]
-    [InlineData(ThisFile + "#MissingSpecs.Any", ThisFile + " declares no type MissingSpecs")]
-    [InlineData(ThisFile + "#ValidatorSpecs.No_such_test", "ValidatorSpecs in " + ThisFile + " has no method No_such_test")]
-    [InlineData(ThisFile + "#ValidatorSpecs.NotATest", "ValidatorSpecs.NotATest in " + ThisFile + " has no test attribute")]
-    [InlineData(ThisFile + "#NoDot", "'NoDot' is not of the form Type.Method")]
-    [InlineData("samples/NoSuchSample", "samples/NoSuchSample does not exist")]
-    [InlineData("docs", "the directory docs holds no project")]
-    [InlineData("../outside.cs#A.B", "'../outside.cs' is not a path relative to the repository root")]
+    [VerifyTest]
+    [Row("test/Inventory.Specs/Missing.cs#ValidatorSpecs.Any", "the file test/Inventory.Specs/Missing.cs does not exist")]
+    [Row(ThisFile + "#MissingSpecs.Any", ThisFile + " declares no type MissingSpecs")]
+    [Row(ThisFile + "#ValidatorSpecs.No_such_test", "ValidatorSpecs in " + ThisFile + " has no method No_such_test")]
+    [Row(ThisFile + "#ValidatorSpecs.NotATest", "ValidatorSpecs.NotATest in " + ThisFile + " has no test attribute")]
+    [Row(ThisFile + "#NoDot", "'NoDot' is not of the form Type.Method")]
+    [Row("samples/NoSuchSample", "samples/NoSuchSample does not exist")]
+    [Row("docs", "the directory docs holds no project")]
+    [Row("../outside.cs#A.B", "'../outside.cs' is not a path relative to the repository root")]
     public void A_test_reference_that_does_not_exist_is_rejected(string reference, string problem)
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Evidence = [reference] }] });
@@ -83,16 +83,16 @@ public class ValidatorSpecs
         Assert.Equal([$"VERIFY-001: evidence '{reference}': {problem}"], problems);
     }
 
-    [Theory]
-    [InlineData(ThisFile + "#ValidatorSpecs.Nested.A_nested_test")]
-    [InlineData("samples/VerifyInXunit")]
-    [InlineData("eng/pack-and-consume.sh")]
+    [VerifyTest]
+    [Row(ThisFile + "#ValidatorSpecs.Nested.A_nested_test")]
+    [Row("samples/VerifyInXunit")]
+    [Row("eng/pack-and-consume.sh")]
     public void References_to_nested_tests_projects_and_files_are_accepted(string reference)
     {
         Assert.Empty(validator.Validate(Valid with { Scenarios = [Supported with { Evidence = [reference] }] }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_entry_marked_as_an_explicit_gap_is_accepted()
     {
         var gap = Supported with { Evidence = [], Gap = new Gap { Size = "m", Step = 2, Missing = "No test checks it." } };
@@ -100,7 +100,7 @@ public class ValidatorSpecs
         Assert.Empty(validator.Validate(Valid with { Scenarios = [gap] }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_entry_with_no_evidence_and_no_gap_is_rejected()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Evidence = [] }] });
@@ -108,7 +108,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-001: the entry has no evidence and is not marked as an explicit gap"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_gap_needs_a_known_size_and_a_step_from_2_to_5()
     {
         var gap = Supported with { Gap = new Gap { Size = "huge", Step = 1, Missing = "x" } };
@@ -123,7 +123,7 @@ public class ValidatorSpecs
             problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_supported_gap_fails_once_gaps_are_no_longer_allowed()
     {
         var gap = Supported with { Evidence = [], Gap = new Gap { Size = "s", Step = 4, Missing = "x" } };
@@ -133,7 +133,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-001: a supported entry has a gap, and the inventory no longer allows gaps"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_unsupported_entry_needs_its_expected_outcome()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Support = "unsupported" }] });
@@ -141,7 +141,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-001: an unsupported entry needs its expected refusal, diagnostic or fallback in outcome"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_unsupported_entry_with_an_outcome_is_accepted()
     {
         var unsupported = Supported with
@@ -153,7 +153,7 @@ public class ValidatorSpecs
         Assert.Empty(validator.Validate(Valid with { Scenarios = [unsupported] }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_source_anchor_with_no_heading_is_rejected()
     {
         var problems = validator.Validate(Valid with { Scenarios = [Supported with { Source = "docs/guide/check.md#no-such-heading" }] });
@@ -161,7 +161,7 @@ public class ValidatorSpecs
         Assert.Equal(["VERIFY-001: source: docs/guide/check.md has no heading with the anchor #no-such-heading"], problems);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_verification_status_in_an_entry_fails_to_load()
     {
         const string json = """
@@ -181,7 +181,7 @@ public class ValidatorSpecs
         Assert.Contains("verification", failure.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_gap_list_must_match_the_inventory_gaps()
     {
         var gap = Supported with { Evidence = [], Gap = new Gap { Size = "m", Step = 2, Missing = "x" } };
@@ -216,7 +216,7 @@ public class ValidatorSpecs
 
     public class Nested
     {
-        [Fact]
+        [VerifyTest]
         public void A_nested_test()
         {
         }
