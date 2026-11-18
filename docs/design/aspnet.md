@@ -308,7 +308,7 @@ Needs: Phase 1.
 - [x] `[Kestrel]`. `KestrelSpecs`.
 - [x] Tests for an app that passes `args` to its builder and one that does not. `NoArgsApp` in `test/VerificationGlue.Tests.AspNetCore.Apps`.
 - [x] Class and assembly scope, with a child per test. `SharedAppSpecs`.
-- [ ] VGA0003.
+- [x] VGA0003, from `ConfigurationAnalyzer`. `ConfigurationAnalyzerSpecs`.
 - [x] The guide "Configure the app for a test", `docs/guide/configure-the-app-for-a-test.md`.
 - [x] The guides "Share an app across a class" and "Test an app on a real port", `docs/guide/share-an-app-across-a-class.md` and `docs/guide/test-an-app-on-a-real-port.md`.
 - [ ] Pages: `docs/diagnostics/VGA0003.md` and the migration guide from `WebApplicationFactory`.

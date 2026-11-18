@@ -115,7 +115,7 @@ public partial class SharedClockTests
 
 Move such a test to a class whose `[WebApp<TEntry>]` has the default scope.
 
-A configuration attribute on a test method does not reach a shared app. The app has started before the test, so `[AppSetting]`, `[AppEnvironment]`, `[Kestrel]` and `[WatchAppConfiguration]` go on the class or the assembly.
+A configuration attribute on a test method does not reach a shared app. The app has started before the test, so `[AppSetting]`, `[AppEnvironment]`, `[Kestrel]` and `[WatchAppConfiguration]` go on the class or the assembly. On a test method they fail the build with [VGA0003](../diagnostics/VGA0003.md).
 
 Under `[Kestrel]`, what a shared app logs while it serves a request is not in any test's output. Kestrel runs the request without the test's execution context.
 
