@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 built, waiting for the gate approval. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. The generated campaigns and completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. The generated campaigns and completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -235,12 +235,12 @@ Review surviving mutations. They may expose missing assertions or an equivalent 
 
 Pull request cases from this exercise run in their own CI job, separate from the existing build and test jobs.
 
-The pull request budget is not fixed yet. The review proposed two limits, and they disagree:
+The review proposed two limits for the pull request budget:
 
 - A separate job that finishes within 10 minutes.
 - At most five minutes added to the pull request critical path.
 
-Step 1 measures the initial harnesses and proposes case counts and a time budget against those measurements. The user settles the budget at the step 1 gate. The settled limits are recorded in configuration.
+Step 1 measured the existing suites, and the user settled the budget at the step 1 gate. [Measured run time and CI budget](#measured-run-time-and-ci-budget) has the settled limits. The settled limits are recorded in configuration.
 
 A run that exceeds its budget reports the overrun. It does not drop a required check to fit. A timed-out or truncated campaign reports incomplete coverage rather than success for its intended case budget.
 
@@ -300,7 +300,7 @@ The approval covers each of the following parts.
 
 ### Contract decisions
 
-Each decision settles an observable behavior that no guide or design states. Its entries report as unverified until the decision is approved. The proposed owner is the component design that records the answer. The user approves it.
+Each decision settles an observable behavior that no guide or design states. Its entries report as unverified until the decision is approved. The proposed owner is the component design that records the answer. The user approved all ten answers at the gate, and each owner design records its answer when the step that tests it starts.
 
 | ID | Decision | Proposed owner | Scenarios | Proposed answer |
 |---|---|---|---|---|
@@ -352,7 +352,7 @@ The five most recent green CI runs on `main`, on `ubuntu-latest`, took these tim
 
 On the development machine, an Apple M3 Pro with 11 cores, `dotnet test --solution VerificationGlue.slnx -c Release --no-build` ran 457 tests in 9.5 s of wall time. The slowest projects were `VerificationGlue.Tests.Specs` at 8.6 s, which starts fixture processes, and `VerificationGlue.Tests.Generator.Specs` at 5.3 s. `Inventory.Specs`, which checks the inventory, took 0.5 s alone and 1.9 s in the parallel run.
 
-The two limits from the review do not conflict on today's CI. A separate `hardening` job runs beside `cold-build`, which never took less than 10.6 minutes. A job that finishes within 10 minutes therefore adds nothing to the critical path. The proposal:
+The two limits from the review do not conflict on today's CI. A separate `hardening` job runs beside `cold-build`, which never took less than 10.6 minutes. A job that finishes within 10 minutes therefore adds nothing to the critical path. The approved budget:
 
 - A separate `hardening` job with `timeout-minutes: 10`.
 - A pull request case budget of 5 minutes inside it, which leaves room for checkout, SDK setup and the build. Step 2 gets 2 minutes, step 3 gets 2 minutes and step 4 gets 1 minute.
@@ -430,7 +430,13 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 
 ### Gate approval
 
-Not approved yet.
+The user approved the step 1 gate on 2026-11-17, with every part as proposed:
+
+- The inventory at baseline `b28d1d6fcc103afd8687b9d860ef16ee77c9a0fd`, the gap list and the non-goals.
+- Contract decisions `CD-01` to `CD-10`, with their proposed owners and answers. The inventory marks each one approved.
+- The order: steps 2 and 4 in parallel, then step 3 after step 2 merges.
+- The CI budget: a separate `hardening` job with `timeout-minutes: 10`, and a 5-minute case budget split 2, 2 and 1 minutes across steps 2, 3 and 4.
+- The matrix: Linux x64 as the release guarantee, with macOS arm64 and Windows x64 in the release candidate matrix from step 5.
 
 ## Completion criteria
 

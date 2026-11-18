@@ -20,70 +20,70 @@
       "id": "CD-01",
       "question": "What a failure message shows, and which exception surfaces, when formatting a captured value or an interpolated message hole throws or changes state.",
       "proposedOwner": "verification-glue.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["VERIFY-013", "VERIFY-014"]
     },
     {
       "id": "CD-02",
       "question": "Which setup wins when typed and NSubstitute-style setups, or overlapping matchers, configure the same call.",
       "proposedOwner": "mocks.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["MOCK-008"]
     },
     {
       "id": "CD-03",
       "question": "Which argument equality decides recursive mock identity, what a recursive member returns after its parent is reconfigured, and whether the default returned at the depth limit is a contract tests may rely on.",
       "proposedOwner": "mocks.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["MOCK-045", "MOCK-048"]
     },
     {
       "id": "CD-04",
       "question": "Which orderings of pending setups, matchers and checks are legal across awaits, child tasks and parallel calls.",
       "proposedOwner": "mocks.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["MOCK-038", "MOCK-039", "MOCK-040", "MOCK-041"]
     },
     {
       "id": "CD-05",
       "question": "The order of failures when a scope listener, a class scope or the assembly scope fails during cleanup, and when cancellation arrives during cleanup.",
       "proposedOwner": "tests.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["LIFE-007", "LIFE-009", "LIFE-013"]
     },
     {
       "id": "CD-06",
       "question": "Whether the scope's exception keeps the exception the test threw, which check.md says it replaces outside VerificationGlue.Tests.",
       "proposedOwner": "verification-glue.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["SCOPE-006"]
     },
     {
       "id": "CD-07",
       "question": "How a scope collects Check failures from child tasks that run in parallel, and in what order it reports them.",
       "proposedOwner": "verification-glue.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["SCOPE-007"]
     },
     {
       "id": "CD-08",
       "question": "What a test reports when a parameter provider or the container throws while resolving a parameter.",
       "proposedOwner": "tests.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["PARAM-004"]
     },
     {
       "id": "CD-09",
       "question": "What happens when an Arg.Is predicate throws, and the state of the next mock operation after any misuse failure.",
       "proposedOwner": "mocks.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["MOCK-023", "MOCK-042"]
     },
     {
       "id": "CD-10",
       "question": "Whether a type nested in a generic type whose type arguments come from an extern-aliased assembly gets a VGM0001 refusal or is supported.",
       "proposedOwner": "mocks.md",
-      "approved": false,
+      "approved": true,
       "scenarios": ["SHAPE-010"]
     }
   ],
