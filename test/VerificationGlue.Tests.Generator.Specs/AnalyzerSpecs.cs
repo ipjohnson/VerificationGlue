@@ -229,6 +229,46 @@ public class AnalyzerSpecs
     }
 
     [Fact]
+    public async Task Whole_numbers_given_for_decimal_nint_and_nuint_parameters_report_nothing()
+    {
+        var diagnostics = await Analyze("""
+            using VerificationGlue.Tests;
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                [Row(2, 10)]
+                [Row(2, 10UL, 'a', 7, 7U)]
+                public void Totals(int qty, decimal price, decimal? tax = null, nint offset = 0, nuint size = 0) { }
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("[Row(2.5)]", "decimal", "gives 2.5 (double) for the parameter 'value' of type decimal")]
+    [InlineData("[Row(2L)]", "nint", "gives 2 (long) for the parameter 'value' of type nint")]
+    [InlineData("[Row(-1)]", "nuint", "gives -1 (int) for the parameter 'value' of type nuint")]
+    public async Task A_value_with_no_implicit_conversion_to_decimal_nint_or_nuint_reports_VGT0002(string row, string type, string reason)
+    {
+        var diagnostics = await Analyze($$"""
+            using VerificationGlue.Tests;
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                {{row}}
+                public void Totals({{type}} value) { }
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0002", diagnostic.Id);
+        Assert.Equal($"The [Row] on 'Totals' {reason}, so the row is not registered", diagnostic.GetMessage());
+    }
+
+    [Fact]
     public async Task A_row_value_the_registration_cannot_write_reports_VGT0002_and_not_VGT0006()
     {
         var diagnostics = await Analyze("""

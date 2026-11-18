@@ -97,7 +97,7 @@ internal static class RowReader
             if (Numeric(constant, underlying) is { } converted)
             {
                 keys.Add(TestDiscovery.TypeName(underlying) + ":" + Canonical(converted));
-                arguments.Add("(object?)(" + AttributeMaterializer.Primitive(converted, underlying.SpecialType) + ")");
+                arguments.Add("(object?)(" + Literal(converted, underlying.SpecialType) + ")");
                 continue;
             }
 
@@ -122,16 +122,27 @@ internal static class RowReader
     /// <summary>
     /// A number or character converted to the numeric <paramref name="target"/>, when C# converts the
     /// constant implicitly: a widening conversion, or an <c>int</c> that fits a smaller integer type.
-    /// Null for anything else.
+    /// A <c>decimal</c> is returned as a <see cref="decimal"/>, an <c>nint</c> as a <see cref="long"/> and an
+    /// <c>nuint</c> as a <see cref="ulong"/>. Null for anything else.
     /// </summary>
     private static object? Numeric(TypedConstant constant, ITypeSymbol target)
     {
-        if (constant.Kind != TypedConstantKind.Primitive || constant.Type is not { } source || !IsNumeric(source.SpecialType) || !IsNumeric(target.SpecialType))
+        if (constant.Kind != TypedConstantKind.Primitive || constant.Type is not { } source || !IsNumeric(source.SpecialType))
         {
             return null;
         }
 
         var value = constant.Value!;
+        if (target.SpecialType is SpecialType.System_Decimal or SpecialType.System_IntPtr or SpecialType.System_UIntPtr)
+        {
+            return Native(source.SpecialType, value, target.SpecialType);
+        }
+
+        if (!IsNumeric(target.SpecialType))
+        {
+            return null;
+        }
+
         if (source.SpecialType == target.SpecialType)
         {
             return value;
@@ -171,6 +182,37 @@ internal static class RowReader
 
         return widening ? Convert.ChangeType(value, ClrType(target.SpecialType), CultureInfo.InvariantCulture) : null;
     }
+
+    private static object? Native(SpecialType source, object value, SpecialType target)
+    {
+        if (source is SpecialType.System_Single or SpecialType.System_Double)
+        {
+            return null;
+        }
+
+        if (source == SpecialType.System_Char)
+        {
+            value = (int)(char)value;
+        }
+
+        return target switch
+        {
+            SpecialType.System_Decimal => Convert.ToDecimal(value, CultureInfo.InvariantCulture),
+            SpecialType.System_IntPtr when source is SpecialType.System_SByte or SpecialType.System_Byte or SpecialType.System_Int16 or SpecialType.System_UInt16 or SpecialType.System_Int32 or SpecialType.System_Char =>
+                Convert.ToInt64(value, CultureInfo.InvariantCulture),
+            SpecialType.System_UIntPtr when source is SpecialType.System_Byte or SpecialType.System_UInt16 or SpecialType.System_UInt32 or SpecialType.System_Char || (source == SpecialType.System_Int32 && (int)value >= 0) =>
+                Convert.ToUInt64(value, CultureInfo.InvariantCulture),
+            _ => null,
+        };
+    }
+
+    private static string Literal(object value, SpecialType type) => type switch
+    {
+        SpecialType.System_Decimal => Canonical(value) + "m",
+        SpecialType.System_IntPtr => "(nint)(" + Canonical(value) + ")",
+        SpecialType.System_UIntPtr => "(nuint)" + Canonical(value),
+        _ => AttributeMaterializer.Primitive(value, type)!,
+    };
 
     private static bool IsNumeric(SpecialType type) => type is
         SpecialType.System_SByte or SpecialType.System_Byte or SpecialType.System_Int16 or SpecialType.System_UInt16 or

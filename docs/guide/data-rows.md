@@ -51,7 +51,7 @@ The display name lists only the values from the row: `Discounts(code: "SAVE10", 
 
 A value must convert to its parameter type the way C# converts it without a cast. An `int` value fits a `long` or `double` parameter, and an `int` that is in range fits a `byte` or `short` parameter. `null` fits a reference type or a nullable value type. A value that does not fit, or a row with more values than the method has parameters, fails the build with [VGT0002](../diagnostics/VGT0002.md).
 
-Attribute arguments cannot be `decimal`. Use `double` or `string` in the row and convert it in the test.
+Attribute arguments cannot be `decimal`, but a whole number fits a `decimal` parameter: `[Row(2, 10)]` gives `price` the value `10m` in `Totals(int qty, decimal price)`. For a fraction, pass a `string` and parse it in the test. A `double` value does not fit a `decimal` parameter, because C# needs a cast for that conversion.
 
 ## Test IDs
 

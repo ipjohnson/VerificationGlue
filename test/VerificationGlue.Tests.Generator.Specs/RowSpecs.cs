@@ -70,6 +70,38 @@ public class RowSpecs
     }
 
     [Fact]
+    public async Task Whole_numbers_and_chars_are_converted_to_decimal_nint_and_nuint_parameters()
+    {
+        var tests = Registrations.Load("""
+            using VerificationGlue.Tests;
+            using static VerificationGlue.VerifySyntax;
+
+            namespace Shop;
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                [Row(2, 10, 'a', -3, 4U)]
+                [Row(2, 10L, null, (short)-3, 4)]
+                public void Totals(int qty, decimal price, decimal? tax, nint offset, nuint size) =>
+                    Verify(qty * price == 20m && (tax is null || tax == 97m) && offset == -3 && size == 4);
+            }
+            """, rewrite: false, new TestGenerator());
+
+        const string Method = "Shop.OrderTests.Totals(System.Int32,System.Decimal,System.Nullable<System.Decimal>,System.IntPtr,System.UIntPtr)";
+        Assert.Equal(
+            [
+                Method + "#row(System.Int32:2,System.Decimal:10,System.Decimal:97,System.IntPtr:-3,System.UIntPtr:4)",
+                Method + "#row(System.Int32:2,System.Decimal:10,null,System.IntPtr:-3,System.UIntPtr:4)",
+            ],
+            tests.Keys);
+        foreach (var test in tests.Values)
+        {
+            Assert.Empty(await test());
+        }
+    }
+
+    [Fact]
     public void The_default_name_lists_each_row_value_with_its_parameter_name()
     {
         var names = Registrations.Names("""
