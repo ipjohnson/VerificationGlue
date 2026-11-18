@@ -1,0 +1,24 @@
+# The workflow in docs/guide/ci-setup-with-trx-and-retries.md. test/VerificationGlue.Tests.Specs runs its
+# dotnet test command on samples/TestsCi, with that project and a temporary results directory in place
+# of the ones below.
+# begin-snippet: tests-ci-workflow
+name: tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test
+        run: dotnet test --project tests/Shop.Tests -c Release --report-trx --results-directory TestResults --retry-failed-tests 2 --vg-filter "!trait:Category=Manual"
+      - name: Upload the TRX reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+# end-snippet

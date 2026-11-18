@@ -29,6 +29,7 @@
     <Project Path="samples/Shop/Shop.csproj" />
     <Project Path="samples/ShopApi/ShopApi.csproj" />
     <Project Path="samples/TestsAspNetCore/TestsAspNetCore.csproj" />
+    <Project Path="samples/TestsCi/TestsCi.csproj" />
     <Project Path="samples/TestsContainers/TestsContainers.csproj" />
     <Project Path="samples/TestsDataRows/TestsDataRows.csproj" />
     <Project Path="samples/TestsGettingStarted/TestsGettingStarted.csproj" />

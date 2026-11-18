@@ -170,3 +170,4 @@ To write other names, add an `ITestNameFormatter` with `[NameFormatter<T>]`. [Ex
 - [Parameters and where they come from](test-parameters.md)
 - [Extending VerificationGlue.Tests](extending.md)
 - [Containers and scopes](containers-and-scopes.md)
+- [CI setup with TRX and retries](ci-setup-with-trx-and-retries.md)
