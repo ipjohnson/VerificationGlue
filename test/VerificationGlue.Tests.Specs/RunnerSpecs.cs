@@ -32,6 +32,16 @@ public class RunnerSpecs
         "Service_without_a_mock_gets_the_registered_clock",
         "Starts_with_no_failed_checks",
         "Writes_its_output_in_order",
+        "Database_first",
+        "Database_second",
+        "Database_third",
+        "Database_fourth",
+        "Report_first",
+        "Report_second",
+        "Refunds_through_the_sandbox",
+        "Charges_through_the_sandbox",
+        "Meets_its_partner_first",
+        "Meets_its_partner_second",
     ];
 
     /// <summary>The node the runner publishes when the class container of FailingClassDisposalTests fails to dispose.</summary>
