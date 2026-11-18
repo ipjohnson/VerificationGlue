@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Hosting;
 using ShopApi;
 using VerificationGlue.Tests;
@@ -35,6 +36,19 @@ public partial class MaxQuantityTests
     }
 }
 #endregion
+
+[WebApp<ShopApiEntry>]
+public partial class AppSettingsFileTests
+{
+    [VerifyTest]
+    public void The_app_reads_its_appsettings_json(IConfiguration configuration)
+    {
+        var file = ((IConfigurationRoot)configuration).Providers.OfType<JsonConfigurationProvider>()
+            .First(provider => provider.Source.Path == "appsettings.json");
+
+        Verify(file.TryGet("Orders:MaxQuantity", out var maxQuantity) && maxQuantity == "10");
+    }
+}
 
 #region app-environment
 [WebApp<ShopApiEntry>]

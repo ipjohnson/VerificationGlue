@@ -69,7 +69,9 @@ internal static class Fixture
         try
         {
             var executable = Path.Combine(output, OperatingSystem.IsWindows() ? Executable + ".exe" : Executable);
-            var run = Process(executable, output, "--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", results.FullName);
+            // The results directory is the current directory, so a test that passes reads appsettings.json
+            // from the content root the bootstrap passes, not from the current directory.
+            var run = Process(executable, results.FullName, "--report-trx", "--report-trx-filename", "fixture.trx", "--results-directory", results.FullName);
             Assert.True(run.ExitCode == 2, run.Output);
 
             XNamespace trx = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
