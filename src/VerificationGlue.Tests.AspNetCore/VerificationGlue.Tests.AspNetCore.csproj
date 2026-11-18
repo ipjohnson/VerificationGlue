@@ -6,6 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Starts an ASP.NET Core app on TestServer for each VerificationGlue.Tests test, with the test's mocks in the app.</Description>
+    <PackageTags>testing aspnetcore integration-testing testserver aot</PackageTags>
     <!-- Microsoft.Testing.Platform comes in through VerificationGlue.Tests. This library is not a test application. -->
     <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>

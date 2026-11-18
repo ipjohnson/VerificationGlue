@@ -1,4 +1,11 @@
-# VerificationGlue
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/lockup-dark.svg">
+    <img src="assets/logo/lockup.svg" alt="VerificationGlue" width="286" height="64">
+  </picture>
+</h1>
+
+[![CI](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml)
 
 **Clear expectations. Readable failures.**
 
@@ -186,3 +193,7 @@ The samples under `samples/VerifyIn*` and `samples/MocksIn*` are test projects i
 </details>
 
 `eng/check-docs.sh` checks sample snippets, links, and writing style. See [Writing docs](docs/writing-docs.md) to contribute a guide or diagnostic page.
+
+## License
+
+VerificationGlue is licensed under the [MIT license](LICENSE).

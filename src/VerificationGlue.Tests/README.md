@@ -1,3 +1,5 @@
+![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup.png)
+
 # VerificationGlue.Tests
 
 A test framework on Microsoft.Testing.Platform (MTP). A method marked `[VerifyTest]` is a test. The generator registers each test at build time, so discovery does no scanning and the test project publishes with Native AOT. The package builds against the MTP 3 preview and ships as a preview.

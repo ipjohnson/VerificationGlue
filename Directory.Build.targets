@@ -9,6 +9,14 @@
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AddGeneratorsToPackage</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)assets/logo/icon-128.png" Pack="true" PackagePath="icon.png" Visible="false" />
+  </ItemGroup>
+
   <Target Name="AddGeneratorsToPackage">
     <MSBuild Projects="@(ProjectReference->WithMetadataValue('PackAsAnalyzer', 'true'))"
              Targets="GetTargetPath"

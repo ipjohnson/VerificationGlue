@@ -6,6 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>A test framework on Microsoft.Testing.Platform with generated discovery and per-test containers.</Description>
+    <PackageTags>testing test-framework microsoft-testing-platform aot source-generator</PackageTags>
     <!-- Microsoft.Testing.Platform's targets make every project that references it a test application. This one is the framework. -->
     <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>

@@ -41,7 +41,11 @@ if [ $changed -ne 0 ]; then
 fi
 
 echo "== Links"
-lychee --no-progress --root-dir "$root" --include-fragments ${lychee_args[@]+"${lychee_args[@]}"} "${markdown[@]}"
+# The package READMEs show images by their raw URL on main, because nuget.org does not resolve relative
+# paths. Those URLs are checked against the files in this checkout, so a branch that adds an image passes.
+lychee --no-progress --root-dir "$root" --include-fragments \
+  --remap "^https://raw\.githubusercontent\.com/ipjohnson/VerificationGlue/main/(.*)\$ file://$root/\$1" \
+  ${lychee_args[@]+"${lychee_args[@]}"} "${markdown[@]}"
 
 echo "== Style"
 vale "${markdown[@]}"
