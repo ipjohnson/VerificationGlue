@@ -20,7 +20,7 @@ public class WebAppSpecs
             Assert.DoesNotContain("UnsafeAccessor", source);
             Assert.DoesNotContain("IWebAppEntry", source);
         });
-        Assert.Equal(11, sources.Sum(source => source.Split("[WebAppEntry(\"").Length - 1));
+        Assert.Equal(12, sources.Sum(source => source.Split("[WebAppEntry(\"").Length - 1));
     }
 
     private const string Started = "FixtureShop started in ";
@@ -158,8 +158,8 @@ public class WebAppSpecs
     [Fact]
     public void The_other_tests_run_after_an_app_fails_to_start()
     {
-        Assert.Equal(20, Fixture.Results.Count);
-        Assert.Equal(17, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
+        Assert.Equal(33, Fixture.Results.Count);
+        Assert.Equal(30,Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
     }
 
     private static void AssertPassed(string test)

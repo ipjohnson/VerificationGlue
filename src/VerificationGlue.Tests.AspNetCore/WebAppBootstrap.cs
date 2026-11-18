@@ -21,20 +21,18 @@ public sealed class WebAppBootstrap<TEntry> : ITestContainerBootstrap
 {
     /// <inheritdoc/>
     public static async ValueTask<ITestContainer> BuildAsync(TestContainerContext context) =>
-        await StartAsync(context.Uid, context.Overrides, context.Output, context.CancellationToken);
+        await StartAsync(context.Uid, context.Attributes, context.Overrides, context.Output, context.CancellationToken);
 
-    /// <summary>Starts the app with <paramref name="overrides"/> and its log in <paramref name="output"/>.</summary>
-    internal static async Task<WebAppContainer> StartAsync(string uid, IReadOnlyList<TestOverride> overrides, ITestOutput output, CancellationToken cancellationToken)
+    /// <summary>
+    /// Starts the app with the configuration that <paramref name="attributes"/> set, <paramref name="overrides"/>
+    /// and its log in <paramref name="output"/>.
+    /// </summary>
+    internal static async Task<WebAppContainer> StartAsync(string uid, IReadOnlyList<Attribute> attributes, IReadOnlyList<TestOverride> overrides, ITestOutput output, CancellationToken cancellationToken)
     {
         var clock = Stopwatch.StartNew();
-        var capture = new HostCapture(overrides, output);
-        string[] args =
-        [
-            $"--applicationName={TEntry.ApplicationName}",
-            "--environment=Development",
-            // The configuration file watcher takes about 50 ms of each start.
-            "--hostBuilder:reloadConfigOnChange=false",
-        ];
+        var configuration = AppConfiguration.Read(attributes);
+        var capture = new HostCapture(overrides, configuration.Settings, output);
+        var args = configuration.Arguments(TEntry.ApplicationName);
 
         // Under Native AOT, hosts that build at once can fail in GenericWebHostBuilder.UseStartup, so
         // one host builds at a time. The lock is released on HostBuilt, and the hosts start at once.

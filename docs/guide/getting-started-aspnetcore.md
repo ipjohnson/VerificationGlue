@@ -18,18 +18,23 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-app.MapPost("/orders", (CreateOrder request, IClock clock, IOrderStore store, ILogger<Program> log) =>
+app.MapPost("/orders", (CreateOrder request, IClock clock, IOrderStore store, IConfiguration configuration, ILogger<Program> log) =>
 {
+    if (request.Quantity > int.Parse(configuration["Orders:MaxQuantity"]!, CultureInfo.InvariantCulture))
+    {
+        return Results.BadRequest();
+    }
+
     var order = store.Add(request.Quantity, clock.Now);
     log.LogInformation("Saved order {Id} of {Quantity}", order.Id, order.Quantity);
-    return order;
+    return Results.Ok(order);
 });
 app.MapGet("/orders", (IOrderStore store) => store.Orders);
 app.MapControllers();
 
 app.Run();
 ```
-<sup><a href='/samples/ShopApi/Program.cs#L3-L21' title='Snippet source file'>snippet source</a> | <a href='#snippet-shop-api-program' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/ShopApi/Program.cs#L4-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-shop-api-program' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- snippet: shop-api-controller -->
@@ -182,6 +187,7 @@ The app's log at level `Information` and above goes to the test's output, after 
 
 ## Next
 
+- [Configure the app for a test](configure-the-app-for-a-test.md)
 - [Generated entry types](generated/web-app-entry.md)
 - [Containers and scopes](containers-and-scopes.md)
 - [Parameters and where they come from](test-parameters.md)
