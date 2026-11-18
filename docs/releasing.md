@@ -4,12 +4,16 @@
 
 ## Once per repository
 
-1. On nuget.org, create an API key with the Push scope and the glob pattern `VerificationGlue*`.
-2. Store it as a repository secret:
+The workflow pushes with nuget.org trusted publishing, so no API key is stored in the repository.
+
+1. On nuget.org, open your account menu, choose Trusted Publishing, and add a GitHub Actions policy. Set Repository Owner to `ipjohnson`, Repository to `VerificationGlue` and Workflow File to `release.yml`. Leave Environment empty.
+2. Store your nuget.org profile name, not your email address, as a repository secret:
 
    ```sh
-   gh secret set NUGET_API_KEY --repo ipjohnson/VerificationGlue
+   gh secret set NUGET_USER --repo ipjohnson/VerificationGlue
    ```
+
+A new policy is active for 7 days. The first successful push makes it permanent. Restart the 7 days on nuget.org if no release runs in that time.
 
 ## Each release
 
