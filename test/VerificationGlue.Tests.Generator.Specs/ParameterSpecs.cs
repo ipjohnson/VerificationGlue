@@ -65,7 +65,7 @@ public class ParameterSpecs
         }
         """;
 
-    [Fact]
+    [VerifyTest]
     public async Task A_keyed_mock_is_registered_under_its_key_and_defaults_fill_the_rest()
     {
         var tests = Registrations.Load(Tests, rewrite: false, new MockGenerator(), new TestGenerator());

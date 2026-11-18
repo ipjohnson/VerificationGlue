@@ -10,7 +10,7 @@ public class VersionMismatchSpecs
     private static readonly string GeneratorPackageVersion = typeof(TestGenerator).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
-    [Fact]
+    [VerifyTest]
     public void Matching_VerificationGlue_version_reports_nothing()
     {
         var result = GeneratorHarness.Run(new TestGenerator(), "class C { }", VerificationGlueReference(GeneratorPackageVersion));
@@ -18,7 +18,7 @@ public class VersionMismatchSpecs
         Assert.Empty(result.Diagnostics);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Different_VerificationGlue_version_reports_VGT0007()
     {
         var result = GeneratorHarness.Run(new TestGenerator(), "class C { }", VerificationGlueReference("99.0.0"));
@@ -30,7 +30,7 @@ public class VersionMismatchSpecs
         Assert.Contains($"VerificationGlue.Tests {GeneratorPackageVersion}", diagnostic.GetMessage());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Build_metadata_is_ignored()
     {
         var result = GeneratorHarness.Run(new TestGenerator(), "class C { }", VerificationGlueReference(GeneratorPackageVersion + "+0123abcd"));
@@ -38,7 +38,7 @@ public class VersionMismatchSpecs
         Assert.Empty(result.Diagnostics);
     }
 
-    [Fact]
+    [VerifyTest]
     public void No_VerificationGlue_reference_reports_nothing()
     {
         var result = GeneratorHarness.Run(new TestGenerator(), "class C { }");

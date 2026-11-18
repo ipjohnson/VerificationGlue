@@ -49,16 +49,16 @@ public class RewriteSpecs
         }
         """;
 
-    public static TheoryData<bool, bool> Combinations => new()
-    {
-        { false, false },
-        { false, true },
-        { true, false },
-        { true, true },
-    };
+    public static IEnumerable<(bool Rewrite, bool ReverseOrder)> Combinations =>
+    [
+        (false, false),
+        (false, true),
+        (true, false),
+        (true, true),
+    ];
 
-    [Theory]
-    [MemberData(nameof(Combinations))]
+    [VerifyTest]
+    [RowSource(nameof(Combinations))]
     public async Task Each_registration_calls_the_copy_only_when_WillRewrite_is_true(bool rewrite, bool reverseOrder)
     {
         var registry = Load(rewrite, reverseOrder);

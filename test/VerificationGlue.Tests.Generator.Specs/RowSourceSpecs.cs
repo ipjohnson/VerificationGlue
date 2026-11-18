@@ -54,7 +54,7 @@ public class RowSourceSpecs
 
     private static string Customers(string arguments) => Source("", $"[VerifyTest] [Customers({arguments})] public void Bills(Customer customer) => Verify(customer.Total > 0);");
 
-    [Fact]
+    [VerifyTest]
     public async Task Each_row_of_a_tuple_source_is_a_test_with_an_id_from_its_values()
     {
         var tests = Registrations.Load(Tuples("(2, 10, \"gift\"), (3, 5, null)"), rewrite: false, new TestGenerator());
@@ -71,7 +71,7 @@ public class RowSourceSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_reordered_source_of_primitive_values_keeps_each_row_id_and_name()
     {
         var before = Registrations.Names(Tuples("(2, 10, \"gift\"), (3, 5, null)"));
@@ -82,7 +82,7 @@ public class RowSourceSpecs
         Assert.Contains((Totals + "#row(System.Int32:3,System.Int64:5,null)", "Totals(qty: 3, price: 5, note: null)"), after);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Identical_rows_of_primitive_values_get_an_occurrence_suffix()
     {
         var names = Registrations.Names(Tuples("(2, 10, null), (2, 10, null)"));
@@ -91,7 +91,7 @@ public class RowSourceSpecs
         Assert.Equal([row, row + "#2"], names.Select(name => name.Uid));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_keyed_data_source_attribute_gives_ids_from_its_keys_that_survive_a_reorder()
     {
         var tests = Registrations.Load(Customers("\"\""), rewrite: false, new TestGenerator());
@@ -106,7 +106,7 @@ public class RowSourceSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_source_that_declares_deterministic_replay_gives_unkeyed_rows_ids_from_their_positions()
     {
         var names = Registrations.Names(Customers("\"unkeyed\", Replay = true"));
@@ -114,12 +114,12 @@ public class RowSourceSpecs
         Assert.Equal([Bills + "#index(0)", Bills + "#index(1)"], names.Select(name => name.Uid));
     }
 
-    [Theory]
-    [InlineData("\"unkeyed\"", "Row 0 of the data source CustomersAttribute of " + Bills + " has a value that is not a primitive, a string or an enum, and the row has no TestRow.Key.")]
-    [InlineData("\"throws\"", "The data source CustomersAttribute of " + Bills + " threw while it listed its rows: The customer list is offline.")]
-    [InlineData("\"empty\"", "The data source CustomersAttribute of " + Bills + " gave no rows.")]
-    [InlineData("\"same key\"", "The data source CustomersAttribute of " + Bills + " gives the key \"one\" to more than one row.")]
-    [InlineData("\"wrong type\"", "Row 0 of the data source CustomersAttribute of " + Bills + " gives \"ann\" (System.String) for the parameter 'customer' of type Shop.Customer.")]
+    [VerifyTest]
+    [Row("\"unkeyed\"", "Row 0 of the data source CustomersAttribute of " + Bills + " has a value that is not a primitive, a string or an enum, and the row has no TestRow.Key.")]
+    [Row("\"throws\"", "The data source CustomersAttribute of " + Bills + " threw while it listed its rows: The customer list is offline.")]
+    [Row("\"empty\"", "The data source CustomersAttribute of " + Bills + " gave no rows.")]
+    [Row("\"same key\"", "The data source CustomersAttribute of " + Bills + " gives the key \"one\" to more than one row.")]
+    [Row("\"wrong type\"", "Row 0 of the data source CustomersAttribute of " + Bills + " gives \"ann\" (System.String) for the parameter 'customer' of type Shop.Customer.")]
     public async Task A_source_that_cannot_give_each_row_a_stable_id_fails_under_the_method_id_and_runs_no_row(string arguments, string message)
     {
         var tests = Registrations.Load(Customers(arguments), rewrite: false, new TestGenerator());
@@ -130,7 +130,7 @@ public class RowSourceSpecs
         Assert.StartsWith(message, failure.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Methods_properties_fields_and_async_members_can_supply_rows()
     {
         var tests = Registrations.Load(

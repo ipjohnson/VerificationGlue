@@ -7,7 +7,7 @@ namespace VerificationGlue.Tests.Generator.Specs;
 
 public class AnalyzerSpecs
 {
-    [Fact]
+    [VerifyTest]
     public async Task Runnable_tests_report_nothing()
     {
         var diagnostics = await Analyze("""
@@ -47,13 +47,13 @@ public class AnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Theory]
-    [InlineData("internal void M() { }", "is not public")]
-    [InlineData("public void M<T>() { }", "is generic, and a test needs data rows to close it")]
-    [InlineData("public async void M() { await Task.Yield(); }", "is async void, so the runner cannot wait for it")]
-    [InlineData("public int M() => 1;", "does not return void, Task or ValueTask")]
-    [InlineData("public void M(ref int value) { }", "has a ref, out or in parameter")]
-    [InlineData("public void M(Span<int> values) { }", "has the parameter values, whose type cannot be passed as an object")]
+    [VerifyTest]
+    [Row("internal void M() { }", "is not public")]
+    [Row("public void M<T>() { }", "is generic, and a test needs data rows to close it")]
+    [Row("public async void M() { await Task.Yield(); }", "is async void, so the runner cannot wait for it")]
+    [Row("public int M() => 1;", "does not return void, Task or ValueTask")]
+    [Row("public void M(ref int value) { }", "has a ref, out or in parameter")]
+    [Row("public void M(Span<int> values) { }", "has the parameter values, whose type cannot be passed as an object")]
     public async Task A_method_the_runner_cannot_call_reports_VGT0004(string method, string reason)
     {
         var diagnostics = await Analyze($$"""
@@ -72,10 +72,10 @@ public class AnalyzerSpecs
         Assert.Equal($"The [VerifyTest] method 'M' {reason}, so the runner does not register it", diagnostic.GetMessage());
     }
 
-    [Theory]
-    [InlineData("public abstract class OrderTests { [VerifyTest] public void M() { } }", "is an instance method of an abstract class")]
-    [InlineData("public class OrderTests<T> { [VerifyTest] public void M() { } }", "is in the generic type OrderTests")]
-    [InlineData("public class Outer { private class OrderTests { [VerifyTest] public void M() { } } }", "is in OrderTests, which generated code cannot reach")]
+    [VerifyTest]
+    [Row("public abstract class OrderTests { [VerifyTest] public void M() { } }", "is an instance method of an abstract class")]
+    [Row("public class OrderTests<T> { [VerifyTest] public void M() { } }", "is in the generic type OrderTests")]
+    [Row("public class Outer { private class OrderTests { [VerifyTest] public void M() { } } }", "is in OrderTests, which generated code cannot reach")]
     public async Task A_class_the_runner_cannot_use_reports_VGT0004(string type, string reason)
     {
         var diagnostics = await Analyze("using VerificationGlue.Tests;\n" + type);
@@ -85,12 +85,12 @@ public class AnalyzerSpecs
         Assert.Contains(reason, diagnostic.GetMessage());
     }
 
-    [Fact]
-    public async Task A_method_that_reports_VGT0004_is_not_registered()
+    [VerifyTest]
+    public async Task A_method_that_reports_VGT0004_is_not_registered(CancellationToken cancellationToken)
     {
         var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", "using VerificationGlue.Tests;\npublic partial class OrderTests { [VerifyTest] internal void M() { } [VerifyTest] public void N() { } }")]);
 
-        var result = GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGenerators(input, TestContext.Current.CancellationToken).GetRunResult();
+        var result = GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGenerators(input, cancellationToken).GetRunResult();
 
         var registration = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith("OrderTests.Tests.g.cs", StringComparison.Ordinal)).ToString();
         Assert.Contains("\"OrderTests.N()\"", registration);
@@ -98,9 +98,9 @@ public class AnalyzerSpecs
         await Task.CompletedTask;
     }
 
-    [Theory]
-    [InlineData("private sealed class SecretAttribute : Attribute { }", "[Secret]", "OrderTests.SecretAttribute", "the generated registration cannot access OrderTests.SecretAttribute")]
-    [InlineData("", "[Missing]", "Missing", "its type cannot be resolved. Another source generator may produce it, and this generator cannot see that output")]
+    [VerifyTest]
+    [Row("private sealed class SecretAttribute : Attribute { }", "[Secret]", "OrderTests.SecretAttribute", "the generated registration cannot access OrderTests.SecretAttribute")]
+    [Row("", "[Missing]", "Missing", "its type cannot be resolved. Another source generator may produce it, and this generator cannot see that output")]
     public async Task An_attribute_the_registration_cannot_create_reports_VGT0006(string declaration, string usage, string name, string reason)
     {
         var diagnostics = await Analyze($$"""
@@ -121,7 +121,7 @@ public class AnalyzerSpecs
         Assert.Equal($"The attribute '{name}' is not passed to extension points, because {reason}", diagnostic.GetMessage());
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_file_local_attribute_reports_VGT0006()
     {
         var diagnostics = await Analyze("""
@@ -144,7 +144,7 @@ public class AnalyzerSpecs
         Assert.Equal("VGT0006", diagnostic.Id);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Tests_with_the_same_id_report_VGT0001()
     {
         var first = Library("namespace Vendor { public sealed class Item { } }", "First");
@@ -177,15 +177,15 @@ public class AnalyzerSpecs
         });
     }
 
-    [Theory]
-    [InlineData("[Row(\"two\", 10)]", "gives \"two\" (string) for the parameter 'qty' of type int")]
-    [InlineData("[Row(2.5, 10)]", "gives 2.5 (double) for the parameter 'qty' of type int")]
-    [InlineData("[Row(2, 10L)]", "gives 10 (long) for the parameter 'price' of type int")]
-    [InlineData("[Row(null, 10)]", "gives null for the parameter 'qty' of type int")]
-    [InlineData("[Row(2, 10, \"note\", 4)]", "has 4 values, but the method has 3 parameters")]
-    [InlineData("[Row]", "has no values")]
-    [InlineData("[Row(300, 10)]", "gives 300 (int) for the parameter 'qty' of type byte")]
-    public async Task A_row_that_does_not_match_its_parameters_reports_VGT0002(string row, string reason)
+    [VerifyTest]
+    [Row("[Row(\"two\", 10)]", "gives \"two\" (string) for the parameter 'qty' of type int")]
+    [Row("[Row(2.5, 10)]", "gives 2.5 (double) for the parameter 'qty' of type int")]
+    [Row("[Row(2, 10L)]", "gives 10 (long) for the parameter 'price' of type int")]
+    [Row("[Row(null, 10)]", "gives null for the parameter 'qty' of type int")]
+    [Row("[Row(2, 10, \"note\", 4)]", "has 4 values, but the method has 3 parameters")]
+    [Row("[Row]", "has no values")]
+    [Row("[Row(300, 10)]", "gives 300 (int) for the parameter 'qty' of type byte")]
+    public async Task A_row_that_does_not_match_its_parameters_reports_VGT0002(string row, string reason, CancellationToken cancellationToken)
     {
         var type = row.Contains("300", StringComparison.Ordinal) ? "byte" : "int";
         var diagnostics = await Analyze($$"""
@@ -204,20 +204,20 @@ public class AnalyzerSpecs
         Assert.Equal("VGT0002", diagnostic.Id);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"The [Row] on 'Totals' {reason}, so the row is not registered", diagnostic.GetMessage());
-        Assert.Equal(row, "[" + diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
+        Assert.Equal(row, "[" + diagnostic.Location.SourceTree!.GetText(cancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
     }
 
-    [Theory]
-    [InlineData("[RowSource(\"Missing\")]", "names 'Missing', which is not a method, property or field of OrderTests")]
-    [InlineData("[RowSource(\"\")]", "names no member")]
-    [InlineData("[RowSource(nameof(Instance))]", "names 'Instance', which is not static")]
-    [InlineData("[RowSource(nameof(Hidden))]", "names 'Hidden', which is private, so the generated registration cannot read it")]
-    [InlineData("[RowSource(nameof(Filtered))]", "names the method 'Filtered', which has parameters or type parameters")]
-    [InlineData("[RowSource(nameof(Count))]", "names 'Count', which returns int, not IEnumerable<T> or IAsyncEnumerable<T> of the row values")]
-    [InlineData("[RowSource(nameof(Words))]", "names 'Words', whose rows give string for the parameter 'qty' of type int")]
-    [InlineData("[RowSource(nameof(Longs))]", "names 'Longs', whose rows give long for the parameter 'qty' of type int")]
-    [InlineData("[RowSource(nameof(Triples))]", "names 'Triples', whose rows have 3 values, but the method has 2 parameters")]
-    public async Task A_row_source_that_is_missing_or_has_the_wrong_shape_reports_VGT0005(string source, string reason)
+    [VerifyTest]
+    [Row("[RowSource(\"Missing\")]", "names 'Missing', which is not a method, property or field of OrderTests")]
+    [Row("[RowSource(\"\")]", "names no member")]
+    [Row("[RowSource(nameof(Instance))]", "names 'Instance', which is not static")]
+    [Row("[RowSource(nameof(Hidden))]", "names 'Hidden', which is private, so the generated registration cannot read it")]
+    [Row("[RowSource(nameof(Filtered))]", "names the method 'Filtered', which has parameters or type parameters")]
+    [Row("[RowSource(nameof(Count))]", "names 'Count', which returns int, not IEnumerable<T> or IAsyncEnumerable<T> of the row values")]
+    [Row("[RowSource(nameof(Words))]", "names 'Words', whose rows give string for the parameter 'qty' of type int")]
+    [Row("[RowSource(nameof(Longs))]", "names 'Longs', whose rows give long for the parameter 'qty' of type int")]
+    [Row("[RowSource(nameof(Triples))]", "names 'Triples', whose rows have 3 values, but the method has 2 parameters")]
+    public async Task A_row_source_that_is_missing_or_has_the_wrong_shape_reports_VGT0005(string source, string reason, CancellationToken cancellationToken)
     {
         var diagnostics = await Analyze($$"""
             using VerificationGlue.Tests;
@@ -242,10 +242,10 @@ public class AnalyzerSpecs
         Assert.Equal("VGT0005", diagnostic.Id);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"The [RowSource] on 'Totals' {reason}, so its rows are not registered", diagnostic.GetMessage());
-        Assert.Equal(source, "[" + diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
+        Assert.Equal(source, "[" + diagnostic.Location.SourceTree!.GetText(cancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Row_sources_with_rows_that_match_their_parameters_report_nothing()
     {
         var diagnostics = await Analyze("""
@@ -274,7 +274,7 @@ public class AnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Rows_that_match_their_parameters_report_nothing()
     {
         var diagnostics = await Analyze("""
@@ -295,7 +295,7 @@ public class AnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Whole_numbers_given_for_decimal_nint_and_nuint_parameters_report_nothing()
     {
         var diagnostics = await Analyze("""
@@ -313,10 +313,10 @@ public class AnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Theory]
-    [InlineData("[Row(2.5)]", "decimal", "gives 2.5 (double) for the parameter 'value' of type decimal")]
-    [InlineData("[Row(2L)]", "nint", "gives 2 (long) for the parameter 'value' of type nint")]
-    [InlineData("[Row(-1)]", "nuint", "gives -1 (int) for the parameter 'value' of type nuint")]
+    [VerifyTest]
+    [Row("[Row(2.5)]", "decimal", "gives 2.5 (double) for the parameter 'value' of type decimal")]
+    [Row("[Row(2L)]", "nint", "gives 2 (long) for the parameter 'value' of type nint")]
+    [Row("[Row(-1)]", "nuint", "gives -1 (int) for the parameter 'value' of type nuint")]
     public async Task A_value_with_no_implicit_conversion_to_decimal_nint_or_nuint_reports_VGT0002(string row, string type, string reason)
     {
         var diagnostics = await Analyze($$"""
@@ -335,7 +335,7 @@ public class AnalyzerSpecs
         Assert.Equal($"The [Row] on 'Totals' {reason}, so the row is not registered", diagnostic.GetMessage());
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task A_row_value_the_registration_cannot_write_reports_VGT0002_and_not_VGT0006()
     {
         var diagnostics = await Analyze("""
@@ -379,13 +379,13 @@ public class AnalyzerSpecs
 
         """;
 
-    [Theory]
-    [InlineData("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
-    [InlineData("[assembly: Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "", "", "public void M([Mock] IClock clock) { }", "Assembly")]
-    [InlineData("", "", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }", "Class")]
-    [InlineData("", "[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M([Mock] IClock clock) { }", "Assembly")]
-    [InlineData("", "[PlainContainer(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
-    [InlineData("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M() { } public OrderTests([Mock] IClock clock) { }", "Class")]
+    [VerifyTest]
+    [Row("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
+    [Row("[assembly: Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "", "", "public void M([Mock] IClock clock) { }", "Assembly")]
+    [Row("", "", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }", "Class")]
+    [Row("", "[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M([Mock] IClock clock) { }", "Assembly")]
+    [Row("", "[PlainContainer(Scope = ContainerScope.Class)]", "", "public void M([Mock] IClock clock) { }", "Class")]
+    [Row("", "[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "", "public void M() { } public OrderTests([Mock] IClock clock) { }", "Class")]
     public async Task A_mock_under_a_shared_container_without_child_overrides_reports_VGT0008(
         string assembly, string type, string method, string members, string scope)
     {
@@ -410,12 +410,12 @@ public class AnalyzerSpecs
             diagnostic.GetMessage());
     }
 
-    [Theory]
-    [InlineData("[Container<PlainBootstrap>]", "public void M([Mock] IClock clock) { }")]
-    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Test)]", "public void M([Mock] IClock clock) { }")]
-    [InlineData("[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }")]
-    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M(IClock clock) { }")]
-    [InlineData("[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public static void M() { } public OrderTests([Mock] IClock clock) { }")]
+    [VerifyTest]
+    [Row("[Container<PlainBootstrap>]", "public void M([Mock] IClock clock) { }")]
+    [Row("[Container<PlainBootstrap>(Scope = ContainerScope.Test)]", "public void M([Mock] IClock clock) { }")]
+    [Row("[Container<ChildBootstrap>(Scope = ContainerScope.Class)]", "public void M([Mock] IClock clock) { }")]
+    [Row("[Container<PlainBootstrap>(Scope = ContainerScope.Assembly)]", "public void M(IClock clock) { }")]
+    [Row("[Container<PlainBootstrap>(Scope = ContainerScope.Class)]", "public static void M() { } public OrderTests([Mock] IClock clock) { }")]
     public async Task A_container_that_returns_the_mocks_reports_nothing(string type, string members)
     {
         var diagnostics = await Analyze($$"""
@@ -436,7 +436,7 @@ public class AnalyzerSpecs
     {
         var compilation = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)], references);
         var analyzed = compilation.WithAnalyzers([new TestAnalyzer()]);
-        return await analyzed.GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
+        return await analyzed.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
 
     private static PortableExecutableReference Library(string source, string name)
