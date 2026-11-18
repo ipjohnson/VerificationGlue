@@ -117,7 +117,41 @@ public class ScheduleSpecs
     }
 
     /// <summary>Each registered test's group, limit, <c>[RunAfter]</c> groups and resource keys, by UID.</summary>
-    private static Dictionary<string, (string Group, int MaxParallel, string RunAfter, string Resources)> Schedules(string source)
+    [Fact]
+    public void Traits_come_from_the_class_then_the_method()
+    {
+        var traits = Descriptors("""
+            using VerificationGlue.Tests;
+
+            [Trait("Category", "Checkout")]
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                public void From_the_class() { }
+
+                [VerifyTest]
+                [Trait("Speed", "Slow")]
+                [Trait("Category", "Checkout")]
+                public void From_both() { }
+            }
+
+            public partial class OtherTests
+            {
+                [VerifyTest]
+                public void Without_traits() { }
+            }
+            """, read => read("Traits"));
+
+        Assert.Equal("Category=Checkout", traits["OrderTests.From_the_class()"]);
+        Assert.Equal("Category=Checkout,Speed=Slow", traits["OrderTests.From_both()"]);
+        Assert.Equal("", traits["OtherTests.Without_traits()"]);
+    }
+
+    private static Dictionary<string, (string Group, int MaxParallel, string RunAfter, string Resources)> Schedules(string source) =>
+        Descriptors(source, read => (read("ScheduleGroup"), int.Parse(read("MaxParallel")), read("RunAfter"), read("Resources")));
+
+    /// <summary>Runs the generator on <paramref name="source"/> and projects each registered descriptor by its ID.</summary>
+    private static Dictionary<string, T> Descriptors<T>(string source, Func<Func<string, string>, T> project)
     {
         var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
         GeneratorHarness.Driver(rewrite: false, new TestGenerator())
@@ -135,11 +169,12 @@ public class ScheduleSpecs
         string Read(object descriptor, string property) => descriptorType.GetProperty(property)!.GetValue(descriptor) switch
         {
             IEnumerable<string> values => string.Join(",", values),
+            IEnumerable<KeyValuePair<string, string>> pairs => string.Join(",", pairs.Select(pair => pair.Key + "=" + pair.Value)),
             var value => value!.ToString()!,
         };
 
         return ((System.Collections.IEnumerable)registry.GetProperty("Tests")!.GetValue(null)!).Cast<object>().ToDictionary(
             descriptor => Read(descriptor, "Uid"),
-            descriptor => (Read(descriptor, "ScheduleGroup"), int.Parse(Read(descriptor, "MaxParallel")), Read(descriptor, "RunAfter"), Read(descriptor, "Resources")));
+            descriptor => project(property => Read(descriptor, property)));
     }
 }

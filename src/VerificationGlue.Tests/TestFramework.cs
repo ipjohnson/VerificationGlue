@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Testing.Extensions.TrxReport.Abstractions;
+using Microsoft.Testing.Platform.CommandLine;
 using Microsoft.Testing.Platform.Capabilities.TestFramework;
 using Microsoft.Testing.Platform.Extensions.Messages;
 using Microsoft.Testing.Platform.Extensions.TestFramework;
@@ -21,9 +22,20 @@ namespace VerificationGlue.Tests;
 internal sealed class TestFramework : ITestFramework, IDataProducer
 {
     private readonly TrxCapability _trx;
+    private readonly TestFilter? _vgFilter;
     private IReadOnlyList<TestDescriptor> _tests = [];
 
-    public TestFramework(TrxCapability trx) => _trx = trx;
+    public TestFramework(TrxCapability trx, TestFilter? vgFilter = null)
+    {
+        _trx = trx;
+        _vgFilter = vgFilter;
+    }
+
+    /// <summary>The <c>--vg-filter</c> expression, or null when it is not set. <see cref="TestFilterOption"/> has validated it.</summary>
+    internal static TestFilter? ReadFilter(ICommandLineOptions options) =>
+        options.TryGetOptionArgumentList(TestFilter.OptionName, out var arguments)
+            ? TestFilter.TryParse(arguments[0], out var error) ?? throw new InvalidOperationException(error)
+            : null;
 
     public string Uid => "VerificationGlue.Tests";
 
@@ -244,6 +256,11 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
                 [.. test.ParameterTypeNames],
                 test.ReturnTypeName));
 
+        foreach (var trait in test.Traits)
+        {
+            properties.Add(new TestMetadataProperty(trait.Key, trait.Value));
+        }
+
         if (timing is not null)
         {
             properties.Add(timing);
@@ -273,12 +290,22 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
     }
 
     /// <summary>
-    /// The tests a request selects. <c>--filter-uid</c> and the IDEs send a <see cref="TestNodeUidListFilter"/>.
+    /// The tests a request selects: those that match both <c>--vg-filter</c> and the request's filter, so
+    /// a retry of a filtered run with <c>--filter-uid</c> stays inside the <c>--vg-filter</c> selection.
+    /// </summary>
+    private Func<TestDescriptor, bool> Filter(ITestExecutionFilter? filter)
+    {
+        var request = RequestFilter(filter);
+        return _vgFilter is { } vgFilter ? test => vgFilter.Matches(test) && request(test) : request;
+    }
+
+    /// <summary>
+    /// The tests a request's filter selects. <c>--filter-uid</c> and the IDEs send a <see cref="TestNodeUidListFilter"/>.
     /// The other MTP 3 filters are experimental (TPEXP), and docs/design/tests.md rules them out. The ID
     /// of a row also selects the failed node of its method's data sources, so a retry of that row in a
     /// process where the source fails reports the failure and runs no other row.
     /// </summary>
-    private static Func<TestDescriptor, bool> Filter(ITestExecutionFilter? filter)
+    private static Func<TestDescriptor, bool> RequestFilter(ITestExecutionFilter? filter)
     {
         switch (filter)
         {
