@@ -8,8 +8,8 @@ namespace VerificationGlue.Generator.Specs;
 /// </summary>
 public class GeneratedCodeSpecs
 {
-    [Fact]
-    public void Interceptors_for_the_xunit_sample()
+    [VerifyTest]
+    public void Interceptors_for_the_xunit_sample(CancellationToken cancellationToken)
     {
         var samples = Path.Combine(RepositoryRoot(), "samples");
         var compilation = GeneratorHarness.Compilation(
@@ -20,25 +20,25 @@ public class GeneratedCodeSpecs
         var result = GeneratorHarness.Generate(compilation, new VerificationGlueGenerator(), out _);
 
         var generated = Assert.Single(result.GeneratedTrees);
-        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Interceptors_for_the_xunit_sample), generated.GetText(TestContext.Current.CancellationToken).ToString());
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Interceptors_for_the_xunit_sample), generated.GetText(cancellationToken).ToString());
     }
 
-    [Fact]
-    public void Rewritten_method_for_the_messages_sample()
+    [VerifyTest]
+    public void Rewritten_method_for_the_messages_sample(CancellationToken cancellationToken)
     {
         var result = GenerateMessagesSample();
 
         var copy = result.GeneratedTrees.Single(tree => tree.FilePath.Contains(".Tier3Messages.VerifyShipping.", StringComparison.Ordinal));
-        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Rewritten_method_for_the_messages_sample), copy.GetText(TestContext.Current.CancellationToken).ToString());
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Rewritten_method_for_the_messages_sample), copy.GetText(cancellationToken).ToString());
     }
 
-    [Fact]
-    public void Redirects_for_the_messages_sample()
+    [VerifyTest]
+    public void Redirects_for_the_messages_sample(CancellationToken cancellationToken)
     {
         var result = GenerateMessagesSample();
 
         var redirects = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(".Redirects.g.cs", StringComparison.Ordinal));
-        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Redirects_for_the_messages_sample), redirects.GetText(TestContext.Current.CancellationToken).ToString());
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Redirects_for_the_messages_sample), redirects.GetText(cancellationToken).ToString());
     }
 
     private static Microsoft.CodeAnalysis.GeneratorDriverRunResult GenerateMessagesSample()

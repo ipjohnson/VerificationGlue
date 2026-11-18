@@ -10,8 +10,8 @@ namespace VerificationGlue.Generator.Specs;
 
 public class MakePartialCodeFixSpecs
 {
-    [Fact]
-    public async Task The_fix_for_VG0005_makes_every_containing_type_partial()
+    [VerifyTest]
+    public async Task The_fix_for_VG0005_makes_every_containing_type_partial(CancellationToken cancellationToken)
     {
         var source = """
             using VerificationGlue;
@@ -28,40 +28,41 @@ public class MakePartialCodeFixSpecs
             }
             """;
 
-        var fixedSource = await Fix(source);
+        var fixedSource = await Fix(source, cancellationToken);
 
         Assert.Equal(source.Replace("public class Outer", "public partial class Outer").Replace("public static class Tests", "public static partial class Tests"), fixedSource);
-        Assert.DoesNotContain(await Diagnostics(fixedSource), diagnostic => diagnostic.Id == "VG0005");
+        Assert.DoesNotContain(await Diagnostics(fixedSource, cancellationToken), diagnostic => diagnostic.Id == "VG0005");
     }
 
-    [Fact]
-    public async Task The_fix_adds_partial_to_a_type_with_no_modifiers()
+    [VerifyTest]
+    public async Task The_fix_adds_partial_to_a_type_with_no_modifiers(CancellationToken cancellationToken)
     {
         var source = "using VerificationGlue;\nusing static VerificationGlue.VerifySyntax;\n\nclass Tests\n{\n    [Verify]\n    static void M(int x) => Verify(x == 1);\n}\n";
 
-        Assert.Equal(source.Replace("class Tests", "partial class Tests"), await Fix(source));
+        Assert.Equal(source.Replace("class Tests", "partial class Tests"), await Fix(source, cancellationToken));
     }
 
-    private static async Task<string> Fix(string source)
+    private static async Task<string> Fix(string source, CancellationToken cancellationToken)
     {
         var document = Document(source);
-        var diagnostic = Assert.Single(await Diagnostics(document), diagnostic => diagnostic.Id == "VG0005");
+        var diagnostic = Assert.Single(await Diagnostics(document, cancellationToken), diagnostic => diagnostic.Id == "VG0005");
         var actions = new List<CodeAction>();
-        var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), TestContext.Current.CancellationToken);
+        var context = new CodeFixContext(document, diagnostic, (action, _) => actions.Add(action), cancellationToken);
 
         await new MakePartialCodeFix().RegisterCodeFixesAsync(context);
 
-        var operations = await Assert.Single(actions).GetOperationsAsync(TestContext.Current.CancellationToken);
+        var operations = await Assert.Single(actions).GetOperationsAsync(cancellationToken);
         var solution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-        return (await solution.GetDocument(document.Id)!.GetTextAsync(TestContext.Current.CancellationToken)).ToString();
+        return (await solution.GetDocument(document.Id)!.GetTextAsync(cancellationToken)).ToString();
     }
 
-    private static Task<ImmutableArray<Diagnostic>> Diagnostics(string source) => Diagnostics(Document(source));
+    private static Task<ImmutableArray<Diagnostic>> Diagnostics(string source, CancellationToken cancellationToken) =>
+        Diagnostics(Document(source), cancellationToken);
 
-    private static async Task<ImmutableArray<Diagnostic>> Diagnostics(Document document)
+    private static async Task<ImmutableArray<Diagnostic>> Diagnostics(Document document, CancellationToken cancellationToken)
     {
-        var compilation = (await document.Project.GetCompilationAsync(TestContext.Current.CancellationToken))!;
-        return await compilation.WithAnalyzers([new RewriteAnalyzer()]).GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
+        var compilation = (await document.Project.GetCompilationAsync(cancellationToken))!;
+        return await compilation.WithAnalyzers([new RewriteAnalyzer()]).GetAnalyzerDiagnosticsAsync(cancellationToken);
     }
 
     private static Document Document(string source)
