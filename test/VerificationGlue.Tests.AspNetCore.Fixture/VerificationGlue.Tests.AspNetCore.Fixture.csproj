@@ -18,7 +18,19 @@
     <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.FixtureShop/VerificationGlue.Tests.AspNetCore.FixtureShop.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/AppClock/AppClock.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/VoidApp/VoidApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/IntApp/IntApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/TaskApp/TaskApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/TaskIntApp/TaskIntApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/MainApp/MainApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/InternalApp/InternalApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/InternalIvtApp/InternalIvtApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/StartupApp/StartupApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/ThrowApp/ThrowApp.csproj" />
+    <ProjectReference Include="../VerificationGlue.Tests.AspNetCore.Apps/ReturnApp/ReturnApp.csproj" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
   </ItemGroup>
 

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+  </ItemGroup>
+</Project>

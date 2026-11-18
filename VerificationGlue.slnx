@@ -9,6 +9,7 @@
     <Project Path="src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
     <Project Path="src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
     <Project Path="src/VerificationGlue.Tests.AspNetCore/VerificationGlue.Tests.AspNetCore.csproj" />
+    <Project Path="src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" />
     <Project Path="src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
     <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
   </Folder>
@@ -53,6 +54,7 @@
     <Project Path="test/VerificationGlue.Mocks.Generator.Specs/VerificationGlue.Mocks.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Mocks.Specs/VerificationGlue.Mocks.Specs.csproj" />
     <Project Path="test/VerificationGlue.Specs/VerificationGlue.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Tests.AspNetCore.Generator.Specs/VerificationGlue.Tests.AspNetCore.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.AspNetCore.Specs/VerificationGlue.Tests.AspNetCore.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.Generator.Specs/VerificationGlue.Tests.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.Specs/VerificationGlue.Tests.Specs.csproj" />
