@@ -6,9 +6,9 @@ namespace NSubstituteComparison.Specs;
 /// </summary>
 public class ComparisonSpecs
 {
-    public static TheoryData<string> CaseIds => new(Comparison.Cases(Comparison.GlueCases).Select(@case => @case.Id));
+    public static IEnumerable<string> CaseIds => Comparison.Cases(Comparison.GlueCases).Select(@case => @case.Id);
 
-    [Theory, MemberData(nameof(CaseIds))]
+    [VerifyTest, RowSource(nameof(CaseIds))]
     public async Task Each_case_matches_NSubstitute_or_records_why_it_differs(string id)
     {
         var result = await Comparison.Run(id);
@@ -24,7 +24,7 @@ public class ComparisonSpecs
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void Both_case_assemblies_hold_the_same_cases()
     {
         Assert.Equal(
@@ -32,7 +32,7 @@ public class ComparisonSpecs
             Comparison.Cases(Comparison.GlueCases).Select(@case => @case.Id));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Each_area_of_the_bounded_comparison_has_cases()
     {
         Assert.Equal(

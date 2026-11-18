@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class Verification
 {
-    [Fact]
+    [VerifyTest]
     public void Received_passes_for_a_call_that_was_made()
     {
         var calc = Mock.Of<ICalculator>();
@@ -22,7 +22,7 @@ public class Verification
         calc.DidNotReceive().Divide(Arg.Any<int>(), Arg.Any<int>());
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_check_is_not_recorded_as_a_call()
     {
         var calc = Mock.Of<ICalculator>();
@@ -34,7 +34,7 @@ public class Verification
         Assert.Single(((IMock)calc).Adapter.ReceivedCalls());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Received_fails_with_the_expected_call_and_the_calls_received()
     {
         var calc = Mock.Of<ICalculator>();
@@ -51,7 +51,7 @@ public class Verification
             error.Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Received_with_a_count_and_DidNotReceive_fail_on_the_wrong_count()
     {
         var calc = Mock.Of<ICalculator>();
@@ -62,7 +62,7 @@ public class Verification
         Assert.StartsWith("Expected no calls to", Assert.Throws<ReceivedCallsException>(() => calc.DidNotReceive().Reset()).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Received_checks_property_reads_and_writes()
     {
         var calc = Mock.Of<ICalculator>();

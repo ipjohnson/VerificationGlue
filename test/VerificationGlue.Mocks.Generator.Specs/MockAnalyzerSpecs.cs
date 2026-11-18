@@ -63,10 +63,10 @@ public class MockAnalyzerSpecs
         }
         """;
 
-    [Fact]
-    public void A_type_that_cannot_be_mocked_reports_VGM0001_at_each_place_that_names_it()
+    [VerifyTest]
+    public void A_type_that_cannot_be_mocked_reports_VGM0001_at_each_place_that_names_it(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             [assembly: GenerateMock(typeof(Point))]
             [assembly: GenerateMock(typeof(IRepository<>))]
 
@@ -95,10 +95,10 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void A_matcher_that_is_not_an_argument_of_a_mock_call_reports_VGM0002()
+    [VerifyTest]
+    public void A_matcher_that_is_not_an_argument_of_a_mock_call_reports_VGM0002(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 public void Run(ICalculator calc)
@@ -119,10 +119,11 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void An_NSubstitute_style_matcher_passed_to_Setup_or_Calls_reports_VGM0002_as_an_error()
+    [VerifyTest]
+    public void An_NSubstitute_style_matcher_passed_to_Setup_or_Calls_reports_VGM0002_as_an_error(CancellationToken cancellationToken)
     {
         var diagnostics = Analyze(
+            cancellationToken,
             """
             public class Tests
             {
@@ -146,10 +147,11 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void Typed_setup_and_call_counts_report_nothing()
+    [VerifyTest]
+    public void Typed_setup_and_call_counts_report_nothing(CancellationToken cancellationToken)
     {
         var diagnostics = Analyze(
+            cancellationToken,
             """
             public class Tests
             {
@@ -168,10 +170,10 @@ public class MockAnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Fact]
-    public void A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named()
+    [VerifyTest]
+    public void A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 public void Run()
@@ -186,10 +188,10 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void A_generic_helper_reached_with_an_undiscovered_type_reports_VGM0004()
+    [VerifyTest]
+    public void A_generic_helper_reached_with_an_undiscovered_type_reports_VGM0004(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             [assembly: GenerateMock(typeof(IRepository<string>))]
 
             public class Tests
@@ -213,10 +215,10 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005()
+    [VerifyTest]
+    public void Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 public void Run(ICalculator calc)
@@ -238,10 +240,10 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void A_member_beyond_the_default_depth_reports_VGM0007_where_the_walk_starts()
+    [VerifyTest]
+    public void A_member_beyond_the_default_depth_reports_VGM0007_where_the_walk_starts(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 public object Run() => Mock.Of<IShop>();
@@ -253,10 +255,11 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void VerificationGlueMocksRecursionDepth_sets_the_depth_VGM0007_reports_beyond()
+    [VerifyTest]
+    public void VerificationGlueMocksRecursionDepth_sets_the_depth_VGM0007_reports_beyond(CancellationToken cancellationToken)
     {
         var diagnostics = Analyze(
+            cancellationToken,
             """
             public class Tests
             {
@@ -270,10 +273,10 @@ public class MockAnalyzerSpecs
             diagnostics);
     }
 
-    [Fact]
-    public void A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007()
+    [VerifyTest]
+    public void A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 public object Run() => Mock.Of<IShop>();
@@ -284,10 +287,10 @@ public class MockAnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Fact]
-    public void Correct_use_reports_nothing()
+    [VerifyTest]
+    public void Correct_use_reports_nothing(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             public class Tests
             {
                 [Mock] public ICalculator? Calculator { get; set; }
@@ -306,10 +309,10 @@ public class MockAnalyzerSpecs
         Assert.Empty(diagnostics);
     }
 
-    [Fact]
-    public void An_attribute_named_in_VerificationGlueMockAttribute_marks_a_mock_like_Mock()
+    [VerifyTest]
+    public void An_attribute_named_in_VerificationGlueMockAttribute_marks_a_mock_like_Mock(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             namespace Hooks;
 
             public sealed class MockAttribute : Attribute;
@@ -326,10 +329,10 @@ public class MockAnalyzerSpecs
         Assert.Equal(["Error VGM0001 line 7 'Mock': 'Point' cannot be mocked: it is a struct"], diagnostics);
     }
 
-    [Fact]
-    public void An_attribute_not_named_in_VerificationGlueMockAttribute_marks_nothing()
+    [VerifyTest]
+    public void An_attribute_not_named_in_VerificationGlueMockAttribute_marks_nothing(CancellationToken cancellationToken)
     {
-        var diagnostics = Analyze("""
+        var diagnostics = Analyze(cancellationToken, """
             namespace Hooks;
 
             public sealed class MockAttribute : Attribute;
@@ -352,7 +355,7 @@ public class MockAnalyzerSpecs
     /// the severity. <paramref name="depth"/> is the <c>VerificationGlueMocksRecursionDepth</c> property, unset when null.
     /// <paramref name="attributes"/> is the <c>VerificationGlueMockAttributes</c> property, unset when null.
     /// </summary>
-    private static List<string> Analyze(string source, bool generate = false, string? depth = null, string? attributes = null)
+    private static List<string> Analyze(CancellationToken cancellationToken, string source, bool generate = false, string? depth = null, string? attributes = null)
     {
         var properties = new Dictionary<string, string>();
         if (depth is not null)
@@ -377,7 +380,7 @@ public class MockAnalyzerSpecs
         if (generate)
         {
             CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions, optionsProvider: options)
-                .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _, TestContext.Current.CancellationToken);
+                .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _, cancellationToken);
         }
 
         var errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
@@ -385,7 +388,7 @@ public class MockAnalyzerSpecs
 
         var diagnostics = compilation
             .WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new MockAnalyzer()), new AnalyzerOptions([], options))
-            .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken)
+            .GetAnalyzerDiagnosticsAsync(cancellationToken)
             .GetAwaiter()
             .GetResult();
 

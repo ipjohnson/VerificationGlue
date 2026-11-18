@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class Setup
 {
-    [Fact]
+    [VerifyTest]
     public void Returns_answers_matching_calls_and_leaves_others_unconfigured()
     {
         var calc = Mock.Of<ICalculator>();
@@ -18,7 +18,7 @@ public class Setup
         Assert.Equal(0, calc.Add(2, 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_setup_call_is_not_a_received_call()
     {
         var calc = Mock.Of<ICalculator>();
@@ -28,7 +28,7 @@ public class Setup
         Assert.Empty(((IMock)calc).Adapter.ReceivedCalls());
     }
 
-    [Fact]
+    [VerifyTest]
     public void The_last_setup_for_a_call_wins()
     {
         var calc = Mock.Of<ICalculator>();
@@ -39,7 +39,7 @@ public class Setup
         Assert.Equal(4, calc.Add(1, 2));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Returns_with_several_values_answers_each_in_turn_and_repeats_the_last()
     {
         var calc = Mock.Of<ICalculator>();
@@ -49,7 +49,7 @@ public class Setup
         Assert.Equal([1, 2, 3, 3], [calc.Add(1, 2), calc.Add(1, 2), calc.Add(1, 2), calc.Add(1, 2)]);
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_factory_reads_the_arguments_and_sets_an_out_argument()
     {
         var calc = Mock.Of<ICalculator>();
@@ -66,7 +66,7 @@ public class Setup
         Assert.Equal(7, value);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Throws_makes_matching_calls_throw()
     {
         var calc = Mock.Of<ICalculator>();
@@ -78,7 +78,7 @@ public class Setup
         Assert.Equal(0, calc.Divide(5, 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task Returns_on_a_task_wraps_the_value()
     {
         var calc = Mock.Of<ICalculator>();
@@ -91,7 +91,7 @@ public class Setup
         Assert.Equal(0, await calc.ComputeAsync(6));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Properties_indexers_and_generic_methods_take_setups()
     {
         var calc = Mock.Of<ICalculator>();
@@ -107,7 +107,7 @@ public class Setup
         Assert.Equal(0, calc.Echo(1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_set_property_returns_the_value_it_was_set_to()
     {
         var calc = Mock.Of<ICalculator>();
@@ -117,7 +117,7 @@ public class Setup
         Assert.Equal("total", calc.Label);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Two_mocks_of_one_interface_share_nothing()
     {
         var first = Mock.Of<ICalculator>();

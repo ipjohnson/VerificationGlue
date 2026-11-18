@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class Matching
 {
-    [Fact]
+    [VerifyTest]
     public void Any_matches_every_value()
     {
         var calc = Mock.Of<ICalculator>();
@@ -19,7 +19,7 @@ public class Matching
         Assert.Equal(0, calc.Add(100, 3));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Is_matches_values_for_which_the_predicate_holds()
     {
         var calc = Mock.Of<ICalculator>();
@@ -30,7 +30,7 @@ public class Matching
         Assert.Equal(0, calc.Add(1, 10));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Is_with_a_value_matches_equal_values()
     {
         var calc = Mock.Of<ICalculator>();
@@ -41,7 +41,7 @@ public class Matching
         Assert.Equal("", calc.Echo("b"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_matcher_binds_to_the_argument_it_is_written_in_when_another_argument_holds_the_default()
     {
         var calc = Mock.Of<ICalculator>();
@@ -52,7 +52,7 @@ public class Matching
         Assert.Equal(0, calc.Add(1, 5));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_matcher_on_an_indexer_argument_matches()
     {
         var calc = Mock.Of<ICalculator>();

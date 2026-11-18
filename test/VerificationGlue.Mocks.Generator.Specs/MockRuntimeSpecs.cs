@@ -24,11 +24,11 @@ public class MockRuntimeSpecs
 {
     private static readonly Lazy<(ICalculator Mock, string Source)> Generated = new(Generate);
 
-    [Fact]
+    [VerifyTest]
     public void Generated_source_matches_snapshot() =>
         Snapshot.Match(typeof(MockRuntimeSpecs), nameof(Generated_source_matches_snapshot), Generated.Value.Source);
 
-    [Fact]
+    [VerifyTest]
     public async Task Unconfigured_members_return_auto_values()
     {
         var calculator = Generated.Value.Mock;
@@ -46,7 +46,7 @@ public class MockRuntimeSpecs
         Assert.Equal(0, calculator.Slot(0));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Every_call_is_recorded_with_its_arguments()
     {
         var calculator = Generate().Mock;

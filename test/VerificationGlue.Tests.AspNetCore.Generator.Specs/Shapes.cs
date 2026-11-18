@@ -61,7 +61,7 @@ internal static class Shapes
         ]),
     }.ToDictionary(shape => shape.Name);
 
-    public static TheoryData<string> Names => [.. s_all.Keys];
+    public static IEnumerable<string> Names => s_all.Keys;
 
     public static Shape Get(string name) => s_all[name];
 }

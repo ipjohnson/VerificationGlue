@@ -4,7 +4,7 @@ namespace VerificationGlue.Specs;
 
 public class PackageVersionSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Runtime_has_the_repository_version()
     {
         Assert.Equal(VersionOf(typeof(PackageVersionSpecs).Assembly), VersionOf(Assembly.Load("VerificationGlue")));

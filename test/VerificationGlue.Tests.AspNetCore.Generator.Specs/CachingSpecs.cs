@@ -12,7 +12,7 @@ public class CachingSpecs
 {
     private const string Entry = """[VerificationGlue.Tests.AspNetCore.WebAppEntry("VoidApp")] public sealed partial class VoidAppEntry;""";
 
-    [Fact]
+    [VerifyTest]
     public void An_edit_to_the_test_project_does_not_read_the_app_again()
     {
         var harness = Pipeline();
@@ -28,7 +28,7 @@ public class CachingSpecs
         Assert.Single(harness.LastRun.GeneratedTrees);
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_edit_to_the_app_reads_it_once()
     {
         var harness = Pipeline();
@@ -42,7 +42,7 @@ public class CachingSpecs
         Assert.Equal([IncrementalStepRunReason.Cached], harness.StepReasons(EntryGenerator.AppsStep));
     }
 
-    [Fact]
+    [VerifyTest]
     public void An_edit_that_changes_the_entry_point_writes_the_entry_type_again()
     {
         var harness = Pipeline();

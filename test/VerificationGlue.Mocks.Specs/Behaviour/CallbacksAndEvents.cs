@@ -7,7 +7,7 @@ namespace VerificationGlue.Mocks.Specs.Behaviour;
 
 public class CallbacksAndEvents
 {
-    [Fact]
+    [VerifyTest]
     public void When_Do_runs_the_callback_on_each_matching_call()
     {
         var calc = Mock.Of<ICalculator>();
@@ -26,7 +26,7 @@ public class CallbacksAndEvents
         Assert.Equal([4], added);
     }
 
-    [Fact]
+    [VerifyTest]
     public void When_does_not_record_the_selecting_call()
     {
         var calc = Mock.Of<ICalculator>();
@@ -36,7 +36,7 @@ public class CallbacksAndEvents
         calc.DidNotReceive().Reset();
     }
 
-    [Fact]
+    [VerifyTest]
     public void When_Throw_makes_a_void_member_throw()
     {
         var calc = Mock.Of<ICalculator>();
@@ -46,7 +46,7 @@ public class CallbacksAndEvents
         Assert.Equal("busy", Assert.Throws<InvalidOperationException>(calc.Reset).Message);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Raise_Event_invokes_the_handlers_with_the_arguments()
     {
         var calc = Mock.Of<ICalculator>();
@@ -58,7 +58,7 @@ public class CallbacksAndEvents
         Assert.Equal([((object?)calc, 5)], seen);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Raise_Event_with_no_handler_adds_no_handler_and_records_no_call()
     {
         var calc = Mock.Of<ICalculator>();

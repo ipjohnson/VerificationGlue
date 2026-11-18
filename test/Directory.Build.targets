@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.targets', '$(MSBuildThisFileDirectory)../'))" />
+  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'" />
+
+  <!-- The xunit analyzers check xunit's own attributes, which the sources of the xunit build do not use. -->
+  <Target Name="_RemoveXunitAnalyzersFromTheShimBuild" BeforeTargets="CoreCompile" Condition="'$(_SpecsOnXunitShim)' == 'true'">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('xunit.analyzers'))" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -6,7 +6,7 @@
 
 - [VerificationGlue](src/VerificationGlue/llms.txt): `Verify`, `Check`, `Throws` and `VerifyScope`. The agent guide for writing checks.
 - [VerificationGlue.Mocks](src/VerificationGlue.Mocks/README.md): `Mock.Of<T>()`, setups and call checks.
-- [VerificationGlue.Tests](src/VerificationGlue.Tests/README.md): `[VerifyTest]`, containers and `[Mock]` parameters on Microsoft.Testing.Platform.
+- [VerificationGlue.Tests](src/VerificationGlue.Tests/llms.txt): `[VerifyTest]`, data rows, scheduling, containers and `[Mock]` parameters on Microsoft.Testing.Platform. The agent guide for writing tests and for moving them from xunit.
 - [VerificationGlue.Tests.AspNetCore](src/VerificationGlue.Tests.AspNetCore/llms.txt): `[WebAppEntry]` and `[WebApp<TEntry>]`. The agent guide for testing an ASP.NET Core app.
 
 ## Rules

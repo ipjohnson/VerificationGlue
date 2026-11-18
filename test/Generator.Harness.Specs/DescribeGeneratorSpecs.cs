@@ -32,7 +32,7 @@ public class DescribeGeneratorSpecs
             .WithSource("Person.cs", Person)
             .WithSource("Other.cs", Other);
 
-    [Fact]
+    [VerifyTest]
     public void Generated_source_matches_snapshot_and_compiles()
     {
         var harness = CreateHarness();
@@ -43,7 +43,7 @@ public class DescribeGeneratorSpecs
         Assert.Empty(harness.OutputCompilationDiagnostics());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Edit_to_an_unrelated_file_reruns_the_transform_and_leaves_the_output_cached()
     {
         var harness = CreateHarness();
@@ -56,7 +56,7 @@ public class DescribeGeneratorSpecs
         Assert.Equal([IncrementalStepRunReason.Cached], harness.StepReasons("SourceOutput"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Edit_to_a_method_body_reruns_the_transform_and_leaves_the_output_cached()
     {
         var harness = CreateHarness();
@@ -69,7 +69,7 @@ public class DescribeGeneratorSpecs
         Assert.Equal([IncrementalStepRunReason.Cached], harness.StepReasons("SourceOutput"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void New_property_modifies_the_model_and_regenerates_the_output()
     {
         var harness = CreateHarness();
@@ -83,7 +83,7 @@ public class DescribeGeneratorSpecs
         Assert.Contains("Person(Name, Email, Age)", harness.LastRun.GeneratedTrees.Single(tree => tree.FilePath.EndsWith("People.Person.Describe.g.cs", StringComparison.Ordinal)).ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Removing_the_attribute_removes_the_model_and_the_output()
     {
         var harness = CreateHarness();
@@ -97,7 +97,7 @@ public class DescribeGeneratorSpecs
         Assert.DoesNotContain(harness.LastRun.GeneratedTrees, tree => tree.FilePath.EndsWith("People.Person.Describe.g.cs", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Unknown_tracking_name_lists_the_tracked_steps()
     {
         var harness = CreateHarness();

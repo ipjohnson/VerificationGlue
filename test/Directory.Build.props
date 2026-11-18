@@ -2,7 +2,27 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
     <IsSpecsProject>$(MSBuildProjectName.EndsWith('.Specs'))</IsSpecsProject>
+    <_IsRunnerSpecs Condition="'$(MSBuildProjectName)' == 'VerificationGlue.Tests.Specs'">true</_IsRunnerSpecs>
   </PropertyGroup>
+
+  <!--
+    SpecsRunner picks the runner of a .Specs project. The .Specs projects run on VerificationGlue.Tests,
+    except VerificationGlue.Tests.Specs, which stays on xunit v3 because a runner cannot be the only
+    check of itself. Pass -p:SpecsRunner=xunit to run another .Specs project on xunit v3. CI does so
+    for the conformance suites. That build compiles XunitShim.cs, which gives [VerifyTest], [Row] and
+    [RowSource] to xunit, and writes to its own bin and obj folders.
+  -->
+  <PropertyGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == ''">
+    <SpecsRunner Condition="'$(_IsRunnerSpecs)' == 'true'">xunit</SpecsRunner>
+    <SpecsRunner Condition="'$(_IsRunnerSpecs)' != 'true'">VerificationGlue.Tests</SpecsRunner>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'xunit' and '$(_IsRunnerSpecs)' != 'true'">
+    <_SpecsOnXunitShim>true</_SpecsOnXunitShim>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)../artifacts/xunit/$(MSBuildProjectName)/obj/</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)../artifacts/xunit/$(MSBuildProjectName)/bin/</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+
   <!-- The harness, the sample generator and the benchmarks are not test projects. -->
   <PropertyGroup Condition="'$(IsSpecsProject)' == 'true'">
     <TargetFramework>net10.0</TargetFramework>
@@ -10,8 +30,37 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsSpecsProject)' == 'true'">
-    <PackageReference Include="xunit.v3" />
     <Using Include="Xunit" />
     <AssemblyMetadata Include="VerificationGlue.ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
+  </ItemGroup>
+
+  <!-- A referenced project builds as it does in the solution, whatever runner the .Specs project uses. -->
+  <ItemDefinitionGroup Condition="'$(IsSpecsProject)' == 'true'">
+    <ProjectReference>
+      <GlobalPropertiesToRemove>%(GlobalPropertiesToRemove);SpecsRunner</GlobalPropertiesToRemove>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+
+  <ItemGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'xunit'">
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_SpecsOnXunitShim)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)XunitShim.cs" Link="XunitShim.cs" />
+    <Using Include="VerificationGlue.Tests" />
+  </ItemGroup>
+
+  <!--
+    These lines add what the VerificationGlue.Tests package adds to a project, without the
+    VerificationGlue and VerificationGlue.Mocks generators, so the specs of those generators do not
+    run them on themselves. Assert comes from xunit.v3.assert.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'" />
+  <ItemGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'">
+    <!-- begin-snippet: migrate-from-xunit-keep-assert -->
+    <PackageReference Include="xunit.v3.assert" />
+    <!-- end-snippet -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Using Include="VerificationGlue.Tests" />
   </ItemGroup>
 </Project>

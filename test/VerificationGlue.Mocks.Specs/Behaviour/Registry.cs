@@ -10,7 +10,7 @@ public class Registry
     [Mock]
     public IGreeter? Greeter { get; set; }
 
-    [Fact]
+    [VerifyTest]
     public void A_generic_helper_creates_a_mock_named_in_GenerateMock()
     {
         var clock = Make<IClock>();
@@ -20,7 +20,7 @@ public class Registry
         Assert.Equal(new DateTime(2026, 11, 17), clock.Now);
     }
 
-    [Fact]
+    [VerifyTest]
     public void MockRegistry_creates_a_mock_from_a_type_named_only_in_a_Mock_attribute()
     {
         var greeter = (IGreeter)MockRegistry.Create(typeof(IGreeter));
@@ -30,7 +30,7 @@ public class Registry
         Assert.Equal("Hello, Ada", greeter.Greet("Ada"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void A_type_with_no_generated_mock_fails_with_a_message_that_names_the_fix()
     {
         var error = Assert.Throws<InvalidOperationException>(() => MockRegistry.Create(typeof(IDisposable)));

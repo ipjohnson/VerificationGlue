@@ -4,7 +4,7 @@ namespace VerificationGlue.Generator.Specs;
 
 public class VerificationGlueGeneratorSpecs
 {
-    [Fact]
+    [VerifyTest]
     public void Runs_without_output_or_diagnostics()
     {
         var result = GeneratorHarness.Run(new VerificationGlueGenerator(), "class C { }");

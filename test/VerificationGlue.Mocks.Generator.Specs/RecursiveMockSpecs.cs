@@ -39,10 +39,10 @@ public class RecursiveMockSpecs
         }
         """;
 
-    [Fact]
-    public void The_default_depth_generates_mocks_two_steps_from_the_named_type()
+    [VerifyTest]
+    public void The_default_depth_generates_mocks_two_steps_from_the_named_type(CancellationToken cancellationToken)
     {
-        var sources = Generate(depth: null);
+        var sources = Generate(depth: null, cancellationToken);
 
         Assert.Equal(["App_IOrder_Mock", "App_IOrders_Mock", "App_IShop_Mock"], sources.Keys.Where(name => name.EndsWith("_Mock", StringComparison.Ordinal)).Order());
         Assert.Contains("CallMock<global::App.IOrders>", sources["App_IShop_Mock"]);
@@ -51,14 +51,14 @@ public class RecursiveMockSpecs
         Assert.Contains("Call<global::System.IServiceProvider>", sources["App_IShop_Mock"]);
     }
 
-    [Fact]
-    public void VerificationGlueMocksRecursionDepth_sets_how_far_the_generator_goes()
+    [VerifyTest]
+    public void VerificationGlueMocksRecursionDepth_sets_how_far_the_generator_goes(CancellationToken cancellationToken)
     {
-        Assert.Equal(["App_IShop_Mock"], Generate(depth: "0").Keys.Where(name => name.EndsWith("_Mock", StringComparison.Ordinal)));
-        Assert.Equal(4, Generate(depth: "3").Keys.Count(name => name.EndsWith("_Mock", StringComparison.Ordinal)));
+        Assert.Equal(["App_IShop_Mock"], Generate(depth: "0", cancellationToken).Keys.Where(name => name.EndsWith("_Mock", StringComparison.Ordinal)));
+        Assert.Equal(4, Generate(depth: "3", cancellationToken).Keys.Count(name => name.EndsWith("_Mock", StringComparison.Ordinal)));
     }
 
-    private static Dictionary<string, string> Generate(string? depth)
+    private static Dictionary<string, string> Generate(string? depth, CancellationToken cancellationToken)
     {
         var parseOptions = MockCompiler.ParseOptions.WithFeatures([new("InterceptorsNamespaces", MockEmitter.GeneratedNamespace)]);
         var compilation = CSharpCompilation.Create(
@@ -69,7 +69,7 @@ public class RecursiveMockSpecs
         var properties = new BuildProperties(depth is null ? [] : new() { ["VerificationGlueMocksRecursionDepth"] = depth });
 
         CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions, optionsProvider: properties)
-            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _, TestContext.Current.CancellationToken);
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _, cancellationToken);
 
         var errors = output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors));
