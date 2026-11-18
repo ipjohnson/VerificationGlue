@@ -13,11 +13,11 @@ public class GeneratedCodeSpecs
 {
     private static readonly Lazy<GeneratorDriverRunResult> Result = new(Generate);
 
-    [Fact]
+    [VerifyTest]
     public void Mock_for_the_billing_sample() =>
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Mock_for_the_billing_sample), Source("Billing_IPriceList_Mock.g.cs"));
 
-    [Fact]
+    [VerifyTest]
     public void Registry_for_the_billing_sample() =>
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Registry_for_the_billing_sample), Source(RegistryEmitter.HintName));
 
@@ -38,8 +38,9 @@ public class GeneratedCodeSpecs
             ShapeCase.FrameworkReferences.Append(MockCompiler.RuntimeReference),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
+        // Both tests share the result, so one test's token does not cancel it.
         var driver = CSharpGeneratorDriver.Create([new MockGenerator().AsSourceGenerator()], parseOptions: parseOptions)
-            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _, TestContext.Current.CancellationToken);
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _, CancellationToken.None);
 
         var errors = output.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToList();
         Assert.True(errors.Count == 0, string.Join("\n", errors));
