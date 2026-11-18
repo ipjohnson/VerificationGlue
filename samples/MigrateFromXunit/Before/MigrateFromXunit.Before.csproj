@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The xunit v3 side of docs/guide/migrate-from-xunit.md. It does not reference VerificationGlue. -->
+  <!-- begin-snippet: migrate-from-xunit-project-before -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <!-- end-snippet -->
+  <ItemGroup>
+    <ProjectReference Include="../Checkout/Checkout.csproj" />
+  </ItemGroup>
+</Project>

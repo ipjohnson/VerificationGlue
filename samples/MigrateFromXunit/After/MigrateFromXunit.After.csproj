@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The VerificationGlue.Tests side of docs/guide/migrate-from-xunit.md. The import and the references add
+    what the VerificationGlue.Tests package adds; samples/Directory.Build.props adds the VerificationGlue
+    part.
+  -->
+  <Import Project="../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <PropertyGroup>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Checkout/Checkout.csproj" />
+  </ItemGroup>
+
+  <Import Project="../../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

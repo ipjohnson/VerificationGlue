@@ -56,7 +56,9 @@
   -->
   <Import Project="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'" />
   <ItemGroup Condition="'$(IsSpecsProject)' == 'true' and '$(SpecsRunner)' == 'VerificationGlue.Tests'">
+    <!-- begin-snippet: migrate-from-xunit-keep-assert -->
     <PackageReference Include="xunit.v3.assert" />
+    <!-- end-snippet -->
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <Using Include="VerificationGlue.Tests" />
