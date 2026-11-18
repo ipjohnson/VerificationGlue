@@ -272,10 +272,10 @@ When done, a user references an app's project, writes `[WebAppEntry]` and `[WebA
 
 Needs: Phase 0, and `tests.md` Phase 2, which holds containers, overrides and VGT0008.
 
-- [ ] The projects `src/VerificationGlue.Tests.AspNetCore` and `src/VerificationGlue.Tests.AspNetCore.Generator`, with their specs, and the package in `eng/pack-and-consume.sh`.
-- [ ] The entry generator, built on CSharpAuthor, for every shape in the report, with VGA0001 and VGA0002.
+- [x] The projects `src/VerificationGlue.Tests.AspNetCore` and `src/VerificationGlue.Tests.AspNetCore.Generator`, with their specs, and the package in `eng/pack-and-consume.sh`.
+- [x] The entry generator, built on CSharpAuthor, for every shape in the report, with VGA0001 and VGA0002. `test/VerificationGlue.Tests.AspNetCore.Generator.Specs` generates and calls the entry type of each shape, and `test/VerificationGlue.Tests.AspNetCore.Fixture` starts one app of each shape in `test/VerificationGlue.Tests.AspNetCore.Apps` with a mock.
 - [ ] The measurement of the generator in the IDE pipeline described under "Cost in the IDE", with the result recorded in this document.
-- [x] `WebAppBootstrap<TEntry>` on TestServer with test scope, the watcher off, the logger provider, and the parameters above. `test/VerificationGlue.Tests.AspNetCore.Specs`, with a hand-written entry type until the generator ships.
+- [x] `WebAppBootstrap<TEntry>` on TestServer with test scope, the watcher off, the logger provider, and the parameters above. `test/VerificationGlue.Tests.AspNetCore.Specs`.
 - [x] The serial host build under Native AOT, and a test that starts many apps at once. The specs take the serial path on the JIT by switching `RuntimeFeature.IsDynamicCodeSupported` off in the fixture's runtimeconfig.json.
 - [x] The failures of an app that throws or returns before it builds a host, with the exit code in the message.
 - [ ] A Native AOT test project in CI that runs app tests with no warnings.

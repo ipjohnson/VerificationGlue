@@ -60,6 +60,7 @@ expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.props"
 expect_entry VerificationGlue.Tests "build/VerificationGlue.Tests.targets"
 expect_entry VerificationGlue.Tests "README.md"
 expect_entry VerificationGlue.Tests.AspNetCore "lib/net10.0/VerificationGlue.Tests.AspNetCore.dll"
+expect_entry VerificationGlue.Tests.AspNetCore "analyzers/dotnet/cs/VerificationGlue.Tests.AspNetCore.Generator.dll"
 expect_entry VerificationGlue.Tests.AspNetCore "README.md"
 
 expect_dependency() {

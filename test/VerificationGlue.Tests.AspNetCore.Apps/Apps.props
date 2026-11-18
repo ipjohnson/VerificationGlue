@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Shared by the apps that test/VerificationGlue.Tests.AspNetCore.Fixture starts: one app for each entry
+    point shape in docs/research/aspnet-report.md, and two apps that stop before they build a host. Each
+    app serves GET /now from the IClock of AppClock, so a test can check that its mock reached the app.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)AppClock/AppClock.csproj" />
+  </ItemGroup>
+</Project>

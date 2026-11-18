@@ -2,10 +2,27 @@ namespace VerificationGlue.Tests.AspNetCore.Specs;
 
 /// <summary>
 /// <c>[WebApp&lt;TEntry&gt;]</c> at test scope, checked through the TRX results of
-/// test/VerificationGlue.Tests.AspNetCore.Fixture, whose tests start test/VerificationGlue.Tests.AspNetCore.FixtureShop.
+/// test/VerificationGlue.Tests.AspNetCore.Fixture, whose tests start test/VerificationGlue.Tests.AspNetCore.FixtureShop
+/// and the apps in test/VerificationGlue.Tests.AspNetCore.Apps through generated entry types.
 /// </summary>
 public class WebAppSpecs
 {
+    [Fact]
+    public void The_fixture_names_each_app_only_by_its_assembly_name()
+    {
+        var sources = Directory.GetFiles(Path.Combine(Fixture.FindRoot(), "test", "VerificationGlue.Tests.AspNetCore.Fixture"), "*.cs")
+            .Select(File.ReadAllText)
+            .ToList();
+
+        Assert.NotEmpty(sources);
+        Assert.All(sources, source =>
+        {
+            Assert.DoesNotContain("UnsafeAccessor", source);
+            Assert.DoesNotContain("IWebAppEntry", source);
+        });
+        Assert.Equal(11, sources.Sum(source => source.Split("[WebAppEntry(\"").Length - 1));
+    }
+
     private const string Started = "FixtureShop started in ";
     private const string StartsAtOnce = "Apps_that_start_at_once_get_their_own_host_and_overrides";
     private const string Returned = "[Information] FixtureShop: The entry point of FixtureShop is returning";
@@ -23,7 +40,22 @@ public class WebAppSpecs
         AssertPassed("Second_app_lists_only_its_own_order");
         Assert.All(
             Fixture.Results.Where(result => result.Value.Outcome == "Passed" && result.Key != StartsAtOnce),
-            result => Assert.Single(Lines(result.Value.Output), line => line.StartsWith(Started, StringComparison.Ordinal)));
+            result => Assert.Single(Lines(result.Value.Output), line => line.Contains(" started in ", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [InlineData("Top_level_void_starts_with_the_mock", "VoidApp")]
+    [InlineData("Top_level_int_starts_with_the_mock", "IntApp")]
+    [InlineData("Top_level_Task_starts_with_the_mock", "TaskApp")]
+    [InlineData("Top_level_Task_of_int_starts_with_the_mock", "TaskIntApp")]
+    [InlineData("Explicit_Main_in_a_static_class_starts_with_the_mock", "MainApp")]
+    [InlineData("Internal_Program_starts_with_the_mock", "InternalApp")]
+    [InlineData("Internal_Program_with_InternalsVisibleTo_starts_with_the_mock", "InternalIvtApp")]
+    [InlineData("Startup_class_with_the_generic_host_starts_with_the_mock", "StartupApp")]
+    public void A_generated_entry_type_starts_each_entry_point_shape_with_the_mock(string test, string app)
+    {
+        AssertPassed(test);
+        Assert.Single(Lines(Fixture.Results[test].Output), line => line.StartsWith(app + " started in ", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -109,7 +141,7 @@ public class WebAppSpecs
 
         Assert.Equal("Failed", result.Outcome);
         Assert.Equal("The connection string 'Shop' is missing.", result.Message);
-        Assert.Contains("FixtureShop/Program.cs:line 8", result.StackTrace.Replace('\\', '/'));
+        Assert.Contains("ThrowApp/Program.cs:line 4", result.StackTrace.Replace('\\', '/'));
     }
 
     [Fact]
@@ -119,15 +151,15 @@ public class WebAppSpecs
 
         Assert.Equal("Failed", result.Outcome);
         Assert.Contains(
-            "The entry point of FixtureShop returned 2 before it built a host. What the app wrote to standard error went to the console of the test process.",
+            "The entry point of ReturnApp returned 2 before it built a host. What the app wrote to standard error went to the console of the test process.",
             result.Message);
     }
 
     [Fact]
     public void The_other_tests_run_after_an_app_fails_to_start()
     {
-        Assert.Equal(12, Fixture.Results.Count);
-        Assert.Equal(9, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
+        Assert.Equal(20, Fixture.Results.Count);
+        Assert.Equal(17, Fixture.Results.Values.Count(result => result.Outcome == "Passed"));
     }
 
     private static void AssertPassed(string test)

@@ -119,7 +119,7 @@ internal static class Fixture
         return (process.ExitCode, standardOutput + standardError.Result);
     }
 
-    private static string FindRoot()
+    public static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {

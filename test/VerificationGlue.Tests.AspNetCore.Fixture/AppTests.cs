@@ -11,29 +11,14 @@ using static VerificationGlue.VerifySyntax;
 
 namespace Fixture;
 
-public sealed class FixtureShopEntry : IWebAppEntry
-{
-    public static string ApplicationName => "FixtureShop";
+[WebAppEntry("FixtureShop")]
+public sealed partial class FixtureShopEntry;
 
-    public static int Run(string[] args) => EntryPoint(null, args);
+[WebAppEntry("ThrowApp")]
+public sealed partial class ThrowAppEntry;
 
-    [UnsafeAccessor(UnsafeAccessorKind.StaticMethod, Name = "<Main>$")]
-    private static extern int EntryPoint([UnsafeAccessorType("Program, FixtureShop")] object? program, string[] args);
-}
-
-public sealed class ThrowingStartEntry : IWebAppEntry
-{
-    public static string ApplicationName => FixtureShopEntry.ApplicationName;
-
-    public static int Run(string[] args) => FixtureShopEntry.Run([.. args, "--Fixture:Start=throw"]);
-}
-
-public sealed class ReturningStartEntry : IWebAppEntry
-{
-    public static string ApplicationName => FixtureShopEntry.ApplicationName;
-
-    public static int Run(string[] args) => FixtureShopEntry.Run([.. args, "--Fixture:Start=return"]);
-}
+[WebAppEntry("ReturnApp")]
+public sealed partial class ReturnAppEntry;
 
 [WebApp<FixtureShopEntry>]
 public partial class AppTests
@@ -121,14 +106,14 @@ public partial class AppTests
     }
 }
 
-[WebApp<ThrowingStartEntry>]
+[WebApp<ThrowAppEntry>]
 public partial class ThrowingStartTests
 {
     [VerifyTest]
     public void Fails_with_the_exception_of_the_app(HttpClient client) => Verify(client is not null);
 }
 
-[WebApp<ReturningStartEntry>]
+[WebApp<ReturnAppEntry>]
 public partial class ReturningStartTests
 {
     [VerifyTest]
