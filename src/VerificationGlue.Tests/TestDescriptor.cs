@@ -46,6 +46,7 @@ public sealed class TestDescriptor
     /// Creates the method's data sources, or is null when its rows are literal or it has none. Discovery
     /// replaces a descriptor that has them with one descriptor per row.
     /// </param>
+    /// <param name="traits">The <c>[Trait]</c> names and values of the class and the method.</param>
     public TestDescriptor(
         string uid,
         Func<TestNameContext, string> formatName,
@@ -67,9 +68,11 @@ public sealed class TestDescriptor
         int maxParallel = 0,
         string[]? runAfter = null,
         string[]? resources = null,
-        Func<TestDescriptor, IReadOnlyList<ITestDataSource>>? createDataSources = null)
+        Func<TestDescriptor, IReadOnlyList<ITestDataSource>>? createDataSources = null,
+        KeyValuePair<string, string>[]? traits = null)
     {
         CreateDataSources = createDataSources;
+        Traits = traits ?? [];
         ScheduleGroup = scheduleGroup;
         MaxParallel = maxParallel;
         RunAfter = runAfter ?? [];
@@ -161,6 +164,9 @@ public sealed class TestDescriptor
     /// <summary>The <c>[Resource]</c> keys of the class and the method, widest first.</summary>
     public IReadOnlyList<string> Resources { get; }
 
+    /// <summary>The <c>[Trait]</c> names and values of the class and the method, class first.</summary>
+    public IReadOnlyList<KeyValuePair<string, string>> Traits { get; }
+
     /// <summary>The full name of <see cref="TestClass"/>, with <c>+</c> between nested types.</summary>
     internal string FullTypeName => Namespace.Length == 0 ? TypeName : Namespace + "." + TypeName;
 
@@ -180,7 +186,7 @@ public sealed class TestDescriptor
         new(
             uid, _formatName, arguments, TestClass, Namespace, TypeName, MethodName, ReturnTypeName, FilePath, Line,
             CreateClassAttributes, CreateMethodAttributes, [.. ConstructorParameters], [.. Parameters], CreateInstance, Invoke,
-            ScheduleGroup, MaxParallel, [.. RunAfter], [.. Resources])
+            ScheduleGroup, MaxParallel, [.. RunAfter], [.. Resources], null, [.. Traits])
         {
             SourceFailure = failure,
         };

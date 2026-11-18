@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The tests and the workflow in docs/guide/ci-setup-with-trx-and-retries.md. test/VerificationGlue.Tests.Specs
+    runs the dotnet test command from ci.yml on this project. The imports and the VerificationGlue.Tests
+    references add what the VerificationGlue.Tests package adds.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <!-- The extensions carry their versions, as in a user's project. CiSampleSpecs keeps them equal to Directory.Packages.props. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- begin-snippet: tests-ci-packages -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="3.0.0-preview.26566.9" />
+    <PackageReference Include="Microsoft.Testing.Extensions.Retry" Version="3.0.0-preview.26566.9" />
+  </ItemGroup>
+  <!-- end-snippet -->
+
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

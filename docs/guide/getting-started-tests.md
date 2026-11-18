@@ -126,6 +126,8 @@ Then pass `--report-trx`. The report goes to the `TestResults` folder, or to the
 dotnet test --report-trx
 ```
 
+[CI setup with TRX and retries](ci-setup-with-trx-and-retries.md) adds retries and `--vg-filter` to this command in a CI job.
+
 ## Messages with values
 
 With tier 3 rewriting enabled, a failed `Verify` shows the value of each part of the condition. Set the property in the test project:
@@ -152,4 +154,5 @@ Visual Studio and VS Code with C# Dev Kit have not been checked on the MTP 3 pre
 - [Scheduling groups and resources](scheduling-groups-and-resources.md)
 - [Extending VerificationGlue.Tests](extending.md)
 - [Run tests under Native AOT](run-tests-under-native-aot.md)
+- [CI setup with TRX and retries](ci-setup-with-trx-and-retries.md)
 - [Generated test registrations](generated/test-registrations.md)

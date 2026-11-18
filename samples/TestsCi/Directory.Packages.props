@@ -1,0 +1,3 @@
+<Project>
+  <!-- Keeps the repository's central package versions out, so the extensions in TestsCi.csproj carry their versions. -->
+</Project>

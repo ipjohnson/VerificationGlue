@@ -55,6 +55,9 @@ public class RunnerSpecs
         "Charges_through_the_sandbox",
         "Meets_its_partner_first",
         "Meets_its_partner_second",
+        "Checkout_adds_tax",
+        "Checkout_charges_the_card",
+        "Refund_reverses_the_charge",
     ];
 
     /// <summary>The node the runner publishes when the class container of FailingClassDisposalTests fails to dispose.</summary>

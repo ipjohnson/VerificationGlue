@@ -123,7 +123,7 @@ public partial class CartTests
 <sup><a href='/samples/TestsGettingStarted/CartTests.cs#L27-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-verify-tests' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-[Get started with Tests](docs/guide/getting-started-tests.md) · [Run tests under Native AOT](docs/guide/run-tests-under-native-aot.md)
+[Get started with Tests](docs/guide/getting-started-tests.md) · [Run tests under Native AOT](docs/guide/run-tests-under-native-aot.md) · [Set up CI with TRX and retries](docs/guide/ci-setup-with-trx-and-retries.md)
 
 </details>
 

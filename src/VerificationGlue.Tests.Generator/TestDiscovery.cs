@@ -235,7 +235,8 @@ internal static class TestDiscovery
             Schedule(method, compilation),
             sources.Count > 0,
             sources.Where(source => source.Source is not null).Select(source => source.Source!).ToArray(),
-            method.GetAttributes().Any(RowSourceReader.IsDataSource));
+            method.GetAttributes().Any(RowSourceReader.IsDataSource),
+            Traits(method));
 
         return new TestEntry(testClass, testMethod);
     }
@@ -260,6 +261,16 @@ internal static class TestDiscovery
             Strings(type.GetAttributes(), KnownTypes.RunAfterAttribute),
             Strings(type.GetAttributes().Concat(method.GetAttributes()), KnownTypes.ResourceAttribute));
     }
+
+    /// <summary>The <c>[Trait]</c> names and values of the class and the method, class first, without repeats.</summary>
+    private static TraitModel[] Traits(IMethodSymbol method) =>
+        method.ContainingType.GetAttributes().Concat(method.GetAttributes())
+            .Where(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.TraitAttribute && attribute.ConstructorArguments.Length == 2)
+            .Select(attribute => (Name: attribute.ConstructorArguments[0].Value as string, Value: attribute.ConstructorArguments[1].Value as string))
+            .Where(trait => trait.Name is { Length: > 0 } && trait.Value is not null)
+            .Select(trait => new TraitModel(trait.Name!, trait.Value!))
+            .Distinct()
+            .ToArray();
 
     /// <summary>The <c>[RunAfter]</c> attributes of the class that declares <paramref name="method"/>, with their group names.</summary>
     public static IEnumerable<(AttributeData Attribute, string Group)> RunAfter(IMethodSymbol method) =>

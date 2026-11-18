@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Microsoft.Testing.Platform.Builder;
+using Microsoft.Testing.Platform.Services;
 
 namespace VerificationGlue.Tests;
 
@@ -27,6 +28,9 @@ public static class TestApplicationBuilderExtensions
     public static void AddVerificationGlueTests(this ITestApplicationBuilder builder)
     {
         var trx = new TrxCapability();
-        builder.RegisterTestFramework(_ => new TestFrameworkCapabilities(trx), (_, _) => new TestFramework(trx));
+        builder.CommandLine.AddProvider(() => new TestFilterOption());
+        builder.RegisterTestFramework(
+            _ => new TestFrameworkCapabilities(trx),
+            (_, services) => new TestFramework(trx, TestFramework.ReadFilter(services.GetCommandLineOptions())));
     }
 }

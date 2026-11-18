@@ -83,6 +83,14 @@ internal static class TestEmitter
             text.Append(",\n                createDataSources: ").Append(dataSources);
         }
 
+        if (method.Traits.Count > 0)
+        {
+            const string pair = "global::System.Collections.Generic.KeyValuePair<string, string>";
+            text.Append(",\n                traits: new ").Append(pair).Append("[] { ")
+                .Append(string.Join(", ", method.Traits.Select(trait => "new " + pair + "(" + Literal(trait.Name) + ", " + Literal(trait.Value) + ")")))
+                .Append(" }");
+        }
+
         text.Append("));\n");
     }
 

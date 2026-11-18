@@ -58,7 +58,8 @@ internal sealed record TestMethodModel(
     ScheduleModel Schedule,
     bool HasRowSources,
     EquatableArray<RowSourceModel> Sources,
-    bool HasDataSourceAttributes)
+    bool HasDataSourceAttributes,
+    EquatableArray<TraitModel> Traits)
 {
     /// <summary>True when the method registers a test that discovery expands into rows.</summary>
     public bool ExpandsAtDiscovery => Sources.Count > 0 || HasDataSourceAttributes;
@@ -66,6 +67,9 @@ internal sealed record TestMethodModel(
     /// <summary>True when the method registers one test with no rows.</summary>
     public bool IsPlain => !HasRows && !HasRowSources && !HasDataSourceAttributes;
 }
+
+/// <summary>One <c>[Trait]</c> of a test's class or method.</summary>
+internal sealed record TraitModel(string Name, string Value);
 
 /// <summary>
 /// The schedule group of a test, from the narrowest <c>[ScheduleGroup]</c>, the groups its class runs
