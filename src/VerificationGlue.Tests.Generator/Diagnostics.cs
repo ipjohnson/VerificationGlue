@@ -18,6 +18,16 @@ internal static class Diagnostics
         helpLinkUri: HelpLinkBase + "VGT0001.md",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
 
+    public static readonly DiagnosticDescriptor RunAfterCycle = new(
+        id: "VGT0003",
+        title: "[RunAfter] makes schedule groups wait on each other",
+        messageFormat: "[RunAfter(\"{1}\")] makes the schedule group '{0}' wait on itself through {2}, so none of these groups can start",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0003.md",
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
+
     public static readonly DiagnosticDescriptor NotRunnable = new(
         id: "VGT0004",
         title: "A [VerifyTest] method cannot run",

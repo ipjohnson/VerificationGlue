@@ -4,6 +4,9 @@ using static VerificationGlue.VerifySyntax;
 
 [assembly: TestsLifecycle.LogScopes]
 
+// One test at a time, so the steps of the two tests do not interleave in lifecycle.log.
+[assembly: ScheduleGroup(ScheduleGroupAttribute.DefaultName, MaxParallel = 1)]
+
 namespace TestsLifecycle;
 
 public static class Steps

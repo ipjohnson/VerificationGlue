@@ -9,14 +9,27 @@ namespace Fixture;
 public static class Log
 {
     private static readonly string? s_path = Environment.GetEnvironmentVariable("VG_FIXTURE_LOG");
+    private static readonly Lock s_lock = new();
 
-    public static string[] Lines => s_path is not null && File.Exists(s_path) ? File.ReadAllLines(s_path) : [];
+    public static string[] Lines
+    {
+        get
+        {
+            lock (s_lock)
+            {
+                return s_path is not null && File.Exists(s_path) ? File.ReadAllLines(s_path) : [];
+            }
+        }
+    }
 
     public static void Write(string line)
     {
         if (s_path is not null)
         {
-            File.AppendAllText(s_path, line + "\n");
+            lock (s_lock)
+            {
+                File.AppendAllText(s_path, line + "\n");
+            }
         }
     }
 }
@@ -135,14 +148,17 @@ public sealed class FixtureContainer : ITestContainer, IServiceProvider
             return _parent.Resolve(type, key);
         }
 
-        if (!_instances.TryGetValue(type, out var instance))
+        lock (_instances)
         {
-            instance = registration.Create(this);
-            _instances.Add(type, instance);
-            _owned.Add(instance);
-        }
+            if (!_instances.TryGetValue(type, out var instance))
+            {
+                instance = registration.Create(this);
+                _instances.Add(type, instance);
+                _owned.Add(instance);
+            }
 
-        return instance;
+            return instance;
+        }
     }
 }
 

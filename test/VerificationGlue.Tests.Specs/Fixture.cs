@@ -48,10 +48,14 @@ internal static class Fixture
     }
 
     /// <summary>Runs <c>dotnet</c> with <paramref name="arguments"/> in <paramref name="directory"/>.</summary>
-    public static ProcessResult Dotnet(string directory, params string[] arguments)
+    public static ProcessResult Dotnet(string directory, params string[] arguments) =>
+        Dotnet(new Dictionary<string, string>(), directory, arguments);
+
+    /// <summary>Runs <c>dotnet</c> with <paramref name="arguments"/> and <paramref name="environment"/> in <paramref name="directory"/>.</summary>
+    public static ProcessResult Dotnet(IReadOnlyDictionary<string, string> environment, string directory, params string[] arguments)
     {
         _ = Built.Value;
-        return Process("dotnet", directory, new Dictionary<string, string>(), arguments);
+        return Process("dotnet", directory, environment, arguments);
     }
 
     private static string Build()

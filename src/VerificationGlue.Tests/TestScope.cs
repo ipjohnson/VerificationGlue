@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace VerificationGlue.Tests;
 
@@ -49,8 +50,8 @@ public sealed class TestScope
     public IReadOnlyList<Attribute> Attributes { get; }
 
     /// <summary>
-    /// The output of the running test. A class or assembly scope writes to the test that is running,
-    /// and output written while no test runs is dropped.
+    /// The output of the running test. A class or assembly scope writes to the test whose code is
+    /// writing, such as the test that created the scope, and output written outside any test is dropped.
     /// </summary>
     public ITestOutput Output { get; }
 
@@ -100,12 +101,32 @@ public sealed class TestScope
     internal Exception? Failure { get; set; }
 }
 
-/// <summary>A class or assembly container, or why it failed to build.</summary>
-internal sealed class SharedContainer(Type bootstrap)
+/// <summary>A class or assembly container, or why it failed to build. The first test that asks for it builds it.</summary>
+internal sealed class SharedContainer
 {
-    public Type Bootstrap { get; } = bootstrap;
+    private readonly Lazy<Task> _built;
 
-    public ITestContainer? Container { get; set; }
+    public SharedContainer(Type bootstrap, Func<ValueTask<ITestContainer>> build)
+    {
+        Bootstrap = bootstrap;
+        _built = new(async () =>
+        {
+            try
+            {
+                Container = await build();
+            }
+            catch (Exception failure)
+            {
+                Failure = failure;
+            }
+        });
+    }
 
-    public Exception? Failure { get; set; }
+    public Type Bootstrap { get; }
+
+    public ITestContainer? Container { get; private set; }
+
+    public Exception? Failure { get; private set; }
+
+    public Task BuildAsync() => _built.Value;
 }

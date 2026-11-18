@@ -149,6 +149,7 @@ Visual Studio and VS Code with C# Dev Kit have not been checked on the MTP 3 pre
 - [Containers and scopes](containers-and-scopes.md)
 - [Parameters and where they come from](test-parameters.md)
 - [Test lifecycle](test-lifecycle.md)
+- [Scheduling groups and resources](scheduling-groups-and-resources.md)
 - [Extending VerificationGlue.Tests](extending.md)
 - [Run tests under Native AOT](run-tests-under-native-aot.md)
 - [Generated test registrations](generated/test-registrations.md)

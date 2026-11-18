@@ -32,6 +32,7 @@
     <Project Path="samples/TestsContainers/TestsContainers.csproj" />
     <Project Path="samples/TestsGettingStarted/TestsGettingStarted.csproj" />
     <Project Path="samples/TestsLifecycle/TestsLifecycle.csproj" />
+    <Project Path="samples/TestsScheduling/TestsScheduling.csproj" />
     <Project Path="samples/VerifyInMSTest/VerifyInMSTest.csproj" />
     <Project Path="samples/VerifyInNUnit/VerifyInNUnit.csproj" />
     <Project Path="samples/VerifyInTUnit/VerifyInTUnit.csproj" />

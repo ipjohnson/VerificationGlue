@@ -68,6 +68,7 @@ Run the tests with `dotnet test`, or with `dotnet run` on the test project. Sele
 - [Containers and scopes](../../docs/guide/containers-and-scopes.md)
 - [Parameters and where they come from](../../docs/guide/test-parameters.md)
 - [Test lifecycle](../../docs/guide/test-lifecycle.md)
+- [Scheduling groups and resources](../../docs/guide/scheduling-groups-and-resources.md)
 - [Extending VerificationGlue.Tests](../../docs/guide/extending.md)
 - [Run tests under Native AOT](../../docs/guide/run-tests-under-native-aot.md)
 - [Generated test registrations](../../docs/guide/generated/test-registrations.md)
