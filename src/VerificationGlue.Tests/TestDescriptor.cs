@@ -7,15 +7,22 @@ using System.Threading.Tasks;
 namespace VerificationGlue.Tests;
 
 /// <summary>
-/// One registered test. The generator creates a descriptor for each <c>[VerifyTest]</c> method and
-/// adds it to <see cref="TestRegistry"/> from a module initializer.
+/// One registered test. The generator creates a descriptor for each <c>[VerifyTest]</c> method, or one
+/// for each of its <c>[Row]</c> attributes, and adds it to <see cref="TestRegistry"/> from a module initializer.
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class TestDescriptor
 {
+    private readonly Func<TestNameContext, string> _formatName;
+    private string? _displayName;
+
     /// <summary>Creates a descriptor. Generated code calls this.</summary>
-    /// <param name="uid">The stable test ID: the containing type, the method name and the parameter types.</param>
-    /// <param name="displayName">The name a test explorer shows.</param>
+    /// <param name="uid">
+    /// The stable test ID: the containing type, the method name and the parameter types, and for a row
+    /// its typed values.
+    /// </param>
+    /// <param name="formatName">Calls the test's <see cref="ITestNameFormatter"/>.</param>
+    /// <param name="arguments">The row values, or an empty array when the test has no rows.</param>
     /// <param name="testClass">The type that declares the test method.</param>
     /// <param name="namespace">The namespace of <paramref name="testClass"/>.</param>
     /// <param name="typeName">The type name without the namespace, with <c>+</c> between nested types.</param>
@@ -31,7 +38,8 @@ public sealed class TestDescriptor
     /// <param name="invoke">Runs the test on the instance.</param>
     public TestDescriptor(
         string uid,
-        string displayName,
+        Func<TestNameContext, string> formatName,
+        object?[] arguments,
         Type testClass,
         string @namespace,
         string typeName,
@@ -47,7 +55,8 @@ public sealed class TestDescriptor
         Func<TestContext, object?, ValueTask> invoke)
     {
         Uid = uid;
-        DisplayName = displayName;
+        _formatName = formatName;
+        Arguments = arguments;
         TestClass = testClass;
         Namespace = @namespace;
         TypeName = typeName;
@@ -63,11 +72,20 @@ public sealed class TestDescriptor
         Invoke = invoke;
     }
 
-    /// <summary>The stable test ID: the containing type, the method name and the parameter types.</summary>
+    /// <summary>
+    /// The stable test ID: the containing type, the method name and the parameter types, and for a row
+    /// its typed values.
+    /// </summary>
     public string Uid { get; }
 
-    /// <summary>The name a test explorer shows.</summary>
-    public string DisplayName { get; }
+    /// <summary>
+    /// The name a test explorer shows, from the test's <see cref="ITestNameFormatter"/>. When the
+    /// formatter throws, the name comes from <see cref="DefaultNameFormatter"/>.
+    /// </summary>
+    public string DisplayName => _displayName ??= FormatName();
+
+    /// <summary>The row values, which go to the first parameters in order. Empty when the test has no rows.</summary>
+    public IReadOnlyList<object?> Arguments { get; }
 
     /// <summary>The type that declares the test method.</summary>
     public Type TestClass { get; }
@@ -113,4 +131,17 @@ public sealed class TestDescriptor
 
     /// <summary>The full name of <see cref="TestClass"/>, with <c>+</c> between nested types.</summary>
     internal string FullTypeName => Namespace.Length == 0 ? TypeName : Namespace + "." + TypeName;
+
+    private string FormatName()
+    {
+        var context = new TestNameContext(FullTypeName, MethodName, Parameters, Arguments);
+        try
+        {
+            return _formatName(context);
+        }
+        catch (Exception)
+        {
+            return DefaultNameFormatter.Format(context);
+        }
+    }
 }

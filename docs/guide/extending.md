@@ -1,6 +1,6 @@
 # Extending VerificationGlue.Tests
 
-At the end of this page you can write a container bootstrap, a parameter provider, middleware and a scope listener for `VerificationGlue.Tests`.
+At the end of this page you can write a container bootstrap, a parameter provider, middleware, a scope listener and a name formatter for `VerificationGlue.Tests`.
 
 Every extension point is a public interface in the `VerificationGlue.Tests` namespace. The runner finds them through the test's attributes, which the generator creates without reflection, so extensions work under Native AOT. A breaking change to any of these interfaces needs a major version.
 
@@ -161,7 +161,54 @@ public sealed class LogScopesAttribute : Attribute, ITestScopeListener
 
 `OnDisposingAsync` runs before the scope's containers are disposed. It runs for each listener whose `OnCreatedAsync` returned, in reverse order, even when the test failed.
 
+## Name formatters
+
+An `ITestNameFormatter` writes the display name that a test explorer and the TRX report show. It has one static method, `Format`, which takes a `TestNameContext`:
+
+- `TypeName` and `MethodName` name the test method.
+- `Parameters` holds the method's parameters.
+- `Arguments` holds the row values, which go to the first parameters in order. It is empty for a test without [data rows](data-rows.md).
+
+This formatter writes the row values without the parameter names. `DefaultNameFormatter.FormatValue` writes each value as the default name does:
+
+<!-- snippet: tests-name-formatter -->
+<a id='snippet-tests-name-formatter'></a>
+```cs
+/// <summary>Writes the method name and the row values, without the parameter names.</summary>
+public sealed class ValuesOnlyNameFormatter : ITestNameFormatter
+{
+    public static string Format(in TestNameContext context) =>
+        context.Arguments.Count == 0
+            ? context.MethodName
+            : context.MethodName + " " + string.Join(" / ", context.Arguments.Select(DefaultNameFormatter.FormatValue));
+}
+```
+<sup><a href='/samples/TestsDataRows/PricingTests.cs#L39-L48' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+`[NameFormatter<T>]` names the formatter. It can go on the assembly, a class or a method, and the narrowest one applies:
+
+<!-- snippet: tests-name-formatter-usage -->
+<a id='snippet-tests-name-formatter-usage'></a>
+```cs
+[NameFormatter<ValuesOnlyNameFormatter>]
+public partial class ShippingTests
+{
+    [VerifyTest]
+    [Row(1, "standard")]
+    [Row(5, "express")]
+    public void Ships(int days, string speed) => Verify(days > 0 && speed.Length > 0);
+}
+```
+<sup><a href='/samples/TestsDataRows/PricingTests.cs#L50-L59' title='Snippet source file'>snippet source</a> | <a href='#snippet-tests-name-formatter-usage' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The two rows show as `Ships 1 / "standard"` and `Ships 5 / "express"`. Without the attribute, `DefaultNameFormatter` writes `Ships(days: 1, speed: "standard")`.
+
+The generator calls `Format` directly, so a formatter works under Native AOT. The runner calls it when it first needs the name. When `Format` throws, the test gets the default name. The display name does not change the test ID, so a new formatter keeps every filter and retry working.
+
 ## Next
 
 - [Containers and scopes](containers-and-scopes.md)
+- [Data rows](data-rows.md)
 - [Test lifecycle](test-lifecycle.md)

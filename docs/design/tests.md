@@ -385,8 +385,8 @@ When done, data-driven tests get a result and a container per row, names are plu
 
 Needs: Phase 2. Nothing new from the other packages.
 
-- [ ] `[Row]`, `[RowSource]`, `ITestDataSource`, and analyzers VGT0002 and VGT0005.
-- [ ] `ITestNameFormatter` and the default format.
+- [ ] `[Row]`, `[RowSource]`, `ITestDataSource`, and analyzers VGT0002 and VGT0005. `[Row]` and VGT0002 are done; a row's values go to the method's first parameters, and the rest resolve as usual.
+- [x] `ITestNameFormatter` and the default format.
 - [ ] Schedule groups, resources, `[RunAfter]`, VGT0003 and `ITestScheduler`.
 - [ ] `--vg-filter`.
 - [ ] Gate data-row UID filtering and fresh-process retry support on cases for inserted/reordered literal rows, reordered keyed runtime sources, reordered sources of primitive values, throwing and empty sources, duplicate runtime keys, and explicit deterministic index replay; each retry must execute the intended row and invalid sources must fail rather than select different data.

@@ -177,6 +177,78 @@ public class AnalyzerSpecs
         });
     }
 
+    [Theory]
+    [InlineData("[Row(\"two\", 10)]", "gives \"two\" (string) for the parameter 'qty' of type int")]
+    [InlineData("[Row(2.5, 10)]", "gives 2.5 (double) for the parameter 'qty' of type int")]
+    [InlineData("[Row(2, 10L)]", "gives 10 (long) for the parameter 'price' of type int")]
+    [InlineData("[Row(null, 10)]", "gives null for the parameter 'qty' of type int")]
+    [InlineData("[Row(2, 10, \"note\", 4)]", "has 4 values, but the method has 3 parameters")]
+    [InlineData("[Row]", "has no values")]
+    [InlineData("[Row(300, 10)]", "gives 300 (int) for the parameter 'qty' of type byte")]
+    public async Task A_row_that_does_not_match_its_parameters_reports_VGT0002(string row, string reason)
+    {
+        var type = row.Contains("300", StringComparison.Ordinal) ? "byte" : "int";
+        var diagnostics = await Analyze($$"""
+            using VerificationGlue.Tests;
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                [Row(1, 1)]
+                {{row}}
+                public void Totals({{type}} qty, int price, string? note) { }
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0002", diagnostic.Id);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal($"The [Row] on 'Totals' {reason}, so the row is not registered", diagnostic.GetMessage());
+        Assert.Equal(row, "[" + diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan) + "]");
+    }
+
+    [Fact]
+    public async Task Rows_that_match_their_parameters_report_nothing()
+    {
+        var diagnostics = await Analyze("""
+            using VerificationGlue.Tests;
+
+            public enum Level { Low, High }
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                [Row(2, 10, null, Level.High, 'a', 7)]
+                [Row((byte)2, 10L, "note", Level.Low, 'b', null)]
+                [Row(2)]
+                public void Totals(long qty, double price, string? note, Level level, object letter, int? count) { }
+            }
+            """);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public async Task A_row_value_the_registration_cannot_write_reports_VGT0002_and_not_VGT0006()
+    {
+        var diagnostics = await Analyze("""
+            using VerificationGlue.Tests;
+
+            public partial class OrderTests
+            {
+                private sealed class Secret { }
+
+                [VerifyTest]
+                [Row(typeof(Secret))]
+                public void Totals(Type type) { }
+            }
+            """);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0002", diagnostic.Id);
+        Assert.Equal("The [Row] on 'Totals' gives typeof(OrderTests.Secret), which the generated registration cannot write, so the row is not registered", diagnostic.GetMessage());
+    }
+
     private const string Usings = """
         using VerificationGlue.Mocks;
         using VerificationGlue.Tests;

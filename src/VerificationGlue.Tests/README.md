@@ -67,6 +67,7 @@ Run the tests with `dotnet test`, or with `dotnet run` on the test project. Sele
 - [Getting started with VerificationGlue.Tests](../../docs/guide/getting-started-tests.md)
 - [Containers and scopes](../../docs/guide/containers-and-scopes.md)
 - [Parameters and where they come from](../../docs/guide/test-parameters.md)
+- [Data rows](../../docs/guide/data-rows.md)
 - [Test lifecycle](../../docs/guide/test-lifecycle.md)
 - [Extending VerificationGlue.Tests](../../docs/guide/extending.md)
 - [Run tests under Native AOT](../../docs/guide/run-tests-under-native-aot.md)

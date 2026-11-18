@@ -18,6 +18,15 @@ internal static class Diagnostics
         helpLinkUri: HelpLinkBase + "VGT0001.md",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
 
+    public static readonly DiagnosticDescriptor RowMismatch = new(
+        id: "VGT0002",
+        title: "A [Row] does not match the test method's parameters",
+        messageFormat: "The [Row] on '{0}' {1}, so the row is not registered",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VGT0002.md");
+
     public static readonly DiagnosticDescriptor NotRunnable = new(
         id: "VGT0004",
         title: "A [VerifyTest] method cannot run",

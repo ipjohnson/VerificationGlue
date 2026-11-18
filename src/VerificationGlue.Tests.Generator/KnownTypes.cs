@@ -8,6 +8,9 @@ internal static class KnownTypes
     public const string GeneratedNamespace = "VerificationGlue.Tests.Generated";
     public const string ContainerAttribute = "VerificationGlue.Tests.ContainerAttribute";
     public const string ISupportsChildOverrides = "VerificationGlue.Tests.ISupportsChildOverrides";
+    public const string RowAttribute = "VerificationGlue.Tests.RowAttribute";
+    public const string NameFormatterAttribute = "VerificationGlue.Tests.NameFormatterAttribute";
+    public const string DefaultNameFormatter = "global::VerificationGlue.Tests.DefaultNameFormatter";
     public const string MockAttribute = "VerificationGlue.Mocks.MockAttribute";
     public const string FromKeyedServicesAttribute = "Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute";
 
