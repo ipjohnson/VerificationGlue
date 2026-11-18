@@ -97,4 +97,32 @@ public static class VerifySyntax
         [CallerArgumentExpression(nameof(action))] string? expression = null)
         where T : Exception =>
         VerifyFailure.ThrowsAsync<T>(action, expression, null, null, 0);
+
+    /// <summary>
+    /// Runs <paramref name="action"/> and returns the exception it throws. Throws a
+    /// <see cref="VerifyException"/> when it throws nothing, or throws an exception whose type is
+    /// not exactly <typeparamref name="T"/>. A type derived from <typeparamref name="T"/> fails.
+    /// </summary>
+    /// <typeparam name="T">The exact exception type.</typeparam>
+    /// <param name="action">The code that must throw.</param>
+    /// <param name="expression">The source text of <paramref name="action"/>. The compiler fills it in.</param>
+    public static T ThrowsExactly<T>(
+        Action action,
+        [CallerArgumentExpression(nameof(action))] string? expression = null)
+        where T : Exception =>
+        VerifyFailure.ThrowsExactly<T>(action, expression, null, null, 0);
+
+    /// <summary>
+    /// Awaits <paramref name="action"/> and returns the exception it throws. Throws a
+    /// <see cref="VerifyException"/> when it throws nothing, or throws an exception whose type is
+    /// not exactly <typeparamref name="T"/>. A type derived from <typeparamref name="T"/> fails.
+    /// </summary>
+    /// <typeparam name="T">The exact exception type.</typeparam>
+    /// <param name="action">The code that must throw.</param>
+    /// <param name="expression">The source text of <paramref name="action"/>. The compiler fills it in.</param>
+    public static Task<T> ThrowsExactlyAsync<T>(
+        Func<Task> action,
+        [CallerArgumentExpression(nameof(action))] string? expression = null)
+        where T : Exception =>
+        VerifyFailure.ThrowsExactlyAsync<T>(action, expression, null, null, 0);
 }

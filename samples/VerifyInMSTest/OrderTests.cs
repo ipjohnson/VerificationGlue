@@ -19,6 +19,9 @@ public class OrderTests
         var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
         Verify(error.Message == "The cart is empty.");
 
+        var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+        Verify(exact.Message == "The cart is empty.");
+
         var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
         Verify(timeout.Message.Contains("/orders/7"));
     }
@@ -35,7 +38,7 @@ public class OrderTests
         Verify(failure.Message == """
             Verify failed: order.Total == 30
               expected order.Total to equal 30
-              at OrderTests.cs:33
+              at OrderTests.cs:36
             """);
     }
     #endregion

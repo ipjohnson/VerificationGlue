@@ -30,4 +30,18 @@ Verify(none.Message == """
       at Program.cs:25
     """);
 
+var derived = Throws<VerifyException>(() => ThrowsExactly<ArgumentException>(() => throw new ArgumentNullException("name")));
+Verify(derived.Message == """
+    ThrowsExactly failed: () => throw new ArgumentNullException("name")
+      expected exactly ArgumentException, but ArgumentNullException was thrown
+      at Program.cs:33
+    """);
+
+var derivedAsync = await ThrowsAsync<VerifyException>(() => ThrowsExactlyAsync<ArgumentException>(() => Task.FromException(new ArgumentNullException("name"))));
+Verify(derivedAsync.Message == """
+    ThrowsExactlyAsync failed: () => Task.FromException(new ArgumentNullException("name"))
+      expected exactly ArgumentException, but ArgumentNullException was thrown
+      at Program.cs:40
+    """);
+
 Console.WriteLine("VerifyAot passed.");

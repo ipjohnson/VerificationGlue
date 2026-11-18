@@ -97,4 +97,76 @@ public class VerifySyntaxSpecs
 
         Assert.Equal("ThrowsAsync failed: () => Task.CompletedTask\n  expected TimeoutException\n  no exception was thrown", failure.Message);
     }
+
+    [VerifyTest]
+    public void ThrowsExactly_returns_the_exact_exception()
+    {
+        var thrown = ThrowsExactly<ArgumentException>(() => throw new ArgumentException("bad"));
+
+        Assert.Equal("bad", thrown.Message);
+    }
+
+    [VerifyTest]
+    public void ThrowsExactly_names_a_derived_exception()
+    {
+        var failure = Assert.Throws<VerifyException>(() => ThrowsExactly<ArgumentException>(() => throw new ArgumentNullException("name")));
+
+        Assert.Equal(
+            "ThrowsExactly failed: () => throw new ArgumentNullException(\"name\")\n  expected exactly ArgumentException, but ArgumentNullException was thrown",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public void ThrowsExactly_reports_an_unrelated_exception()
+    {
+        var failure = Assert.Throws<VerifyException>(() => ThrowsExactly<InvalidOperationException>(() => throw new FormatException("bad digit")));
+
+        Assert.Equal(
+            "ThrowsExactly failed: () => throw new FormatException(\"bad digit\")\n  expected InvalidOperationException\n  it threw System.FormatException: bad digit",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public void ThrowsExactly_reports_no_exception()
+    {
+        var failure = Assert.Throws<VerifyException>(() => ThrowsExactly<InvalidOperationException>(() => { }));
+
+        Assert.Equal("ThrowsExactly failed: () => { }\n  expected InvalidOperationException\n  no exception was thrown", failure.Message);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsExactlyAsync_returns_the_exact_exception()
+    {
+        var thrown = await ThrowsExactlyAsync<TimeoutException>(() => Task.FromException(new TimeoutException("slow")));
+
+        Assert.Equal("slow", thrown.Message);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsExactlyAsync_names_a_derived_exception()
+    {
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsExactlyAsync<ArgumentException>(() => Task.FromException(new ArgumentNullException("name"))));
+
+        Assert.Equal(
+            "ThrowsExactlyAsync failed: () => Task.FromException(new ArgumentNullException(\"name\"))\n  expected exactly ArgumentException, but ArgumentNullException was thrown",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsExactlyAsync_reports_an_unrelated_exception()
+    {
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsExactlyAsync<TimeoutException>(() => Task.FromException(new FormatException("bad digit"))));
+
+        Assert.Equal(
+            "ThrowsExactlyAsync failed: () => Task.FromException(new FormatException(\"bad digit\"))\n  expected TimeoutException\n  it threw System.FormatException: bad digit",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsExactlyAsync_reports_no_exception()
+    {
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsExactlyAsync<TimeoutException>(() => Task.CompletedTask));
+
+        Assert.Equal("ThrowsExactlyAsync failed: () => Task.CompletedTask\n  expected TimeoutException\n  no exception was thrown", failure.Message);
+    }
 }

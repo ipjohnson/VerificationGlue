@@ -15,6 +15,7 @@ public static class Gallery
         ("tier2-pattern", Tier2Messages.Pattern),
         ("tier2-with-message", Tier2Messages.WithMessage),
         ("tier2-throws", Tier2Messages.Throws),
+        ("tier2-throws-exactly", Tier2Messages.ThrowsExactly),
         ("tier3-values", Tier3Messages.Values),
         ("tier3-skipped", Tier3Messages.Skipped),
         ("tier3-because", Tier3Messages.Because),

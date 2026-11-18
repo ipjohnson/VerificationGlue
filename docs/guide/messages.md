@@ -138,6 +138,26 @@ Throws failed: () => new Cart().Add(1)
 ```
 <!-- endMessage -->
 
+### ThrowsExactly
+
+`ThrowsExactly<T>` fails for an exception derived from `T`. The message names the type that was thrown.
+
+<!-- snippet: message-tier2-throws-exactly -->
+<a id='snippet-message-tier2-throws-exactly'></a>
+```cs
+ThrowsExactly<ArgumentException>(() => throw new ArgumentNullException("item"));
+```
+<sup><a href='/samples/Messages/Tier2Messages.cs#L68-L70' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-throws-exactly' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-throws-exactly -->
+```text
+ThrowsExactly failed: () => throw new ArgumentNullException("item")
+  expected exactly ArgumentException, but ArgumentNullException was thrown
+  at Tier2Messages.cs:69
+```
+<!-- endMessage -->
+
 ## Tier 3: captured values
 
 A `[Verify]` method in a `partial` type gets a tier 3 copy when the project sets `VerificationGlueRewrite`. The message lists the value of each part of the condition, as it was when the condition ran. Nothing is evaluated again to build the message.

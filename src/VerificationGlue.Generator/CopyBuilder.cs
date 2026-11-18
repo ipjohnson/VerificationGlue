@@ -339,7 +339,7 @@ internal sealed class CopyBuilder
                     (mapped.StartLinePosition.Line + 1).ToString(CultureInfo.InvariantCulture);
         switch (kind)
         {
-            case CallKind.Throws or CallKind.ThrowsAsync:
+            case CallKind.Throws or CallKind.ThrowsAsync or CallKind.ThrowsExactly or CallKind.ThrowsExactlyAsync:
             {
                 var action = VerifyCalls.Argument(call, VerifyCalls.ActionParameter)!;
                 var expression = VerifyCalls.Argument(call, VerifyCalls.ExpressionParameter, 1);
@@ -349,8 +349,8 @@ internal sealed class CopyBuilder
                     MemberAccessExpressionSyntax { Name: GenericNameSyntax generic } => Render(generic.TypeArgumentList.Span),
                     _ => "<" + target.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + ">",
                 };
-                var message = Shapes.Throws(action, target.TypeArguments[0]);
-                return $"{Runtime}.{(kind == CallKind.Throws ? "Throws" : "ThrowsAsync")}{typeArguments}({Render(action.Span)}, " +
+                var message = Shapes.Throws(action, target.TypeArguments[0], kind is CallKind.ThrowsExactly or CallKind.ThrowsExactlyAsync);
+                return $"{Runtime}.{kind}{typeArguments}({Render(action.Span)}, " +
                        $"{(expression is null ? Literal(action.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
             }
 
