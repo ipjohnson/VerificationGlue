@@ -2,7 +2,7 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
     <IsSpecsProject>$(MSBuildProjectName.EndsWith('.Specs'))</IsSpecsProject>
-    <_SpecsOnVerificationGlueTests>;VerificationGlue.Specs;ColdBuild.Specs;</_SpecsOnVerificationGlueTests>
+    <_SpecsOnVerificationGlueTests>;VerificationGlue.Specs;ColdBuild.Specs;Docs.Specs;</_SpecsOnVerificationGlueTests>
     <_SpecsMoved>$(_SpecsOnVerificationGlueTests.Contains(';$(MSBuildProjectName);'))</_SpecsMoved>
   </PropertyGroup>
 
