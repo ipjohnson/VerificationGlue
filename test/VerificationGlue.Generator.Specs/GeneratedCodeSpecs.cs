@@ -41,6 +41,32 @@ public class GeneratedCodeSpecs
         Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Redirects_for_the_messages_sample), redirects.GetText(cancellationToken).ToString());
     }
 
+    [VerifyTest]
+    public void A_verify_helper_named_ThrowsExactly_still_gets_a_redirect(CancellationToken cancellationToken)
+    {
+        const string Source = """
+            using VerificationGlue;
+            using static VerificationGlue.VerifySyntax;
+
+            public static partial class Helpers
+            {
+                [Verify]
+                public static void ThrowsExactly(int count) => Verify(count == 3);
+            }
+
+            public static class Caller
+            {
+                public static void Run() => Helpers.ThrowsExactly(3);
+            }
+            """;
+        var compilation = GeneratorHarness.Compilation((GeneratorHarness.ProjectDirectory + "Input.cs", Source));
+
+        var result = GeneratorHarness.Generate(compilation, new VerificationGlueGenerator(), out _, rewrite: true);
+
+        var redirects = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(".Redirects.g.cs", StringComparison.Ordinal));
+        Assert.Contains("Helpers.ThrowsExactly", redirects.GetText(cancellationToken).ToString());
+    }
+
     private static Microsoft.CodeAnalysis.GeneratorDriverRunResult GenerateMessagesSample()
     {
         var messages = Path.Combine(RepositoryRoot(), "samples", "Messages");

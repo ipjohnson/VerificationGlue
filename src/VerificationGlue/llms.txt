@@ -7,7 +7,7 @@
 - Import the methods with `using static VerificationGlue.VerifySyntax;`. Add `using VerificationGlue;` for `[Verify]`, `VerifyScope` and `VerifyException`.
 - Write every check as one `bool` condition: `Verify(order.Total == 40)`, `Verify(name is not null)`, `Verify(items.Contains(3))`. Do not write a message for what the condition already says.
 - Add context with an interpolated message: `Verify(order.Total == 40, $"order {order.Id}")`. Its holes run only on failure.
-- Use `Throws<T>(() => ...)` and `await ThrowsAsync<T>(() => ...)` for exceptions. Both return the exception, and both accept a type derived from `T`.
+- Use `Throws<T>(() => ...)` and `await ThrowsAsync<T>(() => ...)` for exceptions. Both return the exception, and both accept a type derived from `T`. Use `ThrowsExactly<T>` and `ThrowsExactlyAsync<T>` when only exactly `T` should pass.
 - Use `Check(condition)` to record a failure and continue. Open a scope with `using (VerifyScope.Begin()) { ... }` in xunit, NUnit, MSTest and TUnit. The scope throws one `VerifyException` listing every failure when it ends. With no scope, `Check` throws at once.
 - Do not change state inside a condition. `Verify(i++ == 0)` is reported by VG0003.
 - Do not compare `double` or `float` with `==`. Compare the difference with a tolerance. VG0004 reports it.

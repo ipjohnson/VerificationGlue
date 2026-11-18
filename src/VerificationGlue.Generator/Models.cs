@@ -9,6 +9,8 @@ internal enum CallKind
     Check,
     Throws,
     ThrowsAsync,
+    ThrowsExactly,
+    ThrowsExactlyAsync,
 }
 
 /// <summary>

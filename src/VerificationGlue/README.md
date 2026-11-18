@@ -33,11 +33,14 @@ public async Task Checkout_reports_an_empty_cart()
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
     Verify(error.Message == "The cart is empty.");
 
+    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(exact.Message == "The cart is empty.");
+
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
     Verify(timeout.Message.Contains("/orders/7"));
 }
 ```
-<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 A failed `Verify(order.Total == 30)` reports:

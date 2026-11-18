@@ -41,7 +41,7 @@ internal static class Shapes
     /// The message for a <c>Throws</c> or <c>ThrowsAsync</c> call, or null when the exception type
     /// is a type parameter or the action spans several lines.
     /// </summary>
-    public static string? Throws(ExpressionSyntax action, ITypeSymbol exceptionType)
+    public static string? Throws(ExpressionSyntax action, ITypeSymbol exceptionType, bool exactly = false)
     {
         if (exceptionType is ITypeParameterSymbol)
         {
@@ -49,7 +49,7 @@ internal static class Shapes
         }
 
         var body = Unwrap(action) is LambdaExpressionSyntax { ExpressionBody: { } expressionBody } ? expressionBody : action;
-        return Say("expected {0} to throw " + exceptionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat), body);
+        return Say((exactly ? "expected {0} to throw exactly " : "expected {0} to throw ") + exceptionType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat), body);
     }
 
     private static string? Pattern(IsPatternExpressionSyntax pattern)

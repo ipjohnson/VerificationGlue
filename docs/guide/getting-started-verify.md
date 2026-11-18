@@ -1,6 +1,6 @@
 # Getting started with Verify
 
-At the end of this page you can write checks with `Verify`, `Throws` and `ThrowsAsync` in xunit, NUnit, MSTest or TUnit. You can also read the message a failed check gives, including under Native AOT.
+At the end of this page you can write checks with `Verify`, `Throws`, `ThrowsExactly` and `ThrowsAsync` in xunit, NUnit, MSTest or TUnit. You can also read the message a failed check gives, including under Native AOT.
 
 This page covers messages built from the source text and the shape of each check. [Soft checks with Check](check.md) covers `Check`, and [How tiers work](tiers.md) covers messages with captured values.
 
@@ -32,6 +32,8 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 | `Verify(condition, $"...")` | Adds the interpolated message to the failure. Its holes run only when `condition` is false. |
 | `Throws<T>(action)` | Returns the exception that `action` throws. Fails when it throws nothing, or throws an exception that is not a `T` or derived from `T`. |
 | `ThrowsAsync<T>(action)` | Awaits `action` and does the same as `Throws<T>`. |
+| `ThrowsExactly<T>(action)` | Returns the exception that `action` throws. Fails unless its type is exactly `T`, so an exception derived from `T` fails. |
+| `ThrowsExactlyAsync<T>(action)` | Awaits `action` and does the same as `ThrowsExactly<T>`. |
 
 ### xunit
 
@@ -48,11 +50,14 @@ public async Task Checkout_reports_an_empty_cart()
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
     Verify(error.Message == "The cart is empty.");
 
+    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(exact.Message == "The cart is empty.");
+
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
     Verify(timeout.Message.Contains("/orders/7"));
 }
 ```
-<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ### NUnit
@@ -70,11 +75,14 @@ public async Task Checkout_reports_an_empty_cart()
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
     Verify(error.Message == "The cart is empty.");
 
+    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(exact.Message == "The cart is empty.");
+
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
     Verify(timeout.Message.Contains("/orders/7"));
 }
 ```
-<sup><a href='/samples/VerifyInNUnit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-nunit' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInNUnit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-nunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ### MSTest
@@ -92,11 +100,14 @@ public async Task Checkout_reports_an_empty_cart()
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
     Verify(error.Message == "The cart is empty.");
 
+    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(exact.Message == "The cart is empty.");
+
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
     Verify(timeout.Message.Contains("/orders/7"));
 }
 ```
-<sup><a href='/samples/VerifyInMSTest/OrderTests.cs#L11-L25' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-mstest' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInMSTest/OrderTests.cs#L11-L28' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-mstest' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ### TUnit
@@ -114,11 +125,14 @@ public async Task Checkout_reports_an_empty_cart()
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
     Verify(error.Message == "The cart is empty.");
 
+    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
+    Verify(exact.Message == "The cart is empty.");
+
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
     Verify(timeout.Message.Contains("/orders/7"));
 }
 ```
-<sup><a href='/samples/VerifyInTUnit/OrderTests.cs#L10-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-tunit' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInTUnit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-tunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Each sample runs in CI with the framework's own runner.
@@ -140,11 +154,11 @@ public void A_failure_names_the_shape_file_and_line()
     Verify(failure.Message == """
         Verify failed: order.Total == 30
           expected order.Total to equal 30
-          at OrderTests.cs:32
+          at OrderTests.cs:35
         """);
 }
 ```
-<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L26-L40' title='Snippet source file'>snippet source</a> | <a href='#snippet-failure-in-xunit' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L29-L43' title='Snippet source file'>snippet source</a> | <a href='#snippet-failure-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The first line names the call and shows the source text of its argument. The next line describes the failure from the shape of the condition. The last line gives the file, relative to the project directory, and the line of the call. A `Verify` call with a message adds the message before the file and line.
@@ -163,9 +177,10 @@ The generator picks the second line from the shape of the condition:
 | `!x` | `expected x to be false` |
 | A call that returns `bool` | `expected call to return true` |
 | `Throws<T>(() => call)`, `ThrowsAsync<T>(() => call)` | `expected call to throw T` |
+| `ThrowsExactly<T>(() => call)`, `ThrowsExactlyAsync<T>(() => call)` | `expected call to throw exactly T`, or `expected exactly T, but U was thrown` when the call throws a type `U` derived from `T` |
 | Any other condition, or an operand written on several lines | No second line. The first line already shows the source text. |
 
-A `Throws` or `ThrowsAsync` failure adds a line that says what happened: `no exception was thrown`, or the type and message of the exception that was thrown. That exception is also the `InnerException` of the `VerifyException`.
+A `Throws`, `ThrowsAsync`, `ThrowsExactly` or `ThrowsExactlyAsync` failure adds a line that says what happened: `no exception was thrown`, or the type and message of the exception that was thrown. That exception is also the `InnerException` of the `VerifyException`.
 
 [`InterceptorSpecs.cs`](../../test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs) runs every row of the table. [Generated interceptors](generated/interceptors.md) shows the code the generator writes for the xunit sample.
 

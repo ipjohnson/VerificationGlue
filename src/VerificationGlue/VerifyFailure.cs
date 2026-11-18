@@ -170,6 +170,65 @@ public static class VerifyFailure
         throw NoException<T>("ThrowsAsync", expression, message, file, line);
     }
 
+    /// <summary>Runs <paramref name="action"/> and returns the exception it throws when its type is exactly <typeparamref name="T"/>.</summary>
+    /// <typeparam name="T">The exact exception type.</typeparam>
+    /// <param name="action">The code that must throw.</param>
+    /// <param name="expression">The source text of the action.</param>
+    /// <param name="message">The message for the shape of the call, or null.</param>
+    /// <param name="file">The file of the call, or null.</param>
+    /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
+    public static T ThrowsExactly<T>(Action action, string? expression, string? message, string? file, int line)
+        where T : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception thrown)
+        {
+            if (thrown.GetType() == typeof(T))
+            {
+                return (T)thrown;
+            }
+
+            throw NotExactly<T>("ThrowsExactly", thrown, expression, message, file, line);
+        }
+
+        throw NoException<T>("ThrowsExactly", expression, message, file, line);
+    }
+
+    /// <summary>Awaits <paramref name="action"/> and returns the exception it throws when its type is exactly <typeparamref name="T"/>.</summary>
+    /// <typeparam name="T">The exact exception type.</typeparam>
+    /// <param name="action">The code that must throw.</param>
+    /// <param name="expression">The source text of the action.</param>
+    /// <param name="message">The message for the shape of the call, or null.</param>
+    /// <param name="file">The file of the call, or null.</param>
+    /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
+    public static async Task<T> ThrowsExactlyAsync<T>(Func<Task> action, string? expression, string? message, string? file, int line)
+        where T : Exception
+    {
+        try
+        {
+            await action().ConfigureAwait(false);
+        }
+        catch (Exception thrown)
+        {
+            if (thrown.GetType() == typeof(T))
+            {
+                return (T)thrown;
+            }
+
+            throw NotExactly<T>("ThrowsExactlyAsync", thrown, expression, message, file, line);
+        }
+
+        throw NoException<T>("ThrowsExactlyAsync", expression, message, file, line);
+    }
+
+    private static VerifyException NotExactly<T>(string kind, Exception thrown, string? expression, string? message, string? file, int line) =>
+        thrown is T
+            ? new(Compose(kind, expression, $"expected exactly {typeof(T).Name}, but {thrown.GetType().Name} was thrown", null, null, file, line), thrown)
+            : WrongException<T>(kind, thrown, expression, message, file, line);
+
     private static VerifyException NoException<T>(string kind, string? expression, string? message, string? file, int line) =>
         new(Compose(kind, expression, message ?? Expected<T>(), "no exception was thrown", null, file, line));
 

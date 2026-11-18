@@ -97,14 +97,16 @@ internal static class InterceptorEmitter
                     break;
                 case CallKind.Throws:
                 case CallKind.ThrowsAsync:
-                    var async = call.Kind == CallKind.ThrowsAsync;
+                case CallKind.ThrowsExactly:
+                case CallKind.ThrowsExactlyAsync:
+                    var async = call.Kind is CallKind.ThrowsAsync or CallKind.ThrowsExactlyAsync;
                     var exception = new TypeParameterDefinition("T");
                     method.AddGenericParameter(exception);
                     method.AddConstraint("T").Implements(KnownTypes.Exception);
                     method.SetReturnType(async ? new GenericTypeDefinition(TypeDefinitionEnum.ClassDefinition, "System.Threading.Tasks", "Task", new ITypeDefinition[] { exception }) : exception);
                     method.AddParameter(async ? KnownTypes.FuncOfTask : KnownTypes.Action, "action");
                     AddExpression(method);
-                    method.Return(Ex.CallGeneric(KnownTypes.VerifyFailure, async ? "ThrowsAsync" : "Throws", new ITypeDefinition[] { exception }, Ex.Id("action"), Expression, message, path, line));
+                    method.Return(Ex.CallGeneric(KnownTypes.VerifyFailure, call.Kind.ToString(), new ITypeDefinition[] { exception }, Ex.Id("action"), Expression, message, path, line));
                     break;
             }
         }

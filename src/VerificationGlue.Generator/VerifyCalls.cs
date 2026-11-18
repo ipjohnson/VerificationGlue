@@ -14,7 +14,7 @@ internal static class VerifyCalls
 
     /// <summary>A cheap syntax test: an invocation whose method name is one of ours.</summary>
     public static bool IsCandidate(SyntaxNode node) =>
-        node is InvocationExpressionSyntax invocation && MethodName(invocation.Expression) is "Verify" or "Check" or "Throws" or "ThrowsAsync";
+        node is InvocationExpressionSyntax invocation && MethodName(invocation.Expression) is "Verify" or "Check" or "Throws" or "ThrowsAsync" or "ThrowsExactly" or "ThrowsExactlyAsync";
 
     public static CallKind? KindOf(IMethodSymbol method)
     {
@@ -31,6 +31,8 @@ internal static class VerifyCalls
             "Check" => CallKind.Check,
             "Throws" => CallKind.Throws,
             "ThrowsAsync" => CallKind.ThrowsAsync,
+            "ThrowsExactly" => CallKind.ThrowsExactly,
+            "ThrowsExactlyAsync" => CallKind.ThrowsExactlyAsync,
             _ => null,
         };
     }

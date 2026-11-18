@@ -62,4 +62,11 @@ public static class Tier2Messages
         Throws<InvalidOperationException>(() => new Cart().Add(1));
         #endregion
     }
+
+    public static void ThrowsExactly()
+    {
+        #region message-tier2-throws-exactly
+        ThrowsExactly<ArgumentException>(() => throw new ArgumentNullException("item"));
+        #endregion
+    }
 }
