@@ -229,7 +229,7 @@ Verify(error.Message == "The cart is empty.");
 <sup><a href='/samples/MigrateFromXunitAssert/After/OrderTests.cs#L102-L105' title='Snippet source file'>snippet source</a> | <a href='#snippet-xunit-assert-throws-after' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-`Assert.Throws<T>` passes only for exactly `T`. `Throws<T>` also passes for an exception derived from `T`, as `Assert.ThrowsAny<T>` does.
+`Assert.Throws<T>` passes only for exactly `T`, and `ThrowsExactly<T>` does the same. `Throws<T>` also passes for an exception derived from `T`, as `Assert.ThrowsAny<T>` does. `Assert.ThrowsAsync<T>` maps to `ThrowsExactlyAsync<T>` in the same way.
 
 ## Async exceptions
 

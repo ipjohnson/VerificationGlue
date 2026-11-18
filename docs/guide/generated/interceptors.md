@@ -57,7 +57,7 @@ namespace VerificationGlue.Generated
     file static class Interceptors
     {
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiScBAABPcmRlclRlc3RzLmNz")]
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeCcBAABPcmRlclRlc3RzLmNz")]
         public static global::VerificationGlue.VerifyResult Verify_15_9(bool condition, string? expression = null)
         {
             if (!condition)
@@ -67,7 +67,7 @@ namespace VerificationGlue.Generated
             return default;
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiUoBAABPcmRlclRlc3RzLmNz")]
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeEoBAABPcmRlclRlc3RzLmNz")]
         public static global::VerificationGlue.VerifyResult Verify_16_9(bool condition, ref global::VerificationGlue.VerifyMessageHandler message, string? expression = null)
         {
             if (!condition)
@@ -77,13 +77,13 @@ namespace VerificationGlue.Generated
             return default;
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiZwBAABPcmRlclRlc3RzLmNz")]
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeJwBAABPcmRlclRlc3RzLmNz")]
         public static T Throws_18_21<T>(global::System.Action action, string? expression = null) where T : global::System.Exception
         {
             return global::VerificationGlue.VerifyFailure.Throws<T>(action, expression, "expected new Cart().Checkout() to throw InvalidOperationException", "OrderTests.cs", 18);
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYidwBAABPcmRlclRlc3RzLmNz")]
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeNwBAABPcmRlclRlc3RzLmNz")]
         public static global::VerificationGlue.VerifyResult Verify_19_9(bool condition, string? expression = null)
         {
             if (!condition)
@@ -93,51 +93,67 @@ namespace VerificationGlue.Generated
             return default;
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiTACAABPcmRlclRlc3RzLmNz")]
-        public static global::System.Threading.Tasks.Task<T> ThrowsAsync_21_29<T>(global::System.Func<global::System.Threading.Tasks.Task> action, string? expression = null) where T : global::System.Exception
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeCgCAABPcmRlclRlc3RzLmNz")]
+        public static T ThrowsExactly_21_21<T>(global::System.Action action, string? expression = null) where T : global::System.Exception
         {
-            return global::VerificationGlue.VerifyFailure.ThrowsAsync<T>(action, expression, "expected new Client().GetAsync(\"/orders/7\") to throw TimeoutException", "OrderTests.cs", 21);
+            return global::VerificationGlue.VerifyFailure.ThrowsExactly<T>(action, expression, "expected new Cart().Checkout() to throw exactly InvalidOperationException", "OrderTests.cs", 21);
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiXkCAABPcmRlclRlc3RzLmNz")]
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeG8CAABPcmRlclRlc3RzLmNz")]
         public static global::VerificationGlue.VerifyResult Verify_22_9(bool condition, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected timeout.Message.Contains(\"/orders/7\") to return true", "OrderTests.cs", 22);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected exact.Message to equal \"The cart is empty.\"", "OrderTests.cs", 22);
             }
             return default;
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiXYDAABPcmRlclRlc3RzLmNz")]
-        public static T Throws_32_23<T>(global::System.Action action, string? expression = null) where T : global::System.Exception
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeMMCAABPcmRlclRlc3RzLmNz")]
+        public static global::System.Threading.Tasks.Task<T> ThrowsAsync_24_29<T>(global::System.Func<global::System.Threading.Tasks.Task> action, string? expression = null) where T : global::System.Exception
         {
-            return global::VerificationGlue.VerifyFailure.Throws<T>(action, expression, "expected Verify(order.Total == 30) to throw VerifyException", "OrderTests.cs", 32);
+            return global::VerificationGlue.VerifyFailure.ThrowsAsync<T>(action, expression, "expected new Client().GetAsync(\"/orders/7\") to throw TimeoutException", "OrderTests.cs", 24);
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYiZQDAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_32_53(bool condition, string? expression = null)
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeAwDAABPcmRlclRlc3RzLmNz")]
+        public static global::VerificationGlue.VerifyResult Verify_25_9(bool condition, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected order.Total to equal 30", "OrderTests.cs", 32);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected timeout.Message.Contains(\"/orders/7\") to return true", "OrderTests.cs", 25);
             }
             return default;
         }
 
-        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "XvoYftv2ZzvgqT+RGaOYibADAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_34_9(bool condition, string? expression = null)
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeAkEAABPcmRlclRlc3RzLmNz")]
+        public static T Throws_35_23<T>(global::System.Action action, string? expression = null) where T : global::System.Exception
+        {
+            return global::VerificationGlue.VerifyFailure.Throws<T>(action, expression, "expected Verify(order.Total == 30) to throw VerifyException", "OrderTests.cs", 35);
+        }
+
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeCcEAABPcmRlclRlc3RzLmNz")]
+        public static global::VerificationGlue.VerifyResult Verify_35_53(bool condition, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, null, "OrderTests.cs", 34);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected order.Total to equal 30", "OrderTests.cs", 35);
+            }
+            return default;
+        }
+
+        [global::System.Runtime.CompilerServices.InterceptsLocation(1, "/Lxt3Nnf79UQBPFrnlKoeEMEAABPcmRlclRlc3RzLmNz")]
+        public static global::VerificationGlue.VerifyResult Verify_37_9(bool condition, string? expression = null)
+        {
+            if (!condition)
+            {
+                throw global::VerificationGlue.VerifyFailure.Static(expression, null, "OrderTests.cs", 37);
             }
             return default;
         }
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Generator.Specs/Snapshots/GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt#L1-L94' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Generator.Specs/Snapshots/GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt#L1-L110' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `test/VerificationGlue.Generator.Specs/GeneratedCodeSpecs.cs` runs the generator on the sample file and fails when its output differs from this snapshot.
