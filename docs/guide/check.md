@@ -55,6 +55,10 @@ The scope flows with `async` and `await`. A `Check` in a method that the test aw
 
 With no open scope, `Check` throws at once, as `Verify` does, so a failure is never lost. Analyzer [VG0007](../diagnostics/VG0007.md) warns about a `Check` in a static constructor, a finalizer or a module initializer, where no scope can be open.
 
+## Checks that return a value
+
+`Throws`, `ThrowsAsync`, `Single`, `Is` and `NotNull` return the value they checked. A failure has no value to return, so these throw inside a scope as well, and record nothing in it. Use them for a value the rest of the test needs. The scope still reports the `Check` failures recorded before the throw, as [When the test throws](#when-the-test-throws) describes.
+
 ## Values in a Check
 
 In a `[Verify]` method that tier 3 rewrites, each `Check` lists its values, as `Verify` does:

@@ -44,4 +44,45 @@ Verify(derivedAsync.Message == """
       at Program.cs:40
     """);
 
+List<string> names = ["Ann", "Bo"];
+var several = Throws<VerifyException>(() => Single(names));
+Verify(several.Message == """
+    Single failed: names
+      expected one item, but found 2: ["Ann", "Bo"]
+      at Program.cs:48
+    """);
+
+var noMatch = Throws<VerifyException>(() => Single(names, n => n.Length > 5));
+Verify(noMatch.Message == """
+    Single failed: names, n => n.Length > 5
+      expected one match, but found 0
+      at Program.cs:55
+    """);
+
+object shape = new List<int>();
+var wrongType = Throws<VerifyException>(() => Is<Dictionary<string, int>>(shape));
+Verify(wrongType.Message == """
+    Is failed: shape
+      expected Dictionary<String, Int32>, but it was List<Int32>
+      at Program.cs:63
+    """);
+
+string? label = null;
+var missing = Throws<VerifyException>(() => NotNull(label));
+Verify(missing.Message == """
+    NotNull failed: label
+      at Program.cs:71
+    """);
+
+int? count = null;
+var noValue = Throws<VerifyException>(() => NotNull(count));
+Verify(noValue.Message == """
+    NotNull failed: count
+      at Program.cs:78
+    """);
+
+Verify(Single(names, n => n.Length == 2) == "Bo");
+Verify(Is<List<int>>(shape).Count == 0);
+Verify(NotNull((int?)3) == 3);
+
 Console.WriteLine("VerifyAot passed.");

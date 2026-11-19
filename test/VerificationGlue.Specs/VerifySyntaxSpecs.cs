@@ -169,4 +169,171 @@ public class VerifySyntaxSpecs
 
         Assert.Equal("ThrowsExactlyAsync failed: () => Task.CompletedTask\n  expected TimeoutException\n  no exception was thrown", failure.Message);
     }
+
+    [VerifyTest]
+    public void Single_returns_the_only_item()
+    {
+        List<string> names = ["a"];
+
+        Assert.Equal("a", Single(names));
+    }
+
+    [VerifyTest]
+    public void Single_reports_no_items()
+    {
+        List<int> numbers = [];
+
+        var failure = Assert.Throws<VerifyException>(() => Single(numbers));
+
+        Assert.Equal("Single failed: numbers\n  expected one item, but found 0", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_lists_several_items()
+    {
+        List<string> names = ["a", "b"];
+
+        var failure = Assert.Throws<VerifyException>(() => Single(names));
+
+        Assert.Equal("Single failed: names\n  expected one item, but found 2: [\"a\", \"b\"]", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_lists_the_first_ten_items()
+    {
+        var failure = Assert.Throws<VerifyException>(() => Single(Enumerable.Range(1, 12)));
+
+        Assert.Equal("Single failed: Enumerable.Range(1, 12)\n  expected one item, but found 12: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, …]", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_reports_null_items()
+    {
+        List<int>? numbers = null;
+
+        var failure = Assert.Throws<VerifyException>(() => Single(numbers));
+
+        Assert.Equal("Single failed: numbers\n  expected one item, but the items were null", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_with_a_predicate_returns_the_only_match()
+    {
+        List<int> numbers = [1, 2, 3];
+
+        Assert.Equal(2, Single(numbers, n => n % 2 == 0));
+    }
+
+    [VerifyTest]
+    public void Single_with_a_predicate_reports_no_match()
+    {
+        List<int> numbers = [1, 3];
+
+        var failure = Assert.Throws<VerifyException>(() => Single(numbers, n => n % 2 == 0));
+
+        Assert.Equal("Single failed: numbers, n => n % 2 == 0\n  expected one match, but found 0", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_with_a_predicate_lists_several_matches()
+    {
+        List<int> numbers = [1, 2, 3, 4];
+
+        var failure = Assert.Throws<VerifyException>(() => Single(numbers, n => n % 2 == 0));
+
+        Assert.Equal("Single failed: numbers, n => n % 2 == 0\n  expected one match, but found 2: [2, 4]", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_with_a_predicate_lists_the_first_ten_matches()
+    {
+        var failure = Assert.Throws<VerifyException>(() => Single(Enumerable.Range(1, 30), n => n % 2 == 0));
+
+        Assert.Equal(
+            "Single failed: Enumerable.Range(1, 30), n => n % 2 == 0\n  expected one match, but found 15: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, …]",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public void Single_with_a_predicate_reports_null_items()
+    {
+        List<int>? numbers = null;
+
+        var failure = Assert.Throws<VerifyException>(() => Single(numbers, n => n > 0));
+
+        Assert.Equal("Single failed: numbers, n => n > 0\n  expected one match, but the items were null", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Is_returns_the_value_as_the_type()
+    {
+        object error = new ArgumentNullException("name");
+
+        Exception typed = Is<ArgumentException>(error);
+
+        Assert.Same(error, typed);
+    }
+
+    [VerifyTest]
+    public void Is_names_the_actual_type()
+    {
+        object value = new List<int>();
+
+        var failure = Assert.Throws<VerifyException>(() => Is<Dictionary<string, int>>(value));
+
+        Assert.Equal("Is failed: value\n  expected Dictionary<String, Int32>, but it was List<Int32>", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Is_reports_null()
+    {
+        object? value = null;
+
+        var failure = Assert.Throws<VerifyException>(() => Is<string>(value));
+
+        Assert.Equal("Is failed: value\n  expected String, but it was null", failure.Message);
+    }
+
+    [VerifyTest]
+    public void NotNull_returns_a_reference_typed_non_null()
+    {
+        string? name = "a";
+
+        var found = NotNull(name);
+
+        // Both lines compile without a nullable warning, which is an error in this repository.
+        Assert.Equal(1, found.Length);
+        Assert.Equal(1, name.Length);
+    }
+
+    [VerifyTest]
+    public void NotNull_reports_a_null_reference()
+    {
+        string? name = null;
+
+        var failure = Assert.Throws<VerifyException>(() => NotNull(name));
+
+        Assert.Equal("NotNull failed: name", failure.Message);
+    }
+
+    [VerifyTest]
+    public void NotNull_returns_the_value_of_a_nullable_value_type()
+    {
+        int? count = 3;
+
+        int found = NotNull(count);
+
+        Assert.Equal(3, found);
+        Assert.Equal(3, count.Value);
+    }
+
+    [VerifyTest]
+    public void NotNull_reports_a_nullable_value_type_without_a_value()
+    {
+        int? count = null;
+
+        var failure = Assert.Throws<VerifyException>(() => NotNull(count));
+
+        Assert.Equal("NotNull failed: count", failure.Message);
+    }
 }

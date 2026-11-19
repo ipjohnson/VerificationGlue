@@ -11,10 +11,15 @@ internal static class VerifyCalls
     public const string ActionParameter = "action";
     public const string MessageParameter = "message";
     public const string ExpressionParameter = "expression";
+    public const string ItemsParameter = "items";
+    public const string PredicateParameter = "predicate";
+    public const string PredicateExpressionParameter = "predicateExpression";
+    public const string ValueParameter = "value";
 
     /// <summary>A cheap syntax test: an invocation whose method name is one of ours.</summary>
     public static bool IsCandidate(SyntaxNode node) =>
-        node is InvocationExpressionSyntax invocation && MethodName(invocation.Expression) is "Verify" or "Check" or "Throws" or "ThrowsAsync" or "ThrowsExactly" or "ThrowsExactlyAsync";
+        node is InvocationExpressionSyntax invocation && MethodName(invocation.Expression) is
+            "Verify" or "Check" or "Throws" or "ThrowsAsync" or "ThrowsExactly" or "ThrowsExactlyAsync" or "Single" or "Is" or "NotNull";
 
     public static CallKind? KindOf(IMethodSymbol method)
     {
@@ -33,6 +38,9 @@ internal static class VerifyCalls
             "ThrowsAsync" => CallKind.ThrowsAsync,
             "ThrowsExactly" => CallKind.ThrowsExactly,
             "ThrowsExactlyAsync" => CallKind.ThrowsExactlyAsync,
+            "Single" => method.Parameters.Length == 2 ? CallKind.Single : CallKind.SingleWhere,
+            "Is" => CallKind.Is,
+            "NotNull" => method.OriginalDefinition.TypeParameters[0].HasValueTypeConstraint ? CallKind.NotNullValue : CallKind.NotNull,
             _ => null,
         };
     }

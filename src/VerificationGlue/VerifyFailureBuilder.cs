@@ -138,7 +138,7 @@ public sealed class VerifyFailureBuilder
         _rows.Add((label, value));
     }
 
-    private static string Format<T>(T value)
+    internal static string Format<T>(T value)
     {
         try
         {

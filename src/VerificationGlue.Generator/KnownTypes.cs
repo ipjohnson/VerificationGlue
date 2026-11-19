@@ -12,6 +12,8 @@ internal static class KnownTypes
     public static readonly ITypeDefinition InterceptsLocationAttribute = TypeDefinition.Get("System.Runtime.CompilerServices", "InterceptsLocationAttribute");
 
     public static readonly ITypeDefinition String = TypeDefinition.Get(typeof(string));
+    public static readonly ITypeDefinition Object = TypeDefinition.Get(typeof(object));
+    public static readonly ITypeDefinition Bool = TypeDefinition.Get(typeof(bool));
     public static readonly ITypeDefinition Exception = TypeDefinition.Get(typeof(Exception));
     public static readonly ITypeDefinition Action = TypeDefinition.Get(typeof(Action));
     public static readonly ITypeDefinition FuncOfTask = TypeDefinition.Get(typeof(Func<Task>));
