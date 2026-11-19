@@ -34,6 +34,9 @@ public sealed class VerifyFailureBuilder
     /// <summary>The lines shown before and after the line that differs.</summary>
     private const int DifferenceContext = 2;
 
+    /// <summary>The items a list of items shows before it ends with <c>…</c>.</summary>
+    private const int MaxListedItems = 10;
+
     private readonly string _kind;
     private readonly string _expression;
     private readonly string _file;
@@ -132,6 +135,106 @@ public sealed class VerifyFailureBuilder
             (false, true) => $"{right} is NaN, so it is not within tolerance {within} of {left}",
             _ => $"{left} differs from {right} by {Format(difference)}, tolerance {within}",
         });
+        return this;
+    }
+
+    /// <summary>
+    /// Adds the lines for a failed <c>left.SequenceEqual(right)</c>: the first index at which the
+    /// items differ with the item each side has there, both lengths, and the items the longer side
+    /// has past the end of the shorter. Adds nothing when either side is not a collection, because
+    /// reading a lazy sequence again would run its code again.
+    /// </summary>
+    /// <typeparam name="T">The item type <c>SequenceEqual</c> compared.</typeparam>
+    /// <param name="left">The source text of the first sequence.</param>
+    /// <param name="leftValue">The value of the first sequence.</param>
+    /// <param name="right">The source text of the second sequence.</param>
+    /// <param name="rightValue">The value of the second sequence.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder SequenceDifference<T>(string left, IEnumerable<T>? leftValue, string right, IEnumerable<T>? rightValue)
+    {
+        if (Materialize(leftValue) is not { } leftItems || Materialize(rightValue) is not { } rightItems)
+        {
+            return this;
+        }
+
+        var comparer = EqualityComparer<T>.Default;
+        var index = 0;
+        while (index < leftItems.Count && index < rightItems.Count && comparer.Equals(leftItems[index], rightItems[index]))
+        {
+            index++;
+        }
+
+        if (index == leftItems.Count && index == rightItems.Count)
+        {
+            return this;
+        }
+
+        string At(string name, List<T> items) => index < items.Count ? name + " has " + Format(items[index]) : name + " has no item";
+        _explanations.Add("first difference at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + At(left, leftItems) + ", " + At(right, rightItems));
+        _explanations.Add(left + " has " + Items(leftItems.Count) + ", " + right + " has " + rightItems.Count.ToString(CultureInfo.InvariantCulture));
+        if (leftItems.Count != rightItems.Count)
+        {
+            var (longer, longerItems, shorter, end) = leftItems.Count > rightItems.Count
+                ? (left, leftItems, right, rightItems.Count)
+                : (right, rightItems, left, leftItems.Count);
+            _explanations.Add(longer + " has " + Items(longerItems.Count - end) + " past the end of " + shorter + ": " + ItemList(longerItems.GetRange(end, longerItems.Count - end)));
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Adds the lines for a failed <c>set.SetEquals(other)</c>: the items of <paramref name="other"/>
+    /// that the set lacks, and the items of the set that <paramref name="other"/> lacks. Items match
+    /// by the comparer of a <see cref="HashSet{T}"/>, and by the default comparer for any other set.
+    /// Adds nothing when <paramref name="otherValue"/> is not a collection, because reading a lazy
+    /// sequence again would run its code again.
+    /// </summary>
+    /// <typeparam name="T">The item type of the set.</typeparam>
+    /// <param name="set">The source text of the set.</param>
+    /// <param name="setValue">The value of the set.</param>
+    /// <param name="other">The source text of the sequence the set was compared with.</param>
+    /// <param name="otherValue">The value of that sequence.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder SetDifference<T>(string set, IEnumerable<T>? setValue, string other, IEnumerable<T>? otherValue)
+    {
+        if (Materialize(setValue) is not { } setItems || Materialize(otherValue) is not { } otherItems)
+        {
+            return this;
+        }
+
+        var comparer = setValue is HashSet<T> hashSet ? hashSet.Comparer : EqualityComparer<T>.Default;
+        var inSet = new HashSet<T>(setItems, comparer);
+        var inOther = new HashSet<T>(otherItems, comparer);
+        var listed = new HashSet<T>(comparer);
+        var missing = new List<T>();
+        foreach (var item in otherItems)
+        {
+            if (!inSet.Contains(item) && listed.Add(item))
+            {
+                missing.Add(item);
+            }
+        }
+
+        var extra = new List<T>();
+        foreach (var item in setItems)
+        {
+            if (!inOther.Contains(item) && listed.Add(item))
+            {
+                extra.Add(item);
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            _explanations.Add(set + " is missing " + Items(missing.Count) + " that " + other + " has: " + ItemList(missing));
+        }
+
+        if (extra.Count > 0)
+        {
+            _explanations.Add(set + " has " + Items(extra.Count) + " that " + other + " does not: " + ItemList(extra));
+        }
+
         return this;
     }
 
@@ -331,6 +434,28 @@ public sealed class VerifyFailureBuilder
         {
             return $"<ToString threw {exception.GetType().Name}>";
         }
+    }
+
+    /// <summary>
+    /// A copy of the items when the sequence is a collection, and null otherwise. A collection holds
+    /// its items, so reading it again runs no code of the condition.
+    /// </summary>
+    private static List<T>? Materialize<T>(IEnumerable<T>? items) =>
+        items is ICollection<T> or IReadOnlyCollection<T> or System.Collections.ICollection ? new List<T>(items) : null;
+
+    private static string Items(int count) =>
+        count.ToString(CultureInfo.InvariantCulture) + (count == 1 ? " item" : " items");
+
+    /// <summary>The items, formatted and joined, with <c>…</c> after the first <see cref="MaxListedItems"/>.</summary>
+    private static string ItemList<T>(List<T> items)
+    {
+        var text = new StringBuilder();
+        for (var index = 0; index < items.Count && index < MaxListedItems; index++)
+        {
+            text.Append(index > 0 ? ", " : "").Append(Format(items[index]));
+        }
+
+        return items.Count > MaxListedItems ? text.Append(", …").ToString() : text.ToString();
     }
 
     private static bool IsNaN<T>(T value) => value switch

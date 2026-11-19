@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:124
+      at Program.cs:146
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,29 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:133
+      at Program.cs:155
+    """);
+
+// Tier 3: a failed SequenceEqual or SetEquals says which items differ.
+var sequence = Throws<VerifyException>(() => CollectionChecks.VerifyLines([10, 20, 25], [10, 20, 30, 40]));
+Verify(sequence.Message == """
+    Verify failed: lines.SequenceEqual(expected)
+      first difference at index 2: lines has 25, expected has 30
+      lines has 3 items, expected has 4
+      expected has 1 item past the end of lines: 40
+      lines    → System.Int32[]
+      expected → System.Int32[]
+      at Program.cs:164
+    """);
+
+var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
+Verify(set.Message == """
+    Verify failed: tags.SetEquals(expected)
+      tags is missing 1 item that expected has: "priority"
+      tags has 2 items that expected does not: "fragile", "express"
+      tags     → System.Collections.Generic.HashSet`1[System.String]
+      expected → System.String[]
+      at Program.cs:170
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -131,5 +153,20 @@ public static partial class StringChecks
     public static void VerifyText(string written, string expected)
     {
         Verify(written == expected);
+    }
+}
+
+public static partial class CollectionChecks
+{
+    [Verify]
+    public static void VerifyLines(int[] lines, int[] expected)
+    {
+        Verify(lines.SequenceEqual(expected));
+    }
+
+    [Verify]
+    public static void VerifyTags(HashSet<string> tags, string[] expected)
+    {
+        Verify(tags.SetEquals(expected));
     }
 }

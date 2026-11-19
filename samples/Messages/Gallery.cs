@@ -27,6 +27,8 @@ public static class Gallery
         ("tier3-tolerance", ToleranceMessages.Tolerance),
         ("tier3-string-lines", StringMessages.Lines),
         ("tier3-string-index", StringMessages.SingleLine),
+        ("tier3-sequence-equal", CollectionMessages.Sequence),
+        ("tier3-set-equals", CollectionMessages.Set),
         ("check-tier2", CheckMessages.Tier2),
         ("check-tier3", CheckMessages.Tier3),
     ];
