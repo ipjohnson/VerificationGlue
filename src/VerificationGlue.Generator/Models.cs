@@ -59,11 +59,18 @@ internal sealed record CallModel(
 /// <param name="Types">Every type the comparer walks, the root first.</param>
 internal sealed record EquivalenceModel(string ParameterType, string? Root, EquatableArray<ComparedType> Types);
 
-/// <summary>A type whose members the generated comparer compares one by one.</summary>
+/// <summary>A type whose members, or whose items, the generated comparer compares one by one.</summary>
 /// <param name="Key">The name of its compare method, which is unique per type.</param>
-/// <param name="Name">The fully qualified name of the type.</param>
+/// <param name="Name">The fully qualified name of the type, or of the list interface or array type that the compare method takes.</param>
 /// <param name="IsReference">True for a class or a record class, which can be null.</param>
-internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members);
+/// <param name="Items">The items of an array or a list, or null for a type whose members are compared.</param>
+internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members, ComparedItems? Items = null);
+
+/// <summary>The items of an array or a list, which the comparer compares in order.</summary>
+/// <param name="Count">The member that gives the number of items: <c>Length</c> for an array, <c>Count</c> for a list.</param>
+/// <param name="Type">The <see cref="ComparedType.Key"/> of the item type, or null to compare with <c>Equals</c>.</param>
+/// <param name="Nullable">True when the item type is a <c>Nullable&lt;T&gt;</c> of the walked type.</param>
+internal sealed record ComparedItems(string Count, string? Type, bool Nullable);
 
 /// <summary>A public field or property that the comparer reads.</summary>
 /// <param name="Name">The name of the member, as the path shows it.</param>

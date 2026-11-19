@@ -8,6 +8,7 @@ public class EquivalenceSpecs
 
     private const string Source = """
         using System;
+        using System.Collections.Generic;
         using VerificationGlue;
         using static VerificationGlue.VerifySyntax;
 
@@ -61,6 +62,18 @@ public class EquivalenceSpecs
             public int A, B, C, D, E, F, G, H, I, J, K, L;
         }
 
+        public sealed class Batch
+        {
+            public int[] Counts { get; set; } = [];
+            public IReadOnlyList<string> Names { get; set; } = [];
+            public Point?[] Marks { get; set; } = [];
+            public int[][] Grid { get; set; } = [];
+        }
+
+        public sealed record Route(string Code, List<Address> Stops);
+
+        public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
+
         public static partial class Cases
         {
             private static Invoice Invoice(string city, Status status = Status.Open) => new(7, new Customer("Ada", new Address(city, "High St")), status);
@@ -79,6 +92,23 @@ public class EquivalenceSpecs
             public static void NullableStruct() => VerifyEquivalent(new Shape(), new Shape { Anchor = new Point() });
             public static void Primitive() => VerifyEquivalent(3, 4);
             public static void Private() => VerifyEquivalent(new Hidden(1), new Hidden(2));
+            public static void OneItem() => VerifyEquivalent(new Batch { Counts = [1, 2, 3] }, new Batch { Counts = [1, 5, 3] });
+            public static void Lengths() => VerifyEquivalent(new Batch { Counts = [1, 2], Names = ["Ann", "Bo"] }, new Batch { Counts = [1, 2, 3], Names = ["Ann", "Cy", "Di"] });
+            public static void NullList() => VerifyEquivalent(new Batch { Counts = null! }, new Batch { Counts = [1] });
+            public static void NullableItems() => VerifyEquivalent(new Batch { Marks = [new Point { X = 1 }, null] }, new Batch { Marks = [new Point { X = 2 }, new Point()] });
+            public static void NestedArrays() => VerifyEquivalent(new Batch { Grid = [[1], [2, 3]] }, new Batch { Grid = [[1], [4, 3]] });
+            public static void RecordList() => VerifyEquivalent(Route("Rue"), Route("Quai"));
+            public static void RecordListPass() => VerifyEquivalent(Route("Rue"), Route("Rue"));
+            public static void ListRoot() => VerifyEquivalent(new List<Address> { new("London", "High St") }, new List<Address> { new("Paris", "High St"), new("Rome", "Via") });
+            public static void Dictionary() => VerifyEquivalent(new Stock(new() { ["gift"] = 3 }, ["fragile"]), new Stock(new() { ["gift"] = 3 }, ["fragile"]));
+            public static void SameDictionary()
+            {
+                var levels = new Dictionary<string, int> { ["gift"] = 3 };
+                var tags = new HashSet<string> { "fragile" };
+                VerifyEquivalent(new Stock(levels, tags), new Stock(levels, tags));
+            }
+
+            private static Route Route(string street) => new("R1", [new Address("London", "High St"), new Address("Paris", street)]);
 
             public static void Cycle()
             {
@@ -117,6 +147,61 @@ public class EquivalenceSpecs
         Run("BothNull");
         Run("EquatableMemberUsesEquals");
         Run("Cycle");
+        Run("RecordListPass");
+        Run("SameDictionary");
+    }
+
+    [VerifyTest]
+    public void An_array_member_names_the_index_of_the_item_that_differs()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: new Batch { Counts = [1, 2, 3] } is not equivalent to new Batch { Counts = [1, 5, 3] }",
+                "  Counts[1]: expected 5, found 2",
+                $"  at Tests/Equivalence.cs:{LineOf("OneItem()")}"),
+            Fail("OneItem").Message);
+    }
+
+    [VerifyTest]
+    public void Lists_of_different_lengths_give_the_counts_and_compare_the_shared_items()
+    {
+        Assert.Equal(
+            "  Counts: expected 3 items, found 2 items\n  Names: expected 3 items, found 2 items\n  Names[1]: expected \"Cy\", found \"Bo\"",
+            string.Join("\n", Fail("Lengths").Message.Split('\n')[1..4]));
+        Assert.Equal("  Counts: expected [1], found null", Fail("NullList").Message.Split('\n')[1]);
+    }
+
+    [VerifyTest]
+    public void A_list_of_records_walks_each_item()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: Route(\"Rue\") is not equivalent to Route(\"Quai\")",
+                "  Stops[1].Street: expected \"Quai\", found \"Rue\"",
+                $"  at Tests/Equivalence.cs:{LineOf("RecordList()")}"),
+            Fail("RecordList").Message);
+        Assert.Equal(
+            "  expected 2 items, found 1 item\n  [0].City: expected \"Paris\", found \"London\"",
+            string.Join("\n", Fail("ListRoot").Message.Split('\n')[1..3]));
+    }
+
+    [VerifyTest]
+    public void Nullable_struct_items_and_nested_arrays_are_walked()
+    {
+        Assert.Equal(
+            "  Marks[0].X: expected 2, found 1\n  Marks[1]: expected Sample.Point, found null",
+            string.Join("\n", Fail("NullableItems").Message.Split('\n')[1..3]));
+        Assert.Equal("  Grid[1][0]: expected 4, found 2", Fail("NestedArrays").Message.Split('\n')[1]);
+    }
+
+    // Until ipjohnson/VerificationGlue#107, a dictionary or a set compares with Equals, which for
+    // Dictionary<TKey, TValue> and HashSet<T> compares references.
+    [VerifyTest]
+    public void A_dictionary_or_set_member_compares_with_Equals()
+    {
+        Assert.Equal(
+            "  Levels: expected [\"gift\": 3], found [\"gift\": 3]\n  Tags: expected [\"fragile\"], found [\"fragile\"]",
+            string.Join("\n", Fail("Dictionary").Message.Split('\n')[1..^1]));
     }
 
     [VerifyTest]
@@ -209,6 +294,10 @@ public class EquivalenceSpecs
         Assert.Contains("(global::Sample.Invoice actual, global::Sample.Invoice expected, string? actualExpression = null, string? expectedExpression = null)", interceptors);
         Assert.Contains("global::VerificationGlue.Generated.Equivalence.Verify_Invoice_", interceptors);
         Assert.Contains("differences.Equal(path, \"City\", actual.City, expected.City);", comparers);
+        Assert.Contains("Compare_AddressList_", comparers);
+        Assert.Contains("(global::System.Collections.Generic.IReadOnlyList<global::Sample.Address> actual, ", comparers);
+        Assert.Contains("differences.ItemCount(path, actual.Length, expected.Length);", comparers);
+        Assert.Contains("differences.Equal(path, \"Levels\", actual.Levels, expected.Levels);", comparers);
         Assert.DoesNotContain("Reflection", comparers);
         Assert.DoesNotContain("GetType", comparers);
     }

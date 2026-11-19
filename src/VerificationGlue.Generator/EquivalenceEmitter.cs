@@ -76,9 +76,25 @@ internal static class EquivalenceEmitter
                 text.Append("            if (differences.Settled(path, actual, expected))\n            {\n                return;\n            }\n\n");
             }
 
+            if (type.Items is { } items)
+            {
+                Items(text, items);
+            }
+
             for (var index = 0; index < type.Members.Count; index++)
             {
-                Member(text, type.Members[index], index);
+                var member = type.Members[index];
+                var name = CopyBuilder.Literal(member.Name);
+                Value(
+                    text,
+                    "            ",
+                    member.Type,
+                    member.Nullable,
+                    "actual." + member.Access,
+                    "expected." + member.Access,
+                    $"{Differences}.Path(path, {name})",
+                    "path, " + name,
+                    index.ToString(CultureInfo.InvariantCulture));
             }
 
             text.Append("        }\n\n");
@@ -88,27 +104,42 @@ internal static class EquivalenceEmitter
         return text.Append("    }\n}\n").ToString();
     }
 
-    private static void Member(StringBuilder text, ComparedMember member, int index)
+    private static void Items(StringBuilder text, ComparedItems items)
     {
-        var name = CopyBuilder.Literal(member.Name);
-        var path = $"{Differences}.Path(path, {name})";
-        var number = index.ToString(CultureInfo.InvariantCulture);
-        if (member.Type is null)
+        text.Append("            differences.ItemCount(path, actual.").Append(items.Count).Append(", expected.").Append(items.Count).Append(");\n")
+            .Append("            var count = actual.").Append(items.Count).Append(" < expected.").Append(items.Count)
+            .Append(" ? actual.").Append(items.Count).Append(" : expected.").Append(items.Count).Append(";\n")
+            .Append("            for (var index = 0; index < count; index++)\n            {\n");
+        var path = $"{Differences}.Item(path, index)";
+        Value(text, "                ", items.Type, items.Nullable, "actual[index]", "expected[index]", path, path + ", \"\"", "Item");
+        text.Append("            }\n");
+    }
+
+    /// <summary>
+    /// Compares one member or item: with the comparer of its type, or with <c>Equals</c> when it has
+    /// none. <paramref name="equalArguments"/> are the path and member arguments of <c>Equal</c>.
+    /// </summary>
+    private static void Value(StringBuilder text, string indent, string? type, bool nullable, string actual, string expected, string path, string equalArguments, string suffix)
+    {
+        if (type is null)
         {
-            text.Append("            differences.Equal(path, ").Append(name).Append(", actual.").Append(member.Access).Append(", expected.").Append(member.Access).Append(");\n");
+            text.Append(indent).Append("differences.Equal(").Append(equalArguments).Append(", ").Append(actual).Append(", ").Append(expected).Append(");\n");
         }
-        else if (member.Nullable)
+        else if (nullable)
         {
-            text.Append("            if (actual.").Append(member.Access).Append(" is { } actual").Append(number)
-                .Append(" && expected.").Append(member.Access).Append(" is { } expected").Append(number).Append(")\n            {\n")
-                .Append("                Compare_").Append(member.Type).Append("(actual").Append(number).Append(", expected").Append(number).Append(", ").Append(path).Append(", differences);\n")
-                .Append("            }\n            else\n            {\n")
-                .Append("                differences.Equal(path, ").Append(name).Append(", actual.").Append(member.Access).Append(", expected.").Append(member.Access).Append(");\n")
-                .Append("            }\n");
+            text.Append(indent).Append("if (").Append(actual).Append(" is { } actual").Append(suffix)
+                .Append(" && ").Append(expected).Append(" is { } expected").Append(suffix).Append(")\n")
+                .Append(indent).Append("{\n")
+                .Append(indent).Append("    Compare_").Append(type).Append("(actual").Append(suffix).Append(", expected").Append(suffix).Append(", ").Append(path).Append(", differences);\n")
+                .Append(indent).Append("}\n")
+                .Append(indent).Append("else\n")
+                .Append(indent).Append("{\n")
+                .Append(indent).Append("    differences.Equal(").Append(equalArguments).Append(", ").Append(actual).Append(", ").Append(expected).Append(");\n")
+                .Append(indent).Append("}\n");
         }
         else
         {
-            text.Append("            Compare_").Append(member.Type).Append("(actual.").Append(member.Access).Append(", expected.").Append(member.Access)
+            text.Append(indent).Append("Compare_").Append(type).Append('(').Append(actual).Append(", ").Append(expected)
                 .Append(", ").Append(path).Append(", differences);\n");
         }
     }

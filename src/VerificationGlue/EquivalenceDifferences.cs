@@ -28,6 +28,24 @@ public sealed class EquivalenceDifferences
     public static string Path(string path, string member) =>
         path.Length == 0 ? member : member.Length == 0 ? path : path + "." + member;
 
+    /// <summary>The path of the item at <paramref name="index"/> in the array or list at <paramref name="path"/>.</summary>
+    /// <param name="path">The path of the array or list.</param>
+    /// <param name="index">The index of the item.</param>
+    public static string Item(string path, int index) =>
+        path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+
+    /// <summary>Records a difference when an array or list has a different number of items than expected.</summary>
+    /// <param name="path">The path of the array or list.</param>
+    /// <param name="actual">The number of items in the actual value.</param>
+    /// <param name="expected">The number of items in the expected value.</param>
+    public void ItemCount(string path, int actual, int expected)
+    {
+        if (actual != expected)
+        {
+            Add(path, "expected " + Items(expected) + ", found " + Items(actual));
+        }
+    }
+
     /// <summary>Records a difference when the two values are not equal by <see cref="EqualityComparer{T}.Default"/>.</summary>
     /// <typeparam name="T">The type of the member.</typeparam>
     /// <param name="path">The path of the value that holds the member.</param>
@@ -81,12 +99,26 @@ public sealed class EquivalenceDifferences
 
     private void Add<T>(string path, T actual, T expected)
     {
+        if (Count < Limit)
+        {
+            Add(path, "expected " + VerifyFailureBuilder.Format(expected) + ", found " + VerifyFailureBuilder.Format(actual));
+        }
+        else
+        {
+            Count++;
+        }
+    }
+
+    private void Add(string path, string line)
+    {
         if (Count++ < Limit)
         {
-            var line = "expected " + VerifyFailureBuilder.Format(expected) + ", found " + VerifyFailureBuilder.Format(actual);
             _listed.Add(path.Length == 0 ? line : path + ": " + line);
         }
     }
+
+    private static string Items(int count) =>
+        count.ToString(CultureInfo.InvariantCulture) + (count == 1 ? " item" : " items");
 
     private readonly struct Pair : IEquatable<Pair>
     {

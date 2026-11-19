@@ -1,7 +1,7 @@
 namespace Messages;
 
 /// <summary>
-/// Every case in <c>docs/guide/messages.md</c>, by the name its block uses. Each case fails on
+/// Every case in <c>docs/guide/messages.md</c> and <c>docs/guide/verify-equivalent.md</c>, by the name its block uses. Each case fails on
 /// purpose. <c>test/Docs.Specs/MessagePageSpecs.cs</c> runs them and compares the messages.
 /// </summary>
 public static class Gallery
@@ -21,6 +21,9 @@ public static class Gallery
         ("tier2-is", ValueMessages.IsType),
         ("tier2-not-null-value", ValueMessages.NotNullValue),
         ("tier2-equivalent", EquivalentMessages.Members),
+        ("equivalent-items", EquivalentMessages.Items),
+        ("equivalent-counts", EquivalentMessages.Counts),
+        ("equivalent-dictionary", EquivalentMessages.Dictionary),
         ("tier3-values", Tier3Messages.Values),
         ("tier3-skipped", Tier3Messages.Skipped),
         ("tier3-because", Tier3Messages.Because),
