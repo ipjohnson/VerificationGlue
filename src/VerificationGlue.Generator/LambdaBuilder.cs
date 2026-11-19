@@ -232,9 +232,21 @@ internal sealed class LambdaBuilder
             }
         }
 
+        // A qualified name such as global::N.T in a hole would read its first ':' as the start of a format specifier.
+        foreach (var hole in _body.DescendantNodes().OfType<InterpolationSyntax>())
+        {
+            var span = hole.Expression.Span;
+            if (hole.Expression is not ParenthesizedExpressionSyntax && _edits.Any(edit => span.Contains(edit.Span)))
+            {
+                _edits.Add(new Edit(span, () => "(" + Render(span) + ")", wraps: true));
+            }
+        }
+
         _edits.Sort((left, right) => left.Span.Start != right.Span.Start
             ? left.Span.Start.CompareTo(right.Span.Start)
-            : right.Span.Length.CompareTo(left.Span.Length));
+            : left.Span.Length != right.Span.Length
+                ? right.Span.Length.CompareTo(left.Span.Length)
+                : right.Wraps.CompareTo(left.Wraps));
     }
 
     /// <summary>The change for one simple name in the body, if it needs one.</summary>
@@ -557,15 +569,19 @@ internal sealed class LambdaBuilder
 
     private sealed class Edit
     {
-        public Edit(TextSpan span, Func<string> text)
+        public Edit(TextSpan span, Func<string> text, bool wraps = false)
         {
             Span = span;
             Text = text;
+            Wraps = wraps;
         }
 
         public TextSpan Span { get; }
 
         public Func<string> Text { get; }
+
+        /// <summary>True when the edit wraps the text of its span, so it renders before another edit of the same span.</summary>
+        public bool Wraps { get; }
 
         /// <summary>True while the edit's own text renders its span, so the span renders without it.</summary>
         public bool Rendering { get; set; }
