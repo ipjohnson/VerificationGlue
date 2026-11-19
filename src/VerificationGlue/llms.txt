@@ -5,15 +5,16 @@
 ## Rules
 
 - Import the methods with `using static VerificationGlue.VerifySyntax;`. Add `using VerificationGlue;` for `[Verify]`, `VerifyScope` and `VerifyException`.
-- Write every check as one `bool` condition: `Verify(order.Total == 40)`, `Verify(name is not null)`, `Verify(items.Contains(3))`. Do not write a message for what the condition already says.
-- Add context with an interpolated message: `Verify(order.Total == 40, $"order {order.Id}")`. Its holes run only on failure.
+- Write every check as a lambda that returns one `bool` condition: `Verify(() => order.Total == 40)`, `Verify(() => items.Contains(3))`, `Check(() => order.Total == 40)`. A failure lists the value of each part, in any method, including an xunit, NUnit, MSTest or TUnit test body. The body runs once. It must be a single expression. Do not write a message for what the condition already says.
+- Write `Verify(condition)` without a lambda only in three cases: the condition uses `await`, which a `Func<bool>` cannot contain; it reads a `Span<T>` or another `ref struct`, which a lambda cannot capture; or the next lines rely on a null check in it, such as `Verify(name is not null);` followed by `name.Length`. Only `Verify(condition)` tells the compiler that a value is not null afterwards. `NotNull(value)` does too, and returns the value.
+- Analyzer VG0009 suggests the lambda form for any other `Verify(condition)` or `Check(condition)` in a test method. Set `<VerificationGlueLambdaSeverity>warning</VerificationGlueLambdaSeverity>` to make it a build warning, or `none` to turn it off.
+- Add context with an interpolated message: `Verify(order.Total == 40, $"order {order.Id}")`. Its holes run only on failure. No lambda form takes a message.
 - Use `Throws<T>(() => ...)` and `await ThrowsAsync<T>(() => ...)` for exceptions. Both return the exception, and both accept a type derived from `T`. Use `ThrowsExactly<T>` and `ThrowsExactlyAsync<T>` when only exactly `T` should pass.
 - Use `Single(items)`, `Single(items, predicate)`, `Is<T>(value)` and `NotNull(value)` to check a value and use it in one step: `var node = Single(doc.Nodes, n => n.Id == "A");`. Each returns what it checked. Do not write `Verify(items.Count == 1)` followed by `items[0]`, or `Verify(x is T)` followed by a cast.
 - `Throws`, `Single`, `Is` and `NotNull` throw on failure also inside a `VerifyScope`, because a failure has no value to return.
-- Use `Check(condition)` to record a failure and continue. Open a scope with `using (VerifyScope.Begin()) { ... }` in xunit, NUnit, MSTest and TUnit. The scope throws one `VerifyException` listing every failure when it ends. With no scope, `Check` throws at once.
+- Use `Check(() => condition)` to record a failure and continue. Open a scope with `using (VerifyScope.Begin()) { ... }` in xunit, NUnit, MSTest and TUnit. The scope throws one `VerifyException` listing every failure when it ends. With no scope, `Check` throws at once.
 - Do not change state inside a condition. `Verify(i++ == 0)` is reported by VG0003.
 - Do not compare `double` or `float` with `==`. Compare the difference with a tolerance. VG0004 reports it.
-- To get the value of each part of a condition in any method, including an xunit, NUnit, MSTest or TUnit test body, write it as a lambda: `Verify(() => order.Total == 40)` or `Check(() => order.Total == 40)`. The body runs once. It must be a single expression. `Verify(() => ...)` returns nothing, and it does not tell the compiler a value is not null, so use `NotNull(value)` for that.
 - Tier 3 also gives values for `Verify(condition)`: set `<VerificationGlueRewrite>true</VerificationGlueRewrite>` in the project, put the checks in a method marked `[Verify]` in a `partial` type, and call that method directly. An xunit or NUnit test method itself runs through reflection and gets no tier 3 values.
 - `.Because("...")` after `Verify(...)` works only in a method that tier 3 rewrites. Anywhere else it is build error VG0001. Use the interpolated message there.
 - Each diagnostic ID links to a page under `docs/diagnostics/` with the fix.

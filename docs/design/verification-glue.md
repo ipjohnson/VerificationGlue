@@ -198,6 +198,7 @@ Verify(IsSorted(prices));
 | VG0006 | Info | A sub-expression that cannot be captured |
 | VG0007 | Warning | `Check` in a method that returns before any scope can report, such as a `static` constructor |
 | VG0008 | Info | A method that is not rewritten because its file declares a `file` type |
+| VG0009 | Info | `Verify(bool)` or `Check(bool)` in a test method where the lambda form loses nothing, with a code fix. `VerificationGlueLambdaSeverity` sets the severity. |
 
 ## Pipeline and caching
 
@@ -262,7 +263,7 @@ This package owns these pages. The rules for producing and checking them are in 
 - `docs/guide/messages.md`, generated from `samples/Messages`, one failing test per explanation shape and per tier.
 - Guides: "How tiers work and how to get values", "Soft checks with `Check`", "Write a formatter", "Write a custom verifier with `VerifyOutcome`".
 - Migration guides from xunit `Assert`, FluentAssertions and Shouldly. The xunit `Assert` guide ships with the first release. The other two ship with Phase 3, which delivers the explanations they compare against.
-- `docs/diagnostics/VG0001.md` to `VG0008.md`.
+- `docs/diagnostics/VG0001.md` to `VG0009.md`.
 - A generated-code page showing a tier 2 interceptor and a tier 3 rewritten method.
 
 ## Delivery

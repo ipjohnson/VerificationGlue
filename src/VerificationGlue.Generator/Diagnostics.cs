@@ -79,4 +79,15 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VG0008.md");
+
+    public static readonly DiagnosticDescriptor PreferLambda = new(
+        id: "VG0009",
+        title: "Write the condition as a lambda to list each part's value",
+        messageFormat: "Write '{0}(() => {1})' so that a failure lists the value of each part",
+        category: Category,
+        // LambdaAnalyzer reports Info unless VerificationGlueLambdaSeverity says otherwise. A command-line
+        // build skips an analyzer whose descriptors are all Info, which would drop warning and error too.
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0009.md");
 }
