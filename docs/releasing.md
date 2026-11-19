@@ -22,8 +22,8 @@ A new policy is active for 7 days. The first successful push makes it permanent.
 3. Tag the commit on `main` with `v`, the version prefix and the label, and push the tag:
 
    ```sh
-   git tag v0.2.0-preview.1 origin/main
-   git push origin v0.2.0-preview.1
+   git tag v0.3.0-preview.1 origin/main
+   git push origin v0.3.0-preview.1
    ```
 
 The workflow fails when the tag's version prefix differs from `VersionPrefix`. It runs `eng/pack-and-consume.sh` with the label as `VersionSuffix` and pushes the four packages to nuget.org only if the script passes. It then creates a GitHub prerelease for the tag, with the packages attached.
