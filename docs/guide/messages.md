@@ -379,6 +379,66 @@ Verify failed: Math.Abs(box.X - 120.5) <= 0.01
 ```
 <!-- endMessage -->
 
+### Strings
+
+A condition of the form `a == b` on two strings adds lines after the values that show where the strings first differ. Lines from `a` start with `-` and lines from `b` start with `+`. Once these lines are shown, each string value is cut to 40 characters.
+
+When either string has more than one line, the message gives the line and column of the first difference and two lines on each side of it. Lines split at `\n`, so a `\r` stays in its line and shows as `\r`. A side with no line at that point shows `<end of text>`.
+
+<!-- snippet: message-tier3-string-lines -->
+<a id='snippet-message-tier3-string-lines'></a>
+```cs
+[Verify]
+public static void VerifySvg(string written, string expected)
+{
+    Verify(written == expected);
+}
+```
+<sup><a href='/samples/Messages/StringMessages.cs#L15-L21' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-string-lines' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-string-lines -->
+```text
+Verify failed: written == expected
+  written  → "<svg>\n  <g class=\"title\">\n    <text>Orde"… (112 characters)
+  expected → "<svg>\n  <g class=\"title\">\n    <text>Orde"… (112 characters)
+  first difference at line 6, column 19
+    4     </g>
+    5     <g class="node">
+  - 6       <rect width="80">
+  + 6       <rect width="82">
+    7     </g>
+    8   </svg>
+  at StringMessages.cs:19
+```
+<!-- endMessage -->
+
+When both strings are on one line and either is longer than 40 characters, the message gives the index of the first difference and the text around it.
+
+<!-- snippet: message-tier3-string-index -->
+<a id='snippet-message-tier3-string-index'></a>
+```cs
+[Verify]
+public static void VerifyTitle(string title, string expected)
+{
+    Verify(title == expected);
+}
+```
+<sup><a href='/samples/Messages/StringMessages.cs#L23-L29' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-string-index' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-string-index -->
+```text
+Verify failed: title == expected
+  title    → "Order 7 for Ada Lovelace, shipped standa"… (56 characters)
+  expected → "Order 7 for Ada Lovelace, shipped expres"… (55 characters)
+  first difference at index 34
+  - "Order 7 for Ada Lovelace, shipped standard on 2026-11-18"
+  + "Order 7 for Ada Lovelace, shipped express on 2026-11-18"
+  at StringMessages.cs:27
+```
+<!-- endMessage -->
+
 ## A lambda: values in any method
 
 `Verify(() => ...)` and `Check(() => ...)` take the condition as a lambda. The generator writes a check for each call that reads the variables the lambda captured and runs the lambda's body once, keeping the value of each part. It works in any method, including a test body in xunit, NUnit, MSTest or TUnit. The method needs no `[Verify]`, its type needs no `partial`, and the project does not need `VerificationGlueRewrite`.

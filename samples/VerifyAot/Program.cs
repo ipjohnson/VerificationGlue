@@ -90,7 +90,22 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:131
+      at Program.cs:146
+    """);
+
+// Tier 3: a failed == on two strings shows where they first differ.
+var differ = Throws<VerifyException>(() => StringChecks.VerifyText("a\r\nb\r\nc", "a\nb\nc"));
+Verify(differ.Message == """
+    Verify failed: written == expected
+      written  → "a\r\nb\r\nc"
+      expected → "a\nb\nc"
+      first difference at line 1, column 2
+      - 1   a\r
+      + 1   a
+      - 2   b\r
+      + 2   b
+        3   c
+      at Program.cs:155
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -104,7 +119,7 @@ Verify(captured.Message == """
       total + 10 → 50
       total      → 40
       expected   → 60
-      at Program.cs:101
+      at Program.cs:116
     """);
 
 var queue = new Queue<int>([1, 2, 3]);
@@ -116,7 +131,7 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:139
+      at Program.cs:163
     """);
 
 Console.WriteLine("VerifyAot passed.");
@@ -129,6 +144,15 @@ public static partial class ToleranceChecks
     public static void VerifyLeft(Box box)
     {
         Verify(Math.Abs(box.X - 120.5) <= 0.01);
+    }
+}
+
+public static partial class StringChecks
+{
+    [Verify]
+    public static void VerifyText(string written, string expected)
+    {
+        Verify(written == expected);
     }
 }
 
