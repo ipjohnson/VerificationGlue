@@ -34,6 +34,8 @@ public static class Gallery
         ("tier3-any", CollectionMessages.Some),
         ("tier3-contains", CollectionMessages.Contained),
         ("lambda-values", LambdaMessages.Values),
+        ("lambda-collection", LambdaMessages.Collection),
+        ("lambda-lazy", LambdaMessages.Lazy),
         ("lambda-members", LambdaMessages.Members),
         ("lambda-fallback", LambdaMessages.Fallback),
         ("check-tier2", CheckMessages.Tier2),

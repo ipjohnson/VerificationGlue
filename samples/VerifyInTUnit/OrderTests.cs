@@ -61,4 +61,21 @@ public class OrderTests
             """);
     }
     #endregion
+
+    [Test]
+    public void A_lambda_lists_the_items_of_a_collection()
+    {
+        var problems = new List<string> { "flowchart/a: box differs", "pie/b: missing label" };
+
+        var failure = Throws<VerifyException>(() => Verify(() => problems.Count == 0));
+
+        Verify(() => failure.Message == """
+            Verify failed: problems.Count == 0
+              problems.Count → 2
+              problems       → 2 items
+                                 "flowchart/a: box differs"
+                                 "pie/b: missing label"
+              at OrderTests.cs:70
+            """);
+    }
 }

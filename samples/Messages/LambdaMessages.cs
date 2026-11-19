@@ -20,6 +20,22 @@ public sealed class LambdaMessages
         #endregion
     }
 
+    public static void Collection()
+    {
+        #region message-lambda-collection
+        var problems = new List<string> { "flowchart/a: box differs", "pie/b: missing label" };
+        Verify(() => problems.Count == 0);
+        #endregion
+    }
+
+    public static void Lazy()
+    {
+        #region message-lambda-lazy
+        var totals = new[] { 30, 45 }.Select(total => total * 2);
+        Verify(() => totals.Count() == 0);
+        #endregion
+    }
+
     public static void Members() => new LambdaMessages().VerifyTotal(40);
 
     #region message-lambda-members

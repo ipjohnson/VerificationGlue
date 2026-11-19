@@ -381,7 +381,7 @@ public static class VerifyFailure
         return text.Append(count > listed.Count ? ", …]" : "]").ToString();
     }
 
-    private static string TypeName(Type type)
+    internal static string TypeName(Type type)
     {
         if (!type.IsGenericType)
         {

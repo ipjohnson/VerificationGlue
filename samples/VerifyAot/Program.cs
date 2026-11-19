@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:202
+      at Program.cs:230
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:211
+      at Program.cs:239
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -115,9 +115,9 @@ Verify(sequence.Message == """
       first difference at index 2: lines has 25, expected has 30
       lines has 3 items, expected has 4
       expected has 1 item past the end of lines: 40
-      lines    → System.Int32[]
-      expected → System.Int32[]
-      at Program.cs:220
+      lines    → 3 items: 10, 20, 25
+      expected → 4 items: 10, 20, 30, 40
+      at Program.cs:248
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -125,43 +125,40 @@ Verify(set.Message == """
     Verify failed: tags.SetEquals(expected)
       tags is missing 1 item that expected has: "priority"
       tags has 2 items that expected does not: "fragile", "express"
-      tags     → System.Collections.Generic.HashSet`1[System.String]
-      expected → System.String[]
-      at Program.cs:226
+      tags     → 3 items: "gift", "fragile", "express"
+      expected → 2 items: "gift", "priority"
+      at Program.cs:254
     """);
 
 // Tier 3: a failed count, Any or Contains lists the items, and a failed All names the first item that fails.
 var counted = Throws<VerifyException>(() => CollectionChecks.VerifyLineCount([10, 20]));
 Verify(counted.Message == """
     Verify failed: lines.Count == 3
-      lines has 2 items: 10, 20
       lines.Count → 2
-      lines       → System.Collections.Generic.List`1[System.Int32]
-      at Program.cs:232
+      lines       → 2 items: 10, 20
+      at Program.cs:260
     """);
 
 var every = Throws<VerifyException>(() => CollectionChecks.VerifyQuantities([2, 5, 0, 3]));
 Verify(every.Message == """
     Verify failed: quantities.All(quantity => quantity > 0)
       first item that fails at index 2: 0
-      quantities → System.Int32[]
-      at Program.cs:238
+      quantities → 4 items: 2, 5, 0, 3
+      at Program.cs:266
     """);
 
 var some = Throws<VerifyException>(() => CollectionChecks.VerifyBackorder([2, 5, 3]));
 Verify(some.Message == """
     Verify failed: quantities.Any(quantity => quantity > 10)
-      quantities has 3 items: 2, 5, 3
-      quantities → System.Int32[]
-      at Program.cs:244
+      quantities → 3 items: 2, 5, 3
+      at Program.cs:272
     """);
 
 var contained = Throws<VerifyException>(() => CollectionChecks.VerifyExpress(["gift", "fragile"]));
 Verify(contained.Message == """
     Verify failed: tags.Contains("express")
-      tags has 2 items: "gift", "fragile"
-      tags → System.String[]
-      at Program.cs:250
+      tags → 2 items: "gift", "fragile"
+      at Program.cs:278
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -175,7 +172,7 @@ Verify(captured.Message == """
       total + 10 → 50
       total      → 40
       expected   → 60
-      at Program.cs:172
+      at Program.cs:169
     """);
 
 var queue = new Queue<int>([1, 2, 3]);
@@ -187,8 +184,39 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:258
+      at Program.cs:286
     """);
+
+// A collection value shows its count and items. A lazy sequence shows its type and is not read again.
+var problems = new List<string> { "flowchart/a: box differs", "pie/b: missing label" };
+var listed = Throws<VerifyException>(() => Verify(() => problems.Count == 0));
+Verify(() => listed.Message == """
+    Verify failed: problems.Count == 0
+      problems.Count → 2
+      problems       → 2 items
+                         "flowchart/a: box differs"
+                         "pie/b: missing label"
+      at Program.cs:192
+    """);
+
+var stock = new Dictionary<string, int> { ["gift"] = 3 };
+HashSet<int> ids = [1, 2];
+var kinds = Throws<VerifyException>(() => Verify(() => stock.Count == 0 || ids.Contains(3)));
+Verify(() => kinds.Message == """
+    Verify failed: stock.Count == 0 || ids.Contains(3)
+      stock.Count == 0 → false
+      stock.Count      → 1
+      stock            → 1 item: "gift": 3
+      ids.Contains(3)  → false
+      ids              → 2 items: 1, 2
+      at Program.cs:204
+    """);
+
+// The runtime picks the type of a LINQ iterator, and Native AOT picks a different one, so only the note is checked.
+var doubled = names.Select(name => name + name);
+var lazy = Throws<VerifyException>(() => Verify(() => doubled.Count() == 0));
+Verify(() => lazy.Message.Contains("\n  doubled.Count() → 2\n  doubled         → "));
+Verify(() => lazy.Message.Contains("Iterator<String, String> (not read again, because reading it could run its code)\n"));
 
 Console.WriteLine("VerifyAot passed.");
 
