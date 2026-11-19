@@ -10,9 +10,10 @@ namespace VerificationGlue.Generator;
 /// <summary>
 /// Finds the types and members that the comparer of a <c>VerifyEquivalent</c> call walks. A class,
 /// a struct or a record walks its public instance fields and properties, its base types' included.
-/// An array or a list compares its count and then its items in order. Everything else compares with
+/// An array or a list compares its count and then its items in order. A dictionary compares its
+/// entries by key, and a set compares its items without order. Everything else compares with
 /// <c>Equals</c>: primitives, strings, enums, a type that implements <c>IEquatable&lt;T&gt;</c> and
-/// is not a record, any other collection, such as a dictionary or a set, an interface, a type in a
+/// is not a record, any other collection, an interface, a type in a
 /// <c>System</c> or <c>Microsoft</c> namespace, a type with no member to walk, and a type the
 /// generated code cannot name. An <c>Ignore</c> option leaves a member out, and an <c>Unordered</c>
 /// option compares the items of an array or a list without order. A type below an option gets its
@@ -90,7 +91,12 @@ internal sealed class EquivalenceBuilder
         for (var depth = 0; depth < option.Path.Length; depth++)
         {
             var holder = depth == 0 ? "the value" : "'" + string.Join(".", option.Path.Take(depth)) + "'";
-            if (Sequence(type) is not null || type is not INamedTypeSymbol named || !Walks(named))
+            if (Sequence(type) is not null || Dictionary(type) is not null || Set(type) is not null)
+            {
+                return $"the comparer compares the items of {holder}, so it does not read '{option.Path[depth]}'";
+            }
+
+            if (type is not INamedTypeSymbol named || !Walks(named))
             {
                 return $"the comparer compares {holder} with Equals, so it does not read '{option.Path[depth]}'";
             }
@@ -123,6 +129,16 @@ internal sealed class EquivalenceBuilder
         {
             var unordered = options.Any(option => option.Kind == OptionKind.Unordered && option.Path.Length == 0);
             return VisitItems(sequence.Parameter, sequence.Item, sequence.Count, unordered);
+        }
+
+        if (Dictionary(type) is { } dictionary)
+        {
+            return VisitEntries(dictionary);
+        }
+
+        if (Set(type) is { } set)
+        {
+            return VisitItems(set, set.TypeArguments[0], "Count", unordered: true, isSet: true);
         }
 
         if (type is not INamedTypeSymbol named || !Walks(named))
@@ -196,13 +212,16 @@ internal sealed class EquivalenceBuilder
             ? (inner, true)
             : (Visit(type, options), false);
 
-    /// <summary>The key of the comparer that compares the items of an array or a list, in order unless <paramref name="unordered"/> is true.</summary>
-    private string VisitItems(ITypeSymbol parameter, ITypeSymbol item, string count, bool unordered)
+    /// <summary>
+    /// The key of the comparer that compares the items of an array or a list, in order unless
+    /// <paramref name="unordered"/> is true, or of a set, which <paramref name="isSet"/> marks.
+    /// </summary>
+    private string VisitItems(ITypeSymbol parameter, ITypeSymbol item, string count, bool unordered, bool isSet = false)
     {
         var name = parameter.ToDisplayString(KeyFormat);
         var key = Key(
-            (item.Name.Length == 0 ? "Item" : item.Name) + (parameter is IArrayTypeSymbol ? "Array" : "List") + (unordered ? "Unordered" : ""),
-            unordered ? name + "|unordered" : name);
+            (item.Name.Length == 0 ? "Item" : item.Name) + (isSet ? "Set" : (parameter is IArrayTypeSymbol ? "Array" : "List") + (unordered ? "Unordered" : "")),
+            unordered && !isSet ? name + "|unordered" : name);
         if (_indexes.ContainsKey(key))
         {
             return key;
@@ -213,7 +232,27 @@ internal sealed class EquivalenceBuilder
         _types.Add(null);
 
         var (itemKey, isNullable) = Compared(item, []);
-        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), new ComparedItems(count, itemKey, isNullable, unordered));
+        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), new ComparedItems(count, itemKey, isNullable, unordered, isSet));
+        return key;
+    }
+
+    /// <summary>The key of the comparer that compares the entries of a dictionary by key.</summary>
+    private string VisitEntries(INamedTypeSymbol dictionary)
+    {
+        var name = dictionary.ToDisplayString(KeyFormat);
+        var value = dictionary.TypeArguments[1];
+        var key = Key((value.Name.Length == 0 ? "Value" : value.Name) + "Dictionary", name);
+        if (_indexes.ContainsKey(key))
+        {
+            return key;
+        }
+
+        var index = _types.Count;
+        _indexes.Add(key, index);
+        _types.Add(null);
+
+        var (valueKey, isNullable) = Compared(value, []);
+        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), Entries: new ComparedEntries(valueKey, isNullable));
         return key;
     }
 
@@ -223,7 +262,7 @@ internal sealed class EquivalenceBuilder
     /// <summary>
     /// The parameter type and the item type of the comparer for a one-dimensional array, or for a
     /// class or interface that implements <c>IReadOnlyList&lt;T&gt;</c> or <c>IList&lt;T&gt;</c>, or
-    /// null. A dictionary and a set compare with <c>Equals</c>, even one that is also a list.
+    /// null. A dictionary or a set is not a sequence here, even one that is also a list.
     /// </summary>
     private (ITypeSymbol Parameter, ITypeSymbol Item, string Count)? Sequence(ITypeSymbol type)
     {
@@ -246,6 +285,37 @@ internal sealed class EquivalenceBuilder
 
         var list = List(named, SpecialType.System_Collections_Generic_IReadOnlyList_T) ?? List(named, SpecialType.System_Collections_Generic_IList_T);
         return list is null ? null : (list, list.TypeArguments[0], "Count");
+    }
+
+    /// <summary>
+    /// The <c>IReadOnlyDictionary&lt;TKey, TValue&gt;</c> or else the <c>IDictionary&lt;TKey, TValue&gt;</c>
+    /// that a class or interface is or implements, when it implements just one, or null.
+    /// </summary>
+    private INamedTypeSymbol? Dictionary(ITypeSymbol type) => Collection(type, "IReadOnlyDictionary", "IDictionary", 2);
+
+    /// <summary>The <c>IReadOnlySet&lt;T&gt;</c> or else the <c>ISet&lt;T&gt;</c> that a class or interface is or implements, when it implements just one, or null.</summary>
+    private INamedTypeSymbol? Set(ITypeSymbol type) => Dictionary(type) is null ? Collection(type, "IReadOnlySet", "ISet", 1) : null;
+
+    private INamedTypeSymbol? Collection(ITypeSymbol type, string preferred, string other, int arity)
+    {
+        if (type is not INamedTypeSymbol { TypeKind: TypeKind.Class or TypeKind.Interface } named || named.SpecialType != SpecialType.None || !Nameable(named))
+        {
+            return null;
+        }
+
+        foreach (var name in new[] { preferred, other })
+        {
+            var found = Interfaces(named)
+                .Where(face => face.Name == name && face.Arity == arity && face.ContainingNamespace is { Name: "Generic" } && InCollections(face))
+                .Distinct<INamedTypeSymbol>(SymbolEqualityComparer.Default)
+                .ToList();
+            if (found.Count > 0)
+            {
+                return found.Count == 1 && Nameable(found[0]) ? found[0] : null;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>The one list interface of <paramref name="special"/> that the type is or implements, or null.</summary>

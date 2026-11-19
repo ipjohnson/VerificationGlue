@@ -1,6 +1,6 @@
 # Compare two values with VerifyEquivalent
 
-At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays and lists, compare a list without order or skip a member, and read the path of each difference in its message.
+At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays, lists, dictionaries and sets, compare a list without order or skip a member, and read the path of each difference in its message.
 
 `VerifyEquivalent(actual, expected)` compares two values member by member. The generator writes a comparer for the type at each call site, with no reflection. The message lists the path of each difference, with the expected and the found value. It lists up to 10 differences and counts the rest.
 
@@ -10,7 +10,8 @@ At the end of this page you can compare two records or objects with `VerifyEquiv
 |---|---|
 | A class, a struct or a record | Each public field and property, including those of base types |
 | A one-dimensional array, or a class or interface that implements `IList<T>` or `IReadOnlyList<T>` | The number of items, then each item in order, or each item without order when `Unordered` names it |
-| A dictionary or a set | `Equals` |
+| A class or interface that implements `IDictionary<TKey, TValue>` or `IReadOnlyDictionary<TKey, TValue>` | The value at each key, then the keys that only one side has |
+| A class or interface that implements `ISet<T>` or `IReadOnlySet<T>` | The items, without order |
 | A primitive, a string or an enum | `Equals` |
 | A type that implements `IEquatable<T>` and is not a record | `Equals` |
 | Any other collection, an interface, or a type in a `System` or `Microsoft` namespace | `Equals` |
@@ -27,9 +28,9 @@ public sealed record InvoiceLine(string Sku, int Quantity);
 
 public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);
 
-public sealed record Stock(Dictionary<string, int> Levels);
+public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L54-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L72-L78' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Arrays and lists
@@ -87,7 +88,7 @@ var parsed = new Invoice(8, [new InvoiceLine("B-2", 3), new InvoiceLine("A-1", 2
 var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["fragile", "gift"]);
 VerifyEquivalent(parsed, expected, options => options.Unordered(x => x.Lines).Unordered(x => x.Tags).Ignore(x => x.Id));
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L46-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-options' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L64-L68' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-options' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 An unordered list matches each expected item with an actual item that is equivalent to it, each item once, so duplicates count. The message lists each expected item with no match as missing, and each actual item with no match as extra:
@@ -97,31 +98,54 @@ An unordered list matches each expected item with an actual item that is equival
 VerifyEquivalent failed: parsed is not equivalent to expected
   Tags: missing "fragile"
   Tags: extra "gift"
-  at EquivalentMessages.cs:49
+  at EquivalentMessages.cs:67
 ```
 <!-- endMessage -->
 
-An option applies only to the call that has it. Other calls that compare the same types still compare in order and read every member. A lambda that the generator cannot read, or that names a member the comparer does not read, is build error [VG0010](../diagnostics/VG0010.md). An option cannot name a member of the items of an array or a list yet.
+An option applies only to the call that has it. Other calls that compare the same types still compare in order and read every member. A lambda that the generator cannot read, or that names a member the comparer does not read, is build error [VG0010](../diagnostics/VG0010.md). An option cannot name a member of the items of an array, a list, a dictionary or a set yet. A set already compares without order, so `Unordered` names only an array or a list.
 
 ## Dictionaries and sets
 
-A dictionary or a set compares with `Equals`. `Dictionary<TKey, TValue>` and `HashSet<T>` do not override `Equals`, so two of them with the same entries differ, and the message shows the same value on both sides:
+A dictionary compares by key. For each key that both have, the values compare, and the path names the key. A value that is a record compares member by member. Each entry whose key only the expected dictionary has is missing, and each entry whose key only the actual dictionary has is extra. Each dictionary looks up keys with its own key comparer, so a dictionary built with `StringComparer.OrdinalIgnoreCase` matches keys without case:
 
 <!-- snippet: verify-equivalent-dictionary -->
 <a id='snippet-verify-equivalent-dictionary'></a>
 ```cs
-var parsed = new Stock(new Dictionary<string, int> { ["gift"] = 3 });
-var expected = new Stock(new Dictionary<string, int> { ["gift"] = 3 });
+var parsed = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["gift"]);
+var expected = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L37-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-dictionary' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L46-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-dictionary' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: equivalent-dictionary -->
 ```text
 VerifyEquivalent failed: parsed is not equivalent to expected
-  Levels: expected ["gift": 3], found ["gift": 3]
-  at EquivalentMessages.cs:40
+  Levels["gift"]: expected 5, found 3
+  Levels: missing "card": 2
+  Levels: extra "wrap": 1
+  at EquivalentMessages.cs:49
+```
+<!-- endMessage -->
+
+A set compares its items without order. An item that the comparer does not walk, such as a string, is looked up with the set's own `Contains`. An item that it walks, such as a record, matches an item of the other set that is equivalent to it, as in an unordered list. The message lists each expected item with no match as missing, and each actual item with no match as extra:
+
+<!-- snippet: verify-equivalent-set -->
+<a id='snippet-verify-equivalent-set'></a>
+```cs
+var parsed = new Stock(new() { ["gift"] = 3 }, ["fragile", "gift"]);
+var expected = new Stock(new() { ["gift"] = 3 }, ["gift", "express"]);
+VerifyEquivalent(parsed, expected);
+```
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L55-L59' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-set' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: equivalent-set -->
+```text
+VerifyEquivalent failed: parsed is not equivalent to expected
+  Tags: missing "express"
+  Tags: extra "fragile"
+  at EquivalentMessages.cs:58
 ```
 <!-- endMessage -->
 

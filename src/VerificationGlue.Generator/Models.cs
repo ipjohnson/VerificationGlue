@@ -60,19 +60,29 @@ internal sealed record CallModel(
 /// <param name="OptionsType">The type of the <c>options</c> parameter as the interceptor declares it, or null for the call without options.</param>
 internal sealed record EquivalenceModel(string ParameterType, string? Root, EquatableArray<ComparedType> Types, string? OptionsType = null);
 
-/// <summary>A type whose members, or whose items, the generated comparer compares one by one.</summary>
+/// <summary>A type whose members, items or entries the generated comparer compares one by one.</summary>
 /// <param name="Key">The name of its compare method, which is unique per type.</param>
-/// <param name="Name">The fully qualified name of the type, or of the list interface or array type that the compare method takes.</param>
+/// <param name="Name">The fully qualified name of the type, or of the list, set or dictionary interface or array type that the compare method takes.</param>
 /// <param name="IsReference">True for a class or a record class, which can be null.</param>
-/// <param name="Items">The items of an array or a list, or null for a type whose members are compared.</param>
-internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members, ComparedItems? Items = null);
+/// <param name="Items">The items of an array, a list or a set, or null for a type whose members are compared.</param>
+/// <param name="Entries">The entries of a dictionary, or null for a type that is not one.</param>
+internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members, ComparedItems? Items = null, ComparedEntries? Entries = null);
 
-/// <summary>The items of an array or a list, which the comparer compares in order, or without order when an <c>Unordered</c> option names it.</summary>
-/// <param name="Count">The member that gives the number of items: <c>Length</c> for an array, <c>Count</c> for a list.</param>
+/// <summary>
+/// The items of an array or a list, which the comparer compares in order, or without order when an
+/// <c>Unordered</c> option names it, or the items of a set, which it always compares without order.
+/// </summary>
+/// <param name="Count">The member that gives the number of items: <c>Length</c> for an array, <c>Count</c> for a list or a set.</param>
 /// <param name="Type">The <see cref="ComparedType.Key"/> of the item type, or null to compare with <c>Equals</c>.</param>
 /// <param name="Nullable">True when the item type is a <c>Nullable&lt;T&gt;</c> of the walked type.</param>
 /// <param name="Unordered">True when each expected item matches any one actual item.</param>
-internal sealed record ComparedItems(string Count, string? Type, bool Nullable, bool Unordered = false);
+/// <param name="Set">True for a set, which has no indexer, and which looks up an item it does not walk with its own <c>Contains</c>.</param>
+internal sealed record ComparedItems(string Count, string? Type, bool Nullable, bool Unordered = false, bool Set = false);
+
+/// <summary>The entries of a dictionary, which the comparer matches by key with the dictionaries' own key comparers.</summary>
+/// <param name="Type">The <see cref="ComparedType.Key"/> of the value type, or null to compare with <c>Equals</c>.</param>
+/// <param name="Nullable">True when the value type is a <c>Nullable&lt;T&gt;</c> of the walked type.</param>
+internal sealed record ComparedEntries(string? Type, bool Nullable);
 
 /// <summary>A public field or property that the comparer reads.</summary>
 /// <param name="Name">The name of the member, as the path shows it.</param>

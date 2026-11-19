@@ -63,7 +63,7 @@ Keep `Verify(order.Total == 30)` without a lambda in three cases: the condition 
 - [Getting started with Verify](../../docs/guide/getting-started-verify.md), with a section per test framework and every message shape.
 - [How tiers work and how to get values](../../docs/guide/tiers.md) and [Soft checks with Check](../../docs/guide/check.md).
 - [Failure messages](../../docs/guide/messages.md), the real output of each kind of failure.
-- [Compare two values with VerifyEquivalent](../../docs/guide/verify-equivalent.md), including arrays and lists.
+- [Compare two values with VerifyEquivalent](../../docs/guide/verify-equivalent.md), including arrays, lists, dictionaries and sets.
 - [Migrate from xunit Assert](../../docs/guide/migrate-from-xunit-assert.md).
 - [Generated interceptors](../../docs/guide/generated/interceptors.md) and [generated tier 3 copies](../../docs/guide/generated/rewritten-methods.md), the code the generator writes.
 - Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0010](../../docs/diagnostics/VG0010.md).

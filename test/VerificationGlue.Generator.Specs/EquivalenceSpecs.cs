@@ -76,6 +76,14 @@ public class EquivalenceSpecs
 
         public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
 
+        public sealed class Depot
+        {
+            public Dictionary<string, Address> Sites { get; set; } = new();
+            public HashSet<Address> Docks { get; set; } = [];
+            public IDictionary<int, Point?> Marks { get; set; } = new Dictionary<int, Point?>();
+            public ISet<Point> Corners { get; set; } = new HashSet<Point>();
+        }
+
         public static partial class Cases
         {
             private static Invoice Invoice(string city, Status status = Status.Open) => new(7, new Customer("Ada", new Address(city, "High St")), status);
@@ -102,7 +110,19 @@ public class EquivalenceSpecs
             public static void RecordList() => VerifyEquivalent(Route("Rue"), Route("Quai"));
             public static void RecordListPass() => VerifyEquivalent(Route("Rue"), Route("Rue"));
             public static void ListRoot() => VerifyEquivalent(new List<Address> { new("London", "High St") }, new List<Address> { new("Paris", "High St"), new("Rome", "Via") });
-            public static void Dictionary() => VerifyEquivalent(new Stock(new() { ["gift"] = 3 }, ["fragile"]), new Stock(new() { ["gift"] = 3 }, ["fragile"]));
+            public static void Dictionary() => VerifyEquivalent(new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["fragile"]), new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["fragile"]));
+            public static void DictionaryPass() => VerifyEquivalent(new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["fragile", "gift"]), new Stock(new() { ["wrap"] = 1, ["gift"] = 3 }, ["gift", "fragile"]));
+            public static void DictionaryRoot() => VerifyEquivalent(new Dictionary<string, int> { ["gift"] = 3, ["wrap"] = 1 }, new Dictionary<string, int> { ["gift"] = 5, ["card"] = 2 });
+            public static void Set() => VerifyEquivalent(new Stock(new(), ["fragile", "gift"]), new Stock(new(), ["gift", "express"]));
+            public static void KeyComparers() => VerifyEquivalent(
+                new Stock(new(StringComparer.OrdinalIgnoreCase) { ["Gift"] = 3 }, new(StringComparer.OrdinalIgnoreCase) { "Fragile" }),
+                new Stock(new(StringComparer.OrdinalIgnoreCase) { ["gift"] = 3 }, new(StringComparer.OrdinalIgnoreCase) { "fragile" }));
+            public static void Depots() => VerifyEquivalent(
+                new Depot { Sites = { ["home"] = London }, Docks = [London, Paris], Marks = { [1] = new Point { X = 1 }, [2] = null }, Corners = { new Point { X = 1 } } },
+                new Depot { Sites = { ["home"] = new("Paris", "High St") }, Docks = [Paris, Rome], Marks = { [1] = new Point { X = 2 }, [2] = new Point() }, Corners = { new Point { X = 2 } } });
+            public static void DepotsPass() => VerifyEquivalent(
+                new Depot { Sites = { ["home"] = new("London", "High St") }, Docks = [new("Paris", "Quai"), London], Marks = { [2] = null, [1] = new Point { X = 1 } }, Corners = { new Point { Y = 1 }, new Point() } },
+                new Depot { Sites = { ["home"] = London }, Docks = [London, Paris], Marks = { [1] = new Point { X = 1 }, [2] = null }, Corners = { new Point(), new Point { Y = 1 } } });
             public static void SameDictionary()
             {
                 var levels = new Dictionary<string, int> { ["gift"] = 3 };
@@ -123,6 +143,7 @@ public class EquivalenceSpecs
 
             private static readonly Address London = new("London", "High St");
             private static readonly Address Paris = new("Paris", "Quai");
+            private static readonly Address Rome = new("Rome", "Via");
 
             private static Route Stops(params Address[] stops) => new("R1", [.. stops]);
 
@@ -170,6 +191,7 @@ public class EquivalenceSpecs
         Run("Cycle");
         Run("RecordListPass");
         Run("SameDictionary");
+        Run("DictionaryPass");
     }
 
     [VerifyTest]
@@ -215,14 +237,54 @@ public class EquivalenceSpecs
         Assert.Equal("  Grid[1][0]: expected 4, found 2", Fail("NestedArrays").Message.Split('\n')[1]);
     }
 
-    // Until ipjohnson/VerificationGlue#107, a dictionary or a set compares with Equals, which for
-    // Dictionary<TKey, TValue> and HashSet<T> compares references.
     [VerifyTest]
-    public void A_dictionary_or_set_member_compares_with_Equals()
+    public void A_dictionary_compares_by_key_and_lists_differing_missing_and_extra_entries()
     {
         Assert.Equal(
-            "  Levels: expected [\"gift\": 3], found [\"gift\": 3]\n  Tags: expected [\"fragile\"], found [\"fragile\"]",
-            string.Join("\n", Fail("Dictionary").Message.Split('\n')[1..^1]));
+            Lines(
+                "VerifyEquivalent failed: new Stock(new() { [\"gift\"] = 3, [\"wrap\"] = 1 }, [\"fragile\"]) is not equivalent to new Stock(new() { [\"gift\"] = 5, [\"card\"] = 2 }, [\"fragile\"])",
+                "  Levels[\"gift\"]: expected 5, found 3",
+                "  Levels: missing \"card\": 2",
+                "  Levels: extra \"wrap\": 1",
+                $"  at Tests/Equivalence.cs:{LineOf("Dictionary()")}"),
+            Fail("Dictionary").Message);
+        Assert.Equal(
+            "  [\"gift\"]: expected 5, found 3\n  missing \"card\": 2\n  extra \"wrap\": 1",
+            string.Join("\n", Fail("DictionaryRoot").Message.Split('\n')[1..^1]));
+    }
+
+    [VerifyTest]
+    public void A_set_compares_without_order_and_lists_missing_and_extra_items()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: new Stock(new(), [\"fragile\", \"gift\"]) is not equivalent to new Stock(new(), [\"gift\", \"express\"])",
+                "  Tags: missing \"express\"",
+                "  Tags: extra \"fragile\"",
+                $"  at Tests/Equivalence.cs:{LineOf("Set()")}"),
+            Fail("Set").Message);
+    }
+
+    [VerifyTest]
+    public void Dictionaries_and_sets_use_their_own_comparers_for_keys_and_items_they_do_not_walk()
+    {
+        Run("KeyComparers");
+    }
+
+    [VerifyTest]
+    public void Dictionary_values_and_set_items_of_walked_types_compare_member_by_member()
+    {
+        Run("DepotsPass");
+        Assert.Equal(
+            Lines(
+                "  Sites[\"home\"].City: expected \"Paris\", found \"London\"",
+                "  Docks: missing Address { City = Rome, Street = Via }",
+                "  Docks: extra Address { City = London, Street = High St }",
+                "  Marks[1].X: expected 2, found 1",
+                "  Marks[2]: expected Sample.Point, found null",
+                "  Corners: missing Sample.Point",
+                "  Corners: extra Sample.Point"),
+            string.Join("\n", Fail("Depots").Message.Split('\n')[1..^1]));
     }
 
     [VerifyTest]
@@ -370,7 +432,8 @@ public class EquivalenceSpecs
             "VerifyEquivalent(invoice, invoice, o => o.Ignore(x => x.Customer!.Name.Trim()).Ignore(x => x.Customer!.Name.Length).Ignore(x => x));",
             "VerifyEquivalent(invoice, invoice, o => o.Unordered(x => x.Customer!.Name));",
             "VerifyEquivalent(invoice, invoice, options);",
-            "VerifyEquivalent(batch, batch, o => o.Ignore(x => x.Hidden));");
+            "VerifyEquivalent(batch, batch, o => o.Ignore(x => x.Hidden));",
+            "VerifyEquivalent(stock, stock, o => o.Ignore(x => x.Levels.Count).Unordered(x => x.Tags));");
 
         Assert.Equal(
             [
@@ -382,6 +445,8 @@ public class EquivalenceSpecs
                 "VG0010: The VerifyEquivalent option 'x => x.Customer!.Name' is not applied, because 'Customer.Name' is not an array or a list that the comparer walks",
                 "VG0010: The VerifyEquivalent option 'options' is not applied, because it is not a lambda that calls Unordered and Ignore on its parameter",
                 "VG0010: The VerifyEquivalent option 'x => x.Hidden' is not applied, because 'Hidden' is not a public field or property that the comparer reads",
+                "VG0010: The VerifyEquivalent option 'x => x.Levels.Count' is not applied, because the comparer compares the items of 'Levels', so it does not read 'Count'",
+                "VG0010: The VerifyEquivalent option 'x => x.Tags' is not applied, because 'Tags' is not an array or a list that the comparer walks",
             ],
             diagnostics.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}"));
         Assert.All(diagnostics, diagnostic => Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity));
@@ -402,7 +467,11 @@ public class EquivalenceSpecs
         Assert.Contains("Compare_AddressList_", comparers);
         Assert.Contains("(global::System.Collections.Generic.IReadOnlyList<global::Sample.Address> actual, ", comparers);
         Assert.Contains("differences.ItemCount(path, actual.Length, expected.Length);", comparers);
-        Assert.Contains("differences.Equal(path, \"Levels\", actual.Levels, expected.Levels);", comparers);
+        Assert.Contains("(global::System.Collections.Generic.IReadOnlyDictionary<string, int> actual, ", comparers);
+        Assert.Contains("if (actual.TryGetValue(entry.Key, out var actualValue))", comparers);
+        Assert.Contains("(global::System.Collections.Generic.IReadOnlySet<string> actual, ", comparers);
+        Assert.Contains("if (!actual.Contains(item))", comparers);
+        Assert.Contains("(global::System.Collections.Generic.ISet<global::Sample.Point> actual, ", comparers);
         Assert.Contains(
             "(global::Sample.Invoice actual, global::Sample.Invoice expected, global::System.Func<global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>, global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>> options, string? actualExpression = null",
             interceptors);
@@ -424,6 +493,7 @@ public class EquivalenceSpecs
 
             public sealed record Customer(string Name);
             public sealed record Invoice(int Id, Customer? Customer);
+            public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
             public sealed class Batch
             {
                 public int[] Counts { get; set; } = [];
@@ -433,7 +503,7 @@ public class EquivalenceSpecs
 
             static class Tests
             {
-                static void M(Batch batch, Invoice invoice, Func<EquivalenceOptions<Invoice>, EquivalenceOptions<Invoice>> options)
+                static void M(Batch batch, Invoice invoice, Stock stock, Func<EquivalenceOptions<Invoice>, EquivalenceOptions<Invoice>> options)
                 {
                     {{string.Join("\n            ", statements)}}
                 }

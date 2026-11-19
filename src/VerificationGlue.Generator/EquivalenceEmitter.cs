@@ -81,6 +81,11 @@ internal static class EquivalenceEmitter
                 Items(text, items);
             }
 
+            if (type.Entries is { } entries)
+            {
+                Entries(text, entries);
+            }
+
             for (var index = 0; index < type.Members.Count; index++)
             {
                 var member = type.Members[index];
@@ -106,9 +111,23 @@ internal static class EquivalenceEmitter
 
     private static void Items(StringBuilder text, ComparedItems items)
     {
+        if (items.Set && items.Type is null)
+        {
+            SetItems(text);
+            return;
+        }
+
+        if (items.Set)
+        {
+            text.Append("            var actualItems = global::System.Linq.Enumerable.ToArray(actual);\n")
+                .Append("            var expectedItems = global::System.Linq.Enumerable.ToArray(expected);\n");
+            UnorderedItems(text, items, "actualItems", "expectedItems", "Length");
+            return;
+        }
+
         if (items.Unordered)
         {
-            UnorderedItems(text, items);
+            UnorderedItems(text, items, "actual", "expected", items.Count);
             return;
         }
 
@@ -125,25 +144,55 @@ internal static class EquivalenceEmitter
     /// Matches each expected item with the first unmatched actual item that is the same, then lists
     /// each expected item left as missing and each actual item left as extra.
     /// </summary>
-    private static void UnorderedItems(StringBuilder text, ComparedItems items)
+    private static void UnorderedItems(StringBuilder text, ComparedItems items, string actual, string expected, string count)
     {
-        var count = items.Count;
         var same = items.Type is null
-            ? "differences.Same(actual[other], expected[index])"
-            : $"differences.{(items.Nullable ? "SameNullable" : "Same")}(actual[other], expected[index], Compare_{items.Type})";
-        text.Append("            var matched = new bool[actual.").Append(count).Append("];\n")
-            .Append("            for (var index = 0; index < expected.").Append(count).Append("; index++)\n            {\n")
+            ? $"differences.Same({actual}[other], {expected}[index])"
+            : $"differences.{(items.Nullable ? "SameNullable" : "Same")}({actual}[other], {expected}[index], Compare_{items.Type})";
+        text.Append("            var matched = new bool[").Append(actual).Append('.').Append(count).Append("];\n")
+            .Append("            for (var index = 0; index < ").Append(expected).Append('.').Append(count).Append("; index++)\n            {\n")
             .Append("                var found = false;\n")
-            .Append("                for (var other = 0; other < actual.").Append(count).Append(" && !found; other++)\n                {\n")
+            .Append("                for (var other = 0; other < ").Append(actual).Append('.').Append(count).Append(" && !found; other++)\n                {\n")
             .Append("                    if (!matched[other] && ").Append(same).Append(")\n                    {\n")
             .Append("                        matched[other] = found = true;\n")
             .Append("                    }\n                }\n\n")
             .Append("                if (!found)\n                {\n")
-            .Append("                    differences.Missing(path, expected[index]);\n")
+            .Append("                    differences.Missing(path, ").Append(expected).Append("[index]);\n")
             .Append("                }\n            }\n\n")
-            .Append("            for (var index = 0; index < actual.").Append(count).Append("; index++)\n            {\n")
+            .Append("            for (var index = 0; index < ").Append(actual).Append('.').Append(count).Append("; index++)\n            {\n")
             .Append("                if (!matched[index])\n                {\n")
-            .Append("                    differences.Extra(path, actual[index]);\n")
+            .Append("                    differences.Extra(path, ").Append(actual).Append("[index]);\n")
+            .Append("                }\n            }\n");
+    }
+
+    /// <summary>Looks up each item of a set whose items compare with <c>Equals</c> in the other set, with that set's own comparer.</summary>
+    private static void SetItems(StringBuilder text) =>
+        text.Append("            foreach (var item in expected)\n            {\n")
+            .Append("                if (!actual.Contains(item))\n                {\n")
+            .Append("                    differences.Missing(path, item);\n")
+            .Append("                }\n            }\n\n")
+            .Append("            foreach (var item in actual)\n            {\n")
+            .Append("                if (!expected.Contains(item))\n                {\n")
+            .Append("                    differences.Extra(path, item);\n")
+            .Append("                }\n            }\n");
+
+    /// <summary>
+    /// Compares the value of each expected key that the actual dictionary has, then lists each
+    /// expected entry whose key it lacks as missing and each actual entry whose key the expected
+    /// dictionary lacks as extra. Each lookup uses the key comparer of the dictionary it reads.
+    /// </summary>
+    private static void Entries(StringBuilder text, ComparedEntries entries)
+    {
+        var path = $"{Differences}.Entry(path, entry.Key)";
+        text.Append("            foreach (var entry in expected)\n            {\n")
+            .Append("                if (actual.TryGetValue(entry.Key, out var actualValue))\n                {\n");
+        Value(text, "                    ", entries.Type, entries.Nullable, "actualValue", "entry.Value", path, path + ", \"\"", "Entry");
+        text.Append("                }\n                else\n                {\n")
+            .Append("                    differences.MissingEntry(path, entry.Key, entry.Value);\n")
+            .Append("                }\n            }\n\n")
+            .Append("            foreach (var entry in actual)\n            {\n")
+            .Append("                if (!expected.ContainsKey(entry.Key))\n                {\n")
+            .Append("                    differences.ExtraEntry(path, entry.Key, entry.Value);\n")
             .Append("                }\n            }\n");
     }
 
