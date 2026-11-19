@@ -411,6 +411,18 @@ internal sealed class LambdaBuilder
 
         var name = "__vg_" + _site + "_access" + _accessorNames.Count.ToString(CultureInfo.InvariantCulture);
         var self = Name(owner) + (member.IsStatic ? "? self" : " self");
+        if (owner.IsStatic)
+        {
+            // A static class cannot be a parameter type (CS0721), so the parameter names the type by its runtime name.
+            if (_model.Compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.UnsafeAccessorTypeAttribute") is null)
+            {
+                throw new UnsupportedException();
+            }
+
+            var runtimeName = RuntimeName(owner) + ", " + owner.ContainingAssembly.Name;
+            self = $"[global::System.Runtime.CompilerServices.UnsafeAccessorType({CopyBuilder.Literal(runtimeName)})] object? self";
+        }
+
         var kind = "global::System.Runtime.CompilerServices.UnsafeAccessorKind.";
         string declaration;
         switch (member)
@@ -463,6 +475,16 @@ internal sealed class LambdaBuilder
         {
             _extensions.Add(text);
         }
+    }
+
+    private static string RuntimeName(INamedTypeSymbol type)
+    {
+        if (type.ContainingType is { } outer)
+        {
+            return RuntimeName(outer) + "+" + type.MetadataName;
+        }
+
+        return type.ContainingNamespace.IsGlobalNamespace ? type.MetadataName : type.ContainingNamespace.ToDisplayString() + "." + type.MetadataName;
     }
 
     private static string Hash(string text)
