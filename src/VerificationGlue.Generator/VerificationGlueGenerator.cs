@@ -35,6 +35,20 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
             .Select(static (call, _) => call!)
             .WithTrackingName(CallsStep);
 
+        // A tier 3 copy calls the comparer of each VerifyEquivalent call in it, so the comparers
+        // come from every call, including those that get no interceptor.
+        var equivalence = calls
+            .Where(static call => call.Equivalence is not null)
+            .Select(static (call, _) => call.Equivalence!)
+            .Collect();
+        context.RegisterSourceOutput(equivalence, static (output, models) =>
+        {
+            if (EquivalenceEmitter.Emit(models) is { } text)
+            {
+                output.AddSource(EquivalenceEmitter.HintName, text);
+            }
+        });
+
         var files = calls.Collect().Combine(projectDirectory).Combine(rewrite).SelectMany(static (pair, _) =>
             pair.Left.Left
                 .Where(call => !(pair.Right && call.InRunnerCopy))
@@ -113,7 +127,12 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
         var span = invocation.GetLocation().GetLineSpan();
         string? message = null;
         LambdaModel? lambda = null;
-        if (kind is CallKind.VerifyLambda or CallKind.CheckLambda)
+        EquivalenceModel? equivalence = null;
+        if (kind is CallKind.VerifyEquivalent)
+        {
+            equivalence = EquivalenceBuilder.Build(method, syntax.SemanticModel.Compilation);
+        }
+        else if (kind is CallKind.VerifyLambda or CallKind.CheckLambda)
         {
             if (VerifyCalls.LambdaBody(VerifyCalls.Argument(invocation, VerifyCalls.ConditionParameter)) is { } body)
             {
@@ -154,7 +173,8 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
             kind,
             message,
             inRunnerCopy,
-            lambda);
+            lambda,
+            equivalence);
     }
 
     /// <summary>

@@ -39,8 +39,9 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 | `Single(items, predicate)` | Returns the only item that matches `predicate`. Fails when none or more than one match. |
 | `Is<T>(value)` | Returns `value` as a `T`. Fails when `value` is null or not a `T`. |
 | `NotNull(value)` | Returns `value` when it is not null. Nullable analysis treats the result as non-null. |
+| `VerifyEquivalent(actual, expected)` | Compares the two values member by member. Fails with the path of each member that differs. |
 
-`Throws`, `Single`, `Is` and `NotNull` return a value, so they throw on failure also inside a `VerifyScope`. The [messages page](messages.md#single) shows what each one reports.
+`Throws`, `Single`, `Is` and `NotNull` return a value, so they throw on failure also inside a `VerifyScope`. `VerifyEquivalent` throws there too, like `Verify`. The [messages page](messages.md#single) shows what each one reports.
 
 Write a condition as a lambda by default. Keep `Verify(condition)` in three cases:
 
@@ -279,6 +280,8 @@ Assert.Equal("Verify failed: count == 3", failure.Message);
 ```
 <sup><a href='/test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#L20-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-tier-1-message' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+`VerifyEquivalent` without the generator compares the two values with `Equals`, so a record compares member by member and a class compares by reference. Its message gives both values and says that the generator did not run. The [messages page](messages.md#verifyequivalent) shows the message with the generator.
 
 ## Captured values
 

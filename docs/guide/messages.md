@@ -235,6 +235,34 @@ NotNull failed: order
 ```
 <!-- endMessage -->
 
+### VerifyEquivalent
+
+`VerifyEquivalent(actual, expected)` compares two values member by member. The generator writes a comparer for the type at each call site, with no reflection. The message gives the path of each member that differs, with the expected and the found value. It lists up to 10 differences and counts the rest.
+
+The comparer walks the public fields and properties of classes, structs and records, including those of base types. Primitives, strings, enums, and types that implement `IEquatable<T>` and are not records compare with `Equals`. So do collections, interfaces, types in `System` and `Microsoft` namespaces, types with no public field or property, and types the generated code cannot name, such as a private nested type. Null on one side is a difference at that path. A pair of references compares once, so a graph with a cycle ends.
+
+<!-- snippet: message-tier2-equivalent -->
+<a id='snippet-message-tier2-equivalent'></a>
+```cs
+var parsed = new Shipment(7, new Address("Ada", "London"), ShipmentStatus.Packed, null);
+var expected = new Shipment(7, new Address("Ada", "Paris"), ShipmentStatus.Sent, new Address("Ada", "Paris"));
+VerifyEquivalent(parsed, expected);
+```
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L10-L14' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-equivalent' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier2-equivalent -->
+```text
+VerifyEquivalent failed: parsed is not equivalent to expected
+  To.City: expected "Paris", found "London"
+  Status: expected Sent, found Packed
+  ReturnTo: expected Address { Name = Ada, City = Paris }, found null
+  at EquivalentMessages.cs:13
+```
+<!-- endMessage -->
+
+Without the generator, `VerifyEquivalent` compares the two values with `Equals`. A record then still compares member by member, but a class compares by reference. The message gives both values and says that the generator did not run.
+
 ## Tier 3: captured values
 
 A `[Verify]` method in a `partial` type gets a tier 3 copy when the project sets `VerificationGlueRewrite`. The message lists the value of each part of the condition, as it was when the condition ran. Nothing is evaluated again to build the message, except the lambda of a failed `All`, as [Collections](#collections) says.

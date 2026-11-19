@@ -20,6 +20,7 @@ public static class Gallery
         ("tier2-single-match", ValueMessages.SingleMatch),
         ("tier2-is", ValueMessages.IsType),
         ("tier2-not-null-value", ValueMessages.NotNullValue),
+        ("tier2-equivalent", EquivalentMessages.Members),
         ("tier3-values", Tier3Messages.Values),
         ("tier3-skipped", Tier3Messages.Skipped),
         ("tier3-because", Tier3Messages.Because),

@@ -366,4 +366,26 @@ public class VerifySyntaxSpecs
 
         Assert.Equal("NotNull failed: count", failure.Message);
     }
+
+    [VerifyTest]
+    public void VerifyEquivalent_without_the_generator_passes_for_equal_records()
+    {
+        VerifyEquivalent(new Point(1, 2), new Point(1, 2));
+    }
+
+    [VerifyTest]
+    public void VerifyEquivalent_without_the_generator_compares_with_Equals()
+    {
+        var actual = new Point(1, 2);
+
+        var failure = Assert.Throws<VerifyException>(() => VerifyEquivalent(actual, new Point(1, 3)));
+
+        Assert.Equal(
+            "VerifyEquivalent failed: actual is not equivalent to new Point(1, 3)\n" +
+            "  expected Point { X = 1, Y = 3 }, found Point { X = 1, Y = 2 }\n" +
+            "  compared with Equals, because the VerificationGlue generator did not run",
+            failure.Message);
+    }
+
+    private sealed record Point(int X, int Y);
 }

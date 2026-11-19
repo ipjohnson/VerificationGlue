@@ -375,6 +375,22 @@ internal sealed class CopyBuilder
                        $"{(expression is null ? Literal(action.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
             }
 
+            case CallKind.VerifyEquivalent:
+            {
+                var actual = VerifyCalls.Argument(call, VerifyCalls.ActualParameter, 0)!;
+                var expected = VerifyCalls.Argument(call, VerifyCalls.ExpectedParameter, 1)!;
+                var actualExpression = VerifyCalls.Argument(call, VerifyCalls.ActualExpressionParameter, 2);
+                var expectedExpression = VerifyCalls.Argument(call, VerifyCalls.ExpectedExpressionParameter, 3);
+                return EquivalenceEmitter.Call(
+                    EquivalenceBuilder.Build(target, _model.Compilation),
+                    Render(actual.Span),
+                    Render(expected.Span),
+                    actualExpression is null ? Literal(actual.ToString()) : Render(actualExpression.Span),
+                    expectedExpression is null ? Literal(expected.ToString()) : Render(expectedExpression.Span),
+                    PathPlaceholder(mapped.HasMappedPath ? mapped.Path : call.SyntaxTree.FilePath),
+                    (mapped.StartLinePosition.Line + 1).ToString(CultureInfo.InvariantCulture));
+            }
+
             case CallKind.Single or CallKind.SingleWhere or CallKind.Is or CallKind.NotNull or CallKind.NotNullValue:
             {
                 var single = kind is CallKind.Single or CallKind.SingleWhere;
