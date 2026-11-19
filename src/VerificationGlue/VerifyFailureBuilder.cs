@@ -238,6 +238,63 @@ public sealed class VerifyFailureBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds the line that lists the items of a sequence, for a failed count, <c>Any</c> or
+    /// <c>Contains</c>. Adds nothing when the sequence is not a collection, because reading a lazy
+    /// sequence again would run its code again.
+    /// </summary>
+    /// <typeparam name="T">The item type of the sequence.</typeparam>
+    /// <param name="label">The source text of the sequence.</param>
+    /// <param name="value">The value of the sequence.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder ListItems<T>(string label, IEnumerable<T>? value)
+    {
+        if (Materialize(value) is { } items)
+        {
+            _explanations.Add(items.Count == 0 ? label + " is empty" : label + " has " + Items(items.Count) + ": " + ItemList(items));
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Adds the line for a failed <c>All</c> that names the index and value of the first item that
+    /// fails. It runs <paramref name="predicate"/> again on the items up to that one. Adds nothing
+    /// when the sequence is not a collection, when every item passes, or when the predicate throws.
+    /// </summary>
+    /// <typeparam name="T">The item type of the sequence.</typeparam>
+    /// <param name="value">The value of the sequence.</param>
+    /// <param name="predicate">The predicate <c>All</c> was given.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder FirstFailure<T>(IEnumerable<T>? value, Func<T, bool> predicate)
+    {
+        if (Materialize(value) is not { } items)
+        {
+            return this;
+        }
+
+        for (var index = 0; index < items.Count; index++)
+        {
+            bool passed;
+            try
+            {
+                passed = predicate(items[index]);
+            }
+            catch (Exception)
+            {
+                return this;
+            }
+
+            if (!passed)
+            {
+                _explanations.Add("first item that fails at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + Format(items[index]));
+                return this;
+            }
+        }
+
+        return this;
+    }
+
     /// <summary>Adds the interpolated message of the call.</summary>
     /// <param name="message">The formatted message.</param>
     /// <returns>This builder.</returns>

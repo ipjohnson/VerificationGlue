@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:168
+      at Program.cs:202
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:177
+      at Program.cs:211
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -117,7 +117,7 @@ Verify(sequence.Message == """
       expected has 1 item past the end of lines: 40
       lines    → System.Int32[]
       expected → System.Int32[]
-      at Program.cs:186
+      at Program.cs:220
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -127,7 +127,41 @@ Verify(set.Message == """
       tags has 2 items that expected does not: "fragile", "express"
       tags     → System.Collections.Generic.HashSet`1[System.String]
       expected → System.String[]
-      at Program.cs:192
+      at Program.cs:226
+    """);
+
+// Tier 3: a failed count, Any or Contains lists the items, and a failed All names the first item that fails.
+var counted = Throws<VerifyException>(() => CollectionChecks.VerifyLineCount([10, 20]));
+Verify(counted.Message == """
+    Verify failed: lines.Count == 3
+      lines has 2 items: 10, 20
+      lines.Count → 2
+      lines       → System.Collections.Generic.List`1[System.Int32]
+      at Program.cs:232
+    """);
+
+var every = Throws<VerifyException>(() => CollectionChecks.VerifyQuantities([2, 5, 0, 3]));
+Verify(every.Message == """
+    Verify failed: quantities.All(quantity => quantity > 0)
+      first item that fails at index 2: 0
+      quantities → System.Int32[]
+      at Program.cs:238
+    """);
+
+var some = Throws<VerifyException>(() => CollectionChecks.VerifyBackorder([2, 5, 3]));
+Verify(some.Message == """
+    Verify failed: quantities.Any(quantity => quantity > 10)
+      quantities has 3 items: 2, 5, 3
+      quantities → System.Int32[]
+      at Program.cs:244
+    """);
+
+var contained = Throws<VerifyException>(() => CollectionChecks.VerifyExpress(["gift", "fragile"]));
+Verify(contained.Message == """
+    Verify failed: tags.Contains("express")
+      tags has 2 items: "gift", "fragile"
+      tags → System.String[]
+      at Program.cs:250
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -141,7 +175,7 @@ Verify(captured.Message == """
       total + 10 → 50
       total      → 40
       expected   → 60
-      at Program.cs:138
+      at Program.cs:172
     """);
 
 var queue = new Queue<int>([1, 2, 3]);
@@ -153,7 +187,7 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:200
+      at Program.cs:258
     """);
 
 Console.WriteLine("VerifyAot passed.");
@@ -190,6 +224,30 @@ public static partial class CollectionChecks
     public static void VerifyTags(HashSet<string> tags, string[] expected)
     {
         Verify(tags.SetEquals(expected));
+    }
+
+    [Verify]
+    public static void VerifyLineCount(List<int> lines)
+    {
+        Verify(lines.Count == 3);
+    }
+
+    [Verify]
+    public static void VerifyQuantities(int[] quantities)
+    {
+        Verify(quantities.All(quantity => quantity > 0));
+    }
+
+    [Verify]
+    public static void VerifyBackorder(int[] quantities)
+    {
+        Verify(quantities.Any(quantity => quantity > 10));
+    }
+
+    [Verify]
+    public static void VerifyExpress(string[] tags)
+    {
+        Verify(tags.Contains("express"));
     }
 }
 

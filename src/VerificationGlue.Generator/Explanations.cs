@@ -11,7 +11,9 @@ namespace VerificationGlue.Generator;
 /// <summary>
 /// The lines a tier 3 message adds for a condition of a recognised shape, written as calls on the
 /// failure builder. A line reads only the locals the rewritten condition captured, and constants,
-/// so nothing in the condition runs again. A shape whose values were not all captured adds no line.
+/// so nothing in the condition runs again. The one exception is the predicate of <c>All</c>, which
+/// the line runs again to find the first item that fails. A shape whose values were not all
+/// captured adds no line.
 /// </summary>
 internal static class Explanations
 {
@@ -36,8 +38,199 @@ internal static class Explanations
             lines.Add(collections);
         }
 
+        lines.AddRange(Counts(condition, rewritten, model, token));
+        if (Search(condition, rewritten, model, render, token) is { } search)
+        {
+            lines.Add(search);
+        }
+
         return lines;
     }
+
+    /// <summary>
+    /// A comparison with <c>a.Count</c>, <c>a.Length</c> or <c>Enumerable.Count(a)</c> on either
+    /// side, which lists the items of each such <c>a</c>.
+    /// </summary>
+    private static IEnumerable<string> Counts(ExpressionSyntax condition, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        if (Unwrap(condition) is not BinaryExpressionSyntax comparison ||
+            comparison.Kind() is not (SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression or SyntaxKind.LessThanExpression or
+                SyntaxKind.LessThanOrEqualExpression or SyntaxKind.GreaterThanExpression or SyntaxKind.GreaterThanOrEqualExpression))
+        {
+            yield break;
+        }
+
+        foreach (var side in new[] { comparison.Left, comparison.Right })
+        {
+            if (Counted(Unwrap(side), rewritten, model, token) is { } line)
+            {
+                yield return line;
+            }
+        }
+    }
+
+    private static string? Counted(ExpressionSyntax part, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        if (part is MemberAccessExpressionSyntax access && access.IsKind(SyntaxKind.SimpleMemberAccessExpression) &&
+            model.GetSymbolInfo(access, token).Symbol is IPropertySymbol
+            {
+                Name: "Count" or "Length", IsStatic: false, IsIndexer: false, Type.SpecialType: SpecialType.System_Int32 or SpecialType.System_Int64,
+            })
+        {
+            return ListItems(access.Expression, ItemType(model.GetTypeInfo(access.Expression, token).Type), rewritten, model, token);
+        }
+
+        if (part is InvocationExpressionSyntax invocation &&
+            model.GetSymbolInfo(invocation, token).Symbol is IMethodSymbol { Name: "Count", TypeArguments.Length: 1 } method &&
+            IsEnumerable(method.ReducedFrom ?? method) && Operands(invocation, method) is { Others.Count: 0 } operands)
+        {
+            return ListItems(operands.Source, method.TypeArguments[0], rewritten, model, token);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// <c>a.Any()</c>, <c>a.Any(predicate)</c> and <c>a.Contains(x)</c>, which list the items of
+    /// <c>a</c>, and <c>a.All(predicate)</c>, which names the first item that fails. <c>Contains</c>
+    /// is matched in <c>Enumerable</c>, in <c>MemoryExtensions</c> and as an instance method that
+    /// takes the item type.
+    /// </summary>
+    private static string? Search(ExpressionSyntax condition, RewrittenCondition rewritten, SemanticModel model, Func<SyntaxNode, string> render, CancellationToken token)
+    {
+        if (Unwrap(condition) is not InvocationExpressionSyntax invocation ||
+            model.GetSymbolInfo(invocation, token).Symbol is not IMethodSymbol method ||
+            Operands(invocation, method) is not { } operands)
+        {
+            return null;
+        }
+
+        var definition = method.ReducedFrom ?? method;
+        var (source, rest) = operands;
+        if (IsEnumerable(definition) && method.TypeArguments.Length == 1)
+        {
+            var item = method.TypeArguments[0];
+            switch (method.Name, rest.Count)
+            {
+                case ("Any", 0 or 1) or ("Contains", 1):
+                    return ListItems(source, item, rewritten, model, token);
+                case ("All", 1):
+                    source = Unwrap(source);
+                    return ConditionRewriter.CanName(item) && IsSource(source, item, model, token) &&
+                           Captured(source, rewritten) is { } value && Predicate(Unwrap(rest[0]), condition, rewritten, model, render, token) is { } predicate
+                        ? $"FirstFailure<{item.ToDisplayString(TypeFormat)}>({value}, {predicate})"
+                        : null;
+                default:
+                    return null;
+            }
+        }
+
+        if (method.Name != "Contains" || rest.Count != 1)
+        {
+            return null;
+        }
+
+        if (IsMemoryExtensions(definition) && method.TypeArguments.Length == 1)
+        {
+            return ListItems(source, method.TypeArguments[0], rewritten, model, token);
+        }
+
+        return method is { IsStatic: false, ReducedFrom: null, Parameters.Length: 1 } &&
+               ItemType(model.GetTypeInfo(source, token).Type) is { } held && SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, held)
+            ? ListItems(source, held, rewritten, model, token)
+            : null;
+    }
+
+    /// <summary>
+    /// The text that gives the predicate of <c>All</c> on the failure path: a lambda or a method
+    /// group written again, or the captured local of any other delegate. Null for a lambda that
+    /// reads a variable the condition declares outside it, which the failure path cannot read.
+    /// </summary>
+    private static string? Predicate(ExpressionSyntax predicate, ExpressionSyntax condition, RewrittenCondition rewritten, SemanticModel model, Func<SyntaxNode, string> render, CancellationToken token)
+    {
+        switch (predicate)
+        {
+            case AnonymousFunctionExpressionSyntax:
+                foreach (var identifier in predicate.DescendantNodes().OfType<IdentifierNameSyntax>())
+                {
+                    if (model.GetSymbolInfo(identifier, token).Symbol is ILocalSymbol local &&
+                        local.DeclaringSyntaxReferences.Any(reference => condition.Span.Contains(reference.Span) && !predicate.Span.Contains(reference.Span)))
+                    {
+                        return null;
+                    }
+                }
+
+                return render(predicate);
+            case IdentifierNameSyntax when model.GetSymbolInfo(predicate, token).Symbol is IMethodSymbol:
+            case MemberAccessExpressionSyntax when model.GetSymbolInfo(predicate, token).Symbol is IMethodSymbol { IsStatic: true }:
+                return render(predicate);
+            default:
+                return Captured(predicate, rewritten);
+        }
+    }
+
+    /// <summary>The <c>ListItems</c> call for a sequence whose captured value is a sequence of <paramref name="item"/>.</summary>
+    private static string? ListItems(ExpressionSyntax source, ITypeSymbol? item, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        source = Unwrap(source);
+        if (item is null || !ConditionRewriter.CanName(item) || !IsSource(source, item, model, token) || Captured(source, rewritten) is not { } value)
+        {
+            return null;
+        }
+
+        return $"ListItems<{item.ToDisplayString(TypeFormat)}>({CopyBuilder.Literal(ConditionRewriter.OneLine(source))}, {value})";
+    }
+
+    /// <summary>A sequence of <paramref name="item"/> that is not a string, whose items are its characters.</summary>
+    private static bool IsSource(ExpressionSyntax source, ITypeSymbol item, SemanticModel model, CancellationToken token) =>
+        model.GetTypeInfo(source, token).Type?.SpecialType != SpecialType.System_String && IsSequenceOf(source, item, model, token);
+
+    /// <summary>The <c>T</c> of the one <c>IEnumerable&lt;T&gt;</c> the type is or implements, or null.</summary>
+    private static ITypeSymbol? ItemType(ITypeSymbol? type)
+    {
+        if (type is IArrayTypeSymbol { IsSZArray: true } array)
+        {
+            return array.ElementType;
+        }
+
+        if (type is null)
+        {
+            return null;
+        }
+
+        var items = (type is INamedTypeSymbol named ? type.AllInterfaces.Add(named) : type.AllInterfaces)
+            .Where(candidate => candidate.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
+            .Select(candidate => candidate.TypeArguments[0])
+            .Distinct<ITypeSymbol>(SymbolEqualityComparer.Default)
+            .ToList();
+        return items.Count == 1 ? items[0] : null;
+    }
+
+    /// <summary>
+    /// The sequence a call reads and its other arguments: the receiver for an instance or extension
+    /// call, and the first argument for a static call. Null when an argument is named or passed by ref.
+    /// </summary>
+    private static (ExpressionSyntax Source, IReadOnlyList<ExpressionSyntax> Others)? Operands(InvocationExpressionSyntax invocation, IMethodSymbol method)
+    {
+        var arguments = invocation.ArgumentList.Arguments;
+        if (arguments.Any(argument => argument.NameColon is not null || !argument.RefKindKeyword.IsKind(SyntaxKind.None)))
+        {
+            return null;
+        }
+
+        if (!method.IsStatic && invocation.Expression is MemberAccessExpressionSyntax access && access.IsKind(SyntaxKind.SimpleMemberAccessExpression))
+        {
+            return (access.Expression, arguments.Select(argument => argument.Expression).ToArray());
+        }
+
+        return method.IsStatic && arguments.Count > 0 ? (arguments[0].Expression, arguments.Skip(1).Select(argument => argument.Expression).ToArray()) : null;
+    }
+
+    private static bool IsEnumerable(IMethodSymbol method) =>
+        method.ContainingType is { Name: "Enumerable", ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } };
+
+    private static bool IsMemoryExtensions(IMethodSymbol method) =>
+        method.ContainingType is { Name: "MemoryExtensions", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } };
 
     /// <summary>
     /// <c>a.SequenceEqual(b)</c> from <c>Enumerable</c> or <c>MemoryExtensions</c>, without a
@@ -47,29 +240,17 @@ internal static class Explanations
     {
         if (Unwrap(condition) is not InvocationExpressionSyntax invocation ||
             model.GetSymbolInfo(invocation, token).Symbol is not IMethodSymbol method ||
-            invocation.ArgumentList.Arguments.Any(argument => argument.NameColon is not null || !argument.RefKindKeyword.IsKind(SyntaxKind.None)))
+            Operands(invocation, method) is not { Others.Count: 1 } operands)
         {
             return null;
         }
 
-        var arguments = invocation.ArgumentList.Arguments;
-        var (first, second) = (method.IsStatic, invocation.Expression, arguments.Count) switch
-        {
-            (false, MemberAccessExpressionSyntax access, 1) when access.IsKind(SyntaxKind.SimpleMemberAccessExpression) => (access.Expression, arguments[0].Expression),
-            (true, _, 2) => (arguments[0].Expression, arguments[1].Expression),
-            _ => (null!, null!),
-        };
-        if (first is null)
-        {
-            return null;
-        }
-
+        var (first, second) = (operands.Source, operands.Others[0]);
         var definition = method.ReducedFrom ?? method;
         string call;
         ITypeSymbol item;
         if (method.Name == "SequenceEqual" && definition.Parameters.Length == 2 && method.TypeArguments.Length == 1 &&
-            definition.ContainingType is { Name: "Enumerable", ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } or
-                                         { Name: "MemoryExtensions", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } })
+            (IsEnumerable(definition) || IsMemoryExtensions(definition)))
         {
             call = "SequenceDifference";
             item = method.TypeArguments[0];

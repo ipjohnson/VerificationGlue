@@ -237,7 +237,7 @@ NotNull failed: order
 
 ## Tier 3: captured values
 
-A `[Verify]` method in a `partial` type gets a tier 3 copy when the project sets `VerificationGlueRewrite`. The message lists the value of each part of the condition, as it was when the condition ran. Nothing is evaluated again to build the message.
+A `[Verify]` method in a `partial` type gets a tier 3 copy when the project sets `VerificationGlueRewrite`. The message lists the value of each part of the condition, as it was when the condition ran. Nothing is evaluated again to build the message, except the lambda of a failed `All`, as [Collections](#collections) says.
 
 ### Values
 
@@ -452,7 +452,7 @@ public static void VerifyLines(int[] lines, int[] expected)
     Verify(lines.SequenceEqual(expected));
 }
 ```
-<sup><a href='/samples/Messages/CollectionMessages.cs#L13-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-sequence-equal' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/CollectionMessages.cs#L24-L30' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-sequence-equal' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: tier3-sequence-equal -->
@@ -463,7 +463,7 @@ Verify failed: lines.SequenceEqual(expected)
   expected has 1 item past the end of lines: 40
   lines    → System.Int32[]
   expected → System.Int32[]
-  at CollectionMessages.cs:17
+  at CollectionMessages.cs:28
 ```
 <!-- endMessage -->
 
@@ -478,7 +478,7 @@ public static void VerifyTags(HashSet<string> tags, string[] expected)
     Verify(tags.SetEquals(expected));
 }
 ```
-<sup><a href='/samples/Messages/CollectionMessages.cs#L21-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-set-equals' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/CollectionMessages.cs#L32-L38' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-set-equals' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: tier3-set-equals -->
@@ -488,11 +488,103 @@ Verify failed: tags.SetEquals(expected)
   tags has 2 items that expected does not: "fragile", "express"
   tags     → System.Collections.Generic.HashSet`1[System.String]
   expected → System.String[]
-  at CollectionMessages.cs:25
+  at CollectionMessages.cs:36
 ```
 <!-- endMessage -->
 
-Items print the way values do, and a list of items stops after 10 with `…`. Both sides must be collections, such as an array, a list or a set. A side that is a lazy sequence, such as the result of `Select`, would run its code again when read, so it gets no lines.
+A comparison with `a.Count`, `a.Length` or `a.Count()` on either side adds a line that lists the items of `a`. An empty `a` shows `a is empty`. The `Length` of a string gets no line.
+
+<!-- snippet: message-tier3-count -->
+<a id='snippet-message-tier3-count'></a>
+```cs
+[Verify]
+public static void VerifyLineCount(List<int> lines)
+{
+    Verify(lines.Count == 3);
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L40-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-count' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-count -->
+```text
+Verify failed: lines.Count == 3
+  lines has 2 items: 10, 20
+  lines.Count → 2
+  lines       → System.Collections.Generic.List`1[System.Int32]
+  at CollectionMessages.cs:44
+```
+<!-- endMessage -->
+
+A condition of the form `a.All(x => ...)` adds a line with the index and value of the first item that fails. To find that item, the message runs the lambda again on the items up to it. The lambda runs again only when the check fails, and only to build the message. When it throws on that run, the message has no line for it.
+
+<!-- snippet: message-tier3-all -->
+<a id='snippet-message-tier3-all'></a>
+```cs
+[Verify]
+public static void VerifyQuantities(int[] quantities)
+{
+    Verify(quantities.All(quantity => quantity > 0));
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L48-L54' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-all' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-all -->
+```text
+Verify failed: quantities.All(quantity => quantity > 0)
+  first item that fails at index 2: 0
+  quantities → System.Int32[]
+  at CollectionMessages.cs:52
+```
+<!-- endMessage -->
+
+A condition of the form `a.Any()`, `a.Any(x => ...)` or `a.Contains(x)` adds a line that lists the items of `a`. The lambda in `Any` does not run again, because the line does not need it.
+
+<!-- snippet: message-tier3-any -->
+<a id='snippet-message-tier3-any'></a>
+```cs
+[Verify]
+public static void VerifyBackorder(int[] quantities)
+{
+    Verify(quantities.Any(quantity => quantity > 10));
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L56-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-any' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-any -->
+```text
+Verify failed: quantities.Any(quantity => quantity > 10)
+  quantities has 3 items: 2, 5, 3
+  quantities → System.Int32[]
+  at CollectionMessages.cs:60
+```
+<!-- endMessage -->
+
+<!-- snippet: message-tier3-contains -->
+<a id='snippet-message-tier3-contains'></a>
+```cs
+[Verify]
+public static void VerifyExpress(string[] tags)
+{
+    Verify(tags.Contains("express"));
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L64-L70' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-contains' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-contains -->
+```text
+Verify failed: tags.Contains("express")
+  tags has 2 items: "gift", "fragile"
+  tags → System.String[]
+  at CollectionMessages.cs:68
+```
+<!-- endMessage -->
+
+Items print the way values do, and a list of items stops after 10 with `…`. Each sequence the lines read must be a collection, such as an array, a list or a set. A lazy sequence, such as the result of `Select`, would run its code again when read, so it gets no lines. The lines come only when the condition is one of these calls or comparisons as a whole, so `a.Count == 3 && ok` gets none.
+
 ## A lambda: values in any method
 
 `Verify(() => ...)` and `Check(() => ...)` take the condition as a lambda. The generator writes a check for each call that reads the variables the lambda captured and runs the lambda's body once, keeping the value of each part. It works in any method, including a test body in xunit, NUnit, MSTest or TUnit. The method needs no `[Verify]`, its type needs no `partial`, and the project does not need `VerificationGlueRewrite`.
