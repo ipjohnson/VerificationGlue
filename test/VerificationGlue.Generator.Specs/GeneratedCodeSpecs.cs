@@ -44,29 +44,31 @@ public class GeneratedCodeSpecs
     }
 
     [VerifyTest]
-    public void A_verify_helper_named_ThrowsExactly_still_gets_a_redirect(CancellationToken cancellationToken)
+    [Row("ThrowsExactly")]
+    [Row("VerifyEquivalent")]
+    public void A_verify_helper_named_like_a_VerifySyntax_method_still_gets_a_redirect(string name, CancellationToken cancellationToken)
     {
-        const string Source = """
+        var source = $$"""
             using VerificationGlue;
             using static VerificationGlue.VerifySyntax;
 
             public static partial class Helpers
             {
                 [Verify]
-                public static void ThrowsExactly(int count) => Verify(count == 3);
+                public static void {{name}}(int count) => Verify(count == 3);
             }
 
             public static class Caller
             {
-                public static void Run() => Helpers.ThrowsExactly(3);
+                public static void Run() => Helpers.{{name}}(3);
             }
             """;
-        var compilation = GeneratorHarness.Compilation((GeneratorHarness.ProjectDirectory + "Input.cs", Source));
+        var compilation = GeneratorHarness.Compilation((GeneratorHarness.ProjectDirectory + "Input.cs", source));
 
         var result = GeneratorHarness.Generate(compilation, new VerificationGlueGenerator(), out _, rewrite: true);
 
         var redirects = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(".Redirects.g.cs", StringComparison.Ordinal));
-        Assert.Contains("Helpers.ThrowsExactly", redirects.GetText(cancellationToken).ToString());
+        Assert.Contains($"Helpers.{name}__Verified(", redirects.GetText(cancellationToken).ToString());
     }
 
     private static Microsoft.CodeAnalysis.GeneratorDriverRunResult GenerateMessagesSample()

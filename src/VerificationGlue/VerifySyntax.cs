@@ -207,6 +207,25 @@ public static class VerifySyntax
         [CallerArgumentExpression(nameof(value))] string? expression = null) =>
         VerifyFailure.Is<T>(value, expression, null, 0);
 
+    /// <summary>
+    /// Throws a <see cref="VerifyException"/> when <paramref name="actual"/> is not equivalent to
+    /// <paramref name="expected"/>. With the generator running, the two compare member by member
+    /// with a comparer written for <typeparamref name="T"/>, and the message lists the path of each
+    /// member that differs. Without the generator, they compare with <see cref="EqualityComparer{T}.Default"/>.
+    /// </summary>
+    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>.</remarks>
+    /// <typeparam name="T">The type of the two values.</typeparam>
+    /// <param name="actual">The value the code produced.</param>
+    /// <param name="expected">The value it should equal member by member.</param>
+    /// <param name="actualExpression">The source text of <paramref name="actual"/>. The compiler fills it in.</param>
+    /// <param name="expectedExpression">The source text of <paramref name="expected"/>. The compiler fills it in.</param>
+    public static void VerifyEquivalent<T>(
+        T actual,
+        T expected,
+        [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
+        [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
+        VerifyFailure.EquivalentWithoutGenerator(actual, expected, actualExpression, expectedExpression);
+
     /// <summary>Returns <paramref name="value"/> when it is not null, and throws a <see cref="VerifyException"/> when it is.</summary>
     /// <remarks>It throws inside a <see cref="VerifyScope"/> too, because a failure has no value to return.</remarks>
     /// <typeparam name="T">The reference type of the value.</typeparam>

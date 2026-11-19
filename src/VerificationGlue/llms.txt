@@ -12,6 +12,7 @@
 - Use `Throws<T>(() => ...)` and `await ThrowsAsync<T>(() => ...)` for exceptions. Both return the exception, and both accept a type derived from `T`. Use `ThrowsExactly<T>` and `ThrowsExactlyAsync<T>` when only exactly `T` should pass.
 - Use `Single(items)`, `Single(items, predicate)`, `Is<T>(value)` and `NotNull(value)` to check a value and use it in one step: `var node = Single(doc.Nodes, n => n.Id == "A");`. Each returns what it checked. Do not write `Verify(items.Count == 1)` followed by `items[0]`, or `Verify(x is T)` followed by a cast.
 - `Throws`, `Single`, `Is` and `NotNull` throw on failure also inside a `VerifyScope`, because a failure has no value to return.
+- Use `VerifyEquivalent(actual, expected)` to compare two records or objects member by member. A failure lists the path of each member that differs, such as `Customer.City: expected "Paris", found "London"`. Do not write one `Verify` per member, and do not compare classes with `==`, which compares references.
 - Use `Check(() => condition)` to record a failure and continue. Open a scope with `using (VerifyScope.Begin()) { ... }` in xunit, NUnit, MSTest and TUnit. The scope throws one `VerifyException` listing every failure when it ends. With no scope, `Check` throws at once.
 - Do not change state inside a condition. `Verify(i++ == 0)` is reported by VG0003.
 - Do not compare `double` or `float` with `==`. Compare the difference with a tolerance. VG0004 reports it.

@@ -18,6 +18,7 @@ internal enum CallKind
     NotNullValue,
     VerifyLambda,
     CheckLambda,
+    VerifyEquivalent,
 }
 
 /// <summary>
@@ -34,6 +35,7 @@ internal enum CallKind
 /// call gets no interceptor.
 /// </param>
 /// <param name="Lambda">For <c>Verify(() =&gt; ...)</c> and <c>Check(() =&gt; ...)</c>, the generated check of the lambda; otherwise null.</param>
+/// <param name="Equivalence">For <c>VerifyEquivalent</c>, the comparer of its type; otherwise null.</param>
 internal sealed record CallModel(
     string FilePath,
     int Line,
@@ -45,7 +47,30 @@ internal sealed record CallModel(
     CallKind Kind,
     string? Message,
     bool InRunnerCopy,
-    LambdaModel? Lambda = null);
+    LambdaModel? Lambda = null,
+    EquivalenceModel? Equivalence = null);
+
+/// <summary>The comparer of one <c>VerifyEquivalent</c> call.</summary>
+/// <param name="ParameterType">The type of the <c>actual</c> and <c>expected</c> parameters, with its nullable annotation, as the interceptor declares them.</param>
+/// <param name="Root">
+/// The <see cref="ComparedType.Key"/> of the type the call compares, or null when the values
+/// compare with <c>Equals</c>, because the generated code cannot name the type or does not walk it.
+/// </param>
+/// <param name="Types">Every type the comparer walks, the root first.</param>
+internal sealed record EquivalenceModel(string ParameterType, string? Root, EquatableArray<ComparedType> Types);
+
+/// <summary>A type whose members the generated comparer compares one by one.</summary>
+/// <param name="Key">The name of its compare method, which is unique per type.</param>
+/// <param name="Name">The fully qualified name of the type.</param>
+/// <param name="IsReference">True for a class or a record class, which can be null.</param>
+internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members);
+
+/// <summary>A public field or property that the comparer reads.</summary>
+/// <param name="Name">The name of the member, as the path shows it.</param>
+/// <param name="Access">The name as C# writes it after a dot, with <c>@</c> for a keyword.</param>
+/// <param name="Type">The <see cref="ComparedType.Key"/> of the member's type, or null to compare with <c>Equals</c>.</param>
+/// <param name="Nullable">True when the member is a <c>Nullable&lt;T&gt;</c> of the walked type.</param>
+internal sealed record ComparedMember(string Name, string Access, string? Type, bool Nullable);
 
 /// <summary>
 /// The generated check of one <c>Verify(() =&gt; ...)</c> or <c>Check(() =&gt; ...)</c> call. It goes in

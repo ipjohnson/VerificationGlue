@@ -364,6 +364,59 @@ public static class VerifyFailure
         where T : struct =>
         value ?? throw new VerifyException(Compose("NotNull", expression, null, null, null, file, line));
 
+    /// <summary>Throws when a generated <c>VerifyEquivalent</c> comparer found any difference.</summary>
+    /// <param name="differences">The differences the comparer found.</param>
+    /// <param name="actualExpression">The source text of the actual value.</param>
+    /// <param name="expectedExpression">The source text of the expected value.</param>
+    /// <param name="file">The file of the call, or null.</param>
+    /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
+    public static void Equivalent(EquivalenceDifferences differences, string? actualExpression, string? expectedExpression, string? file, int line)
+    {
+        if (differences.Count > 0)
+        {
+            throw new VerifyException(Compose("VerifyEquivalent", NotEquivalent(actualExpression, expectedExpression), differences.Describe(), null, null, file, line));
+        }
+    }
+
+    /// <summary>
+    /// A <c>VerifyEquivalent</c> call whose type the generated code cannot name, such as a private
+    /// nested type. The two values compare with <see cref="EqualityComparer{T}.Default"/>.
+    /// </summary>
+    /// <typeparam name="T">The type of the values.</typeparam>
+    /// <param name="actual">The actual value.</param>
+    /// <param name="expected">The expected value.</param>
+    /// <param name="actualExpression">The source text of the actual value.</param>
+    /// <param name="expectedExpression">The source text of the expected value.</param>
+    /// <param name="file">The file of the call, or null.</param>
+    /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
+    public static void EquivalentByEquals<T>(T actual, T expected, string? actualExpression, string? expectedExpression, string? file, int line)
+    {
+        var differences = new EquivalenceDifferences();
+        differences.Equal("", "", actual, expected);
+        Equivalent(differences, actualExpression, expectedExpression, file, line);
+    }
+
+    /// <summary>The <c>VerifyEquivalent</c> of a project without the generator, which compares with <see cref="EqualityComparer{T}.Default"/>.</summary>
+    internal static void EquivalentWithoutGenerator<T>(T actual, T expected, string? actualExpression, string? expectedExpression)
+    {
+        var differences = new EquivalenceDifferences();
+        differences.Equal("", "", actual, expected);
+        if (differences.Count > 0)
+        {
+            throw new VerifyException(Compose(
+                "VerifyEquivalent",
+                NotEquivalent(actualExpression, expectedExpression),
+                differences.Describe(),
+                "compared with Equals, because the VerificationGlue generator did not run",
+                null,
+                null,
+                0));
+        }
+    }
+
+    private static string NotEquivalent(string? actualExpression, string? expectedExpression) =>
+        (actualExpression ?? "actual") + " is not equivalent to " + (expectedExpression ?? "expected");
+
     private static string Found<T>(List<T> listed, int count)
     {
         var text = new StringBuilder(count.ToString(CultureInfo.InvariantCulture));
