@@ -351,6 +351,34 @@ Verify failed: order is { Total: > 50, Shipping: "express" }
 ```
 <!-- endMessage -->
 
+### Tolerances
+
+A condition of the form `Math.Abs(a - b) <= t` or `Math.Abs(a - b) < t` adds a line that says how far apart the values were and what the tolerance was. The line also says when either value is NaN. It works for `double`, `float` and `decimal`, and for the comparison written either way round.
+
+<!-- snippet: message-tier3-tolerance -->
+<a id='snippet-message-tier3-tolerance'></a>
+```cs
+[Verify]
+public static void VerifyLeft(Box box)
+{
+    Verify(Math.Abs(box.X - 120.5) <= 0.01);
+}
+```
+<sup><a href='/samples/Messages/ToleranceMessages.cs#L13-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-tolerance' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-tolerance -->
+```text
+Verify failed: Math.Abs(box.X - 120.5) <= 0.01
+  box.X differs from 120.5 by 0.0625, tolerance 0.01
+  Math.Abs(box.X - 120.5) → 0.0625
+  box.X - 120.5           → 0.0625
+  box.X                   → 120.5625
+  box                     → Box { X = 120.5625, Y = 40 }
+  at ToleranceMessages.cs:17
+```
+<!-- endMessage -->
+
 ## Check
 
 `Check` records each failure, and the scope lists them all when it ends. The [Check guide](check.md) shows how to open a scope.
