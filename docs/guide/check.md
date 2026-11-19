@@ -39,6 +39,8 @@ The [messages page](messages.md#check) shows this output from a real run.
 
 `Check(() => order.Total == 40)` takes the condition as a lambda. Its failure also lists the value of each part, as `Verify(() => ...)` does in the [tiers guide](tiers.md#get-values-in-any-method-with-a-lambda).
 
+`CheckEquivalent(actual, expected)` compares two values member by member as `VerifyEquivalent` does, and records its failure in the scope like `Check`. [Compare two values with VerifyEquivalent](verify-equivalent.md#collect-failures-with-checkequivalent) shows an example.
+
 ## Open a scope
 
 `VerificationGlue.Tests` opens one scope per test, so a test there uses `Check` with no setup.

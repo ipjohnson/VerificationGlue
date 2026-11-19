@@ -128,7 +128,7 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
         string? message = null;
         LambdaModel? lambda = null;
         EquivalenceModel? equivalence = null;
-        if (kind is CallKind.VerifyEquivalent)
+        if (VerifyCalls.IsEquivalent(kind))
         {
             equivalence = EquivalenceBuilder.Build(method, syntax.SemanticModel.Compilation, VerifyCalls.Options(invocation, method), syntax.SemanticModel);
         }

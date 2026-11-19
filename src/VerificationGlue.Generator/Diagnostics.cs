@@ -65,7 +65,7 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor CheckWithoutScope = new(
         id: "VG0007",
         title: "Check where no VerifyScope can report it",
-        messageFormat: "Check in {0} runs where no VerifyScope can be open, so a failure throws at once. Use Verify instead.",
+        messageFormat: "{0} in {1} runs where no VerifyScope can be open, so a failure throws at once. Use {2} instead.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -94,7 +94,7 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor EquivalenceOption = new(
         id: "VG0010",
         title: "A VerifyEquivalent option does not name a member the comparer reads",
-        messageFormat: "The VerifyEquivalent option '{0}' is not applied, because {1}",
+        messageFormat: "The {0} option '{1}' is not applied, because {2}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -103,7 +103,7 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor EquivalenceUnwalked = new(
         id: "VG0011",
         title: "VerifyEquivalent compares a type it cannot walk with Equals",
-        messageFormat: "VerifyEquivalent compares '{0}' {1}, because {2}",
+        messageFormat: "{0} compares '{1}' {2}, because {3}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,

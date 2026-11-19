@@ -1,6 +1,6 @@
 # Compare two values with VerifyEquivalent
 
-At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays, lists, dictionaries and sets, compare a list without order or skip a member, and read the path of each difference in its message.
+At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays, lists, dictionaries and sets, compare a list without order or skip a member, and read the path of each difference in its message. You can also collect the failures of several comparisons in one `VerifyScope` with `CheckEquivalent`.
 
 `VerifyEquivalent(actual, expected)` compares two values member by member. The generator writes a comparer for the type at each call site, with no reflection. The message lists the path of each difference, with the expected and the found value. It lists up to 10 differences and counts the rest.
 
@@ -44,7 +44,7 @@ public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);
 
 public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L72-L78' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L88-L94' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Arrays and lists
@@ -58,14 +58,14 @@ var parsed = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 1
 var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["gift"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L19-L23' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-items' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L20-L24' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-items' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: equivalent-items -->
 ```text
 VerifyEquivalent failed: parsed is not equivalent to expected
   Lines[1].Quantity: expected 3, found 1
-  at EquivalentMessages.cs:22
+  at EquivalentMessages.cs:23
 ```
 <!-- endMessage -->
 
@@ -78,7 +78,7 @@ var parsed = new Invoice(7, [new InvoiceLine("A-1", 1)], ["gift", "fragile"]);
 var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["gift"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L28-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-counts' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L29-L33' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-counts' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: equivalent-counts -->
@@ -87,7 +87,7 @@ VerifyEquivalent failed: parsed is not equivalent to expected
   Lines: expected 2 items, found 1 item
   Lines[0].Quantity: expected 2, found 1
   Tags: expected 1 item, found 2 items
-  at EquivalentMessages.cs:31
+  at EquivalentMessages.cs:32
 ```
 <!-- endMessage -->
 
@@ -102,7 +102,7 @@ var parsed = new Invoice(8, [new InvoiceLine("B-2", 3), new InvoiceLine("A-1", 2
 var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["fragile", "gift"]);
 VerifyEquivalent(parsed, expected, options => options.Unordered(x => x.Lines).Unordered(x => x.Tags).Ignore(x => x.Id));
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L64-L68' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-options' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L65-L69' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-options' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 An unordered list matches each expected item with an actual item that is equivalent to it, each item once, so duplicates count. The message lists each expected item with no match as missing, and each actual item with no match as extra:
@@ -112,7 +112,7 @@ An unordered list matches each expected item with an actual item that is equival
 VerifyEquivalent failed: parsed is not equivalent to expected
   Tags: missing "fragile"
   Tags: extra "gift"
-  at EquivalentMessages.cs:67
+  at EquivalentMessages.cs:68
 ```
 <!-- endMessage -->
 
@@ -129,7 +129,7 @@ var parsed = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["gift"]);
 var expected = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L46-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-dictionary' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L47-L51' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-dictionary' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: equivalent-dictionary -->
@@ -138,7 +138,7 @@ VerifyEquivalent failed: parsed is not equivalent to expected
   Levels["gift"]: expected 5, found 3
   Levels: missing "card": 2
   Levels: extra "wrap": 1
-  at EquivalentMessages.cs:49
+  at EquivalentMessages.cs:50
 ```
 <!-- endMessage -->
 
@@ -151,7 +151,7 @@ var parsed = new Stock(new() { ["gift"] = 3 }, ["fragile", "gift"]);
 var expected = new Stock(new() { ["gift"] = 3 }, ["gift", "express"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L55-L59' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-set' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L56-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-set' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: equivalent-set -->
@@ -159,14 +159,38 @@ VerifyEquivalent(parsed, expected);
 VerifyEquivalent failed: parsed is not equivalent to expected
   Tags: missing "express"
   Tags: extra "fragile"
-  at EquivalentMessages.cs:58
+  at EquivalentMessages.cs:59
 ```
 <!-- endMessage -->
 
+## Collect failures with CheckEquivalent
+
+`VerifyEquivalent` throws at the first call that finds a difference, as `Verify` does. `CheckEquivalent` takes the same arguments and options and compares the same way. It records its failure in the current `VerifyScope` and returns, so the calls after it still run. When the scope ends, it throws one `VerifyException` that lists every failure:
+
+<!-- snippet: check-equivalent -->
+<a id='snippet-check-equivalent'></a>
+```cs
+var parsed = new Invoice(7, [new InvoiceLine("A-1", 1)], ["gift"]);
+var expected = new Invoice(8, [new InvoiceLine("A-1", 2)], ["gift"]);
+
+using (VerifyScope.Begin())
+{
+    CheckEquivalent(parsed, expected, options => options.Ignore(x => x.Id));
+    CheckEquivalent(parsed.Tags, expected.Tags);
+    Check(parsed.Lines.Count == 2);
+}
+```
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L74-L84' title='Snippet source file'>snippet source</a> | <a href='#snippet-check-equivalent' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The scope lists the failure of the first call and of the `Check`. The second call finds no difference, so it records nothing. The [messages page](messages.md#checkequivalent) shows the output from a real run.
+
+With no open scope, `CheckEquivalent` throws at once, as `VerifyEquivalent` does. [Soft checks with Check](check.md) shows how to open a scope in each test framework.
+
 ## Without the generator
 
-Without the generator, `VerifyEquivalent` compares the two values with `Equals`. A record then still compares member by member, but a class compares by reference, and so does a list. The message gives both values and says that the generator did not run.
+Without the generator, `VerifyEquivalent` and `CheckEquivalent` compare the two values with `Equals`. A record then still compares member by member, but a class compares by reference, and so does a list. The message gives both values and says that the generator did not run.
 
 ## Under Native AOT
 
-The comparer is generated code, so `VerifyEquivalent` runs under Native AOT and gives the same message as on the JIT. `samples/VerifyAot` checks a `VerifyEquivalent` failure under Native AOT and on the JIT. [Run tests under Native AOT](run-tests-under-native-aot.md) shows how to publish a test project.
+The comparer is generated code, so `VerifyEquivalent` and `CheckEquivalent` run under Native AOT and give the same message as on the JIT. `samples/VerifyAot` checks a `VerifyEquivalent` failure and a `CheckEquivalent` failure in a scope under Native AOT and on the JIT. [Run tests under Native AOT](run-tests-under-native-aot.md) shows how to publish a test project.

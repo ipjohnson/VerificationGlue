@@ -64,7 +64,7 @@ internal static class InterceptorEmitter
         type.Modifiers = ComponentModifier.File | ComponentModifier.Static;
         foreach (var call in file.Calls)
         {
-            if (LambdaEmitter.IsLambda(call) || call.Kind == CallKind.VerifyEquivalent)
+            if (LambdaEmitter.IsLambda(call) || VerifyCalls.IsEquivalent(call.Kind))
             {
                 continue;
             }

@@ -66,15 +66,16 @@ public class RewriteAnalyzerSpecs
     }
 
     [VerifyTest]
-    [Row("static Tests() { Check(1 + 1 == 3); }", "the static constructor of 'Tests'")]
-    [Row("~Tests() { Check(1 + 1 == 3); }", "the finalizer of 'Tests'")]
-    [Row("[System.Runtime.CompilerServices.ModuleInitializer] internal static void Init() { Check(1 + 1 == 3); }", "the module initializer 'Init'")]
-    public void VG0007_reports_Check_where_no_scope_can_be_open(string members, string where)
+    [Row("static Tests() { Check(1 + 1 == 3); }", "Check in the static constructor of 'Tests'", "Verify")]
+    [Row("~Tests() { Check(1 + 1 == 3); }", "Check in the finalizer of 'Tests'", "Verify")]
+    [Row("[System.Runtime.CompilerServices.ModuleInitializer] internal static void Init() { Check(1 + 1 == 3); }", "Check in the module initializer 'Init'", "Verify")]
+    [Row("static Tests() { CheckEquivalent(1, 2); }", "CheckEquivalent in the static constructor of 'Tests'", "VerifyEquivalent")]
+    public void VG0007_reports_Check_where_no_scope_can_be_open(string members, string where, string instead)
     {
         var diagnostic = Assert.Single(Analyze("public class Tests { " + members + " }"), diagnostic => diagnostic.Id == "VG0007");
 
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Equal($"Check in {where} runs where no VerifyScope can be open, so a failure throws at once. Use Verify instead.", diagnostic.GetMessage());
+        Assert.Equal($"{where} runs where no VerifyScope can be open, so a failure throws at once. Use {instead} instead.", diagnostic.GetMessage());
     }
 
     [VerifyTest]

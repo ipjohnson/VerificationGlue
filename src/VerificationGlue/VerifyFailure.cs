@@ -374,45 +374,65 @@ public static class VerifyFailure
     {
         if (differences.Count > 0)
         {
-            throw new VerifyException(Compose("VerifyEquivalent", NotEquivalent(actualExpression, expectedExpression), differences.Describe(), null, null, file, line));
+            throw NotEquivalent("VerifyEquivalent", differences, actualExpression, expectedExpression, null, file, line);
         }
     }
 
     /// <summary>
-    /// A <c>VerifyEquivalent</c> call whose type the generated code cannot name, such as a private
-    /// nested type. The two values compare with <see cref="EqualityComparer{T}.Default"/>.
+    /// Records the failure of a <c>CheckEquivalent</c> call whose generated comparer found any
+    /// difference in the current <see cref="VerifyScope"/>, or throws it when no scope is open.
     /// </summary>
-    /// <typeparam name="T">The type of the values.</typeparam>
-    /// <param name="actual">The actual value.</param>
-    /// <param name="expected">The expected value.</param>
+    /// <param name="differences">The differences the comparer found.</param>
     /// <param name="actualExpression">The source text of the actual value.</param>
     /// <param name="expectedExpression">The source text of the expected value.</param>
     /// <param name="file">The file of the call, or null.</param>
     /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
-    public static void EquivalentByEquals<T>(T actual, T expected, string? actualExpression, string? expectedExpression, string? file, int line)
+    public static void CheckEquivalent(EquivalenceDifferences differences, string? actualExpression, string? expectedExpression, string? file, int line)
     {
-        var differences = new EquivalenceDifferences();
-        differences.Equal("", "", actual, expected);
-        Equivalent(differences, actualExpression, expectedExpression, file, line);
-    }
-
-    /// <summary>The <c>VerifyEquivalent</c> of a project without the generator, which compares with <see cref="EqualityComparer{T}.Default"/>.</summary>
-    internal static void EquivalentWithoutGenerator<T>(T actual, T expected, string? actualExpression, string? expectedExpression)
-    {
-        var differences = new EquivalenceDifferences();
-        differences.Equal("", "", actual, expected);
         if (differences.Count > 0)
         {
-            throw new VerifyException(Compose(
-                "VerifyEquivalent",
-                NotEquivalent(actualExpression, expectedExpression),
-                differences.Describe(),
-                "compared with Equals, because the VerificationGlue generator did not run",
-                null,
-                null,
-                0));
+            VerifyScope.Report(NotEquivalent("CheckEquivalent", differences, actualExpression, expectedExpression, null, file, line));
         }
     }
+
+    /// <summary>
+    /// The differences of two values that compare with <see cref="EqualityComparer{T}.Default"/>, for
+    /// a call whose type the generated code cannot name or does not walk, such as a private nested type.
+    /// </summary>
+    /// <typeparam name="T">The type of the values.</typeparam>
+    /// <param name="actual">The actual value.</param>
+    /// <param name="expected">The expected value.</param>
+    public static EquivalenceDifferences EqualsDifferences<T>(T actual, T expected)
+    {
+        var differences = new EquivalenceDifferences();
+        differences.Equal("", "", actual, expected);
+        return differences;
+    }
+
+    /// <summary>
+    /// The <c>VerifyEquivalent</c> or <c>CheckEquivalent</c> of a project without the generator,
+    /// which compares with <see cref="EqualityComparer{T}.Default"/>.
+    /// </summary>
+    internal static void EquivalentWithoutGenerator<T>(string kind, T actual, T expected, string? actualExpression, string? expectedExpression)
+    {
+        var differences = EqualsDifferences(actual, expected);
+        if (differences.Count == 0)
+        {
+            return;
+        }
+
+        var failure = NotEquivalent(kind, differences, actualExpression, expectedExpression, "compared with Equals, because the VerificationGlue generator did not run", null, 0);
+        if (kind == "CheckEquivalent")
+        {
+            VerifyScope.Report(failure);
+            return;
+        }
+
+        throw failure;
+    }
+
+    private static VerifyException NotEquivalent(string kind, EquivalenceDifferences differences, string? actualExpression, string? expectedExpression, string? detail, string? file, int line) =>
+        new(Compose(kind, NotEquivalent(actualExpression, expectedExpression), differences.Describe(), detail, null, file, line));
 
     private static string NotEquivalent(string? actualExpression, string? expectedExpression) =>
         (actualExpression ?? "actual") + " is not equivalent to " + (expectedExpression ?? "expected");

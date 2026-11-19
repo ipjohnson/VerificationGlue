@@ -4,14 +4,14 @@ using System.Collections.Generic;
 namespace VerificationGlue;
 
 /// <summary>
-/// The options of a <c>VerifyEquivalent</c> call. The generator reads them from the source of the
-/// call and writes them into the comparer, so these methods never run.
+/// The options of a <c>VerifyEquivalent</c> or <c>CheckEquivalent</c> call. The generator reads them
+/// from the source of the call and writes them into the comparer, so these methods never run.
 /// </summary>
 /// <remarks>
 /// Each lambda names a member by a chain of member accesses on its parameter, such as
 /// <c>x =&gt; x.Customer.Address</c>. Any other lambda is build error VG0010.
 /// </remarks>
-/// <typeparam name="T">The type of the two values that <c>VerifyEquivalent</c> compares.</typeparam>
+/// <typeparam name="T">The type of the two values that the call compares.</typeparam>
 public sealed class EquivalenceOptions<T>
 {
     private EquivalenceOptions()

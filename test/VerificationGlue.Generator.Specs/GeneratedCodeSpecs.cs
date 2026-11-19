@@ -46,6 +46,7 @@ public class GeneratedCodeSpecs
     [VerifyTest]
     [Row("ThrowsExactly")]
     [Row("VerifyEquivalent")]
+    [Row("CheckEquivalent")]
     public void A_verify_helper_named_like_a_VerifySyntax_method_still_gets_a_redirect(string name, CancellationToken cancellationToken)
     {
         var source = $$"""

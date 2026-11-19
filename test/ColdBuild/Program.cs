@@ -46,12 +46,14 @@ public static class Program
 
         var projects = new List<string>();
         var calls = 0;
+        var equivalentCalls = 0;
         for (var index = 0; index < options.Assemblies; index++)
         {
             var name = $"Bench.Tests{index}";
             var tests = (options.Tests / options.Assemblies) + (index < options.Tests % options.Assemblies ? 1 : 0);
             var sources = new TestSources(name, tests, options.CallsPerTest);
             calls += sources.Calls;
+            equivalentCalls += sources.EquivalentCalls;
             var directory = Path.Combine(work, name);
             Directory.CreateDirectory(directory);
             foreach (var (path, text) in sources.Files())
@@ -65,7 +67,7 @@ public static class Program
             Dotnet("restore", project, "--nologo", "-v:q");
         }
 
-        Console.WriteLine($"Wrote {options.Tests:N0} tests with {calls:N0} Verify calls in {options.Assemblies} assemblies under {work}.");
+        Console.WriteLine($"Wrote {options.Tests:N0} tests with {calls:N0} calls, {equivalentCalls:N0} of them VerifyEquivalent, in {options.Assemblies} assemblies under {work}.");
 
         var tiers = Enum.GetValues<Tier>();
         var runs = new List<Run>();
@@ -83,7 +85,7 @@ public static class Program
             }
         }
 
-        var report = new Report(options.Assemblies, options.Tests, calls, runs, generated, Describe());
+        var report = new Report(options.Assemblies, options.Tests, calls, equivalentCalls, runs, generated, Describe());
         Check(report);
         var markdown = report.ToMarkdown();
         IReadOnlyList<BudgetCheck> checks = options.Budget is null ? [] : Budgets.Load(options.Budget).Check(report);
@@ -167,7 +169,7 @@ public static class Program
             foreach (var handle in metadata.MethodDefinitions)
             {
                 var method = metadata.GetString(metadata.GetMethodDefinition(handle).Name);
-                interceptors += method.StartsWith("Verify_", StringComparison.Ordinal) ? 1 : 0;
+                interceptors += method.StartsWith("Verify_", StringComparison.Ordinal) || method.StartsWith("VerifyEquivalent_", StringComparison.Ordinal) ? 1 : 0;
                 copies += method.EndsWith("__Verified", StringComparison.Ordinal) ? 1 : 0;
                 redirects += method.StartsWith("Redirect_", StringComparison.Ordinal) ? 1 : 0;
             }

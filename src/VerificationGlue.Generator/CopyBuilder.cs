@@ -375,7 +375,7 @@ internal sealed class CopyBuilder
                        $"{(expression is null ? Literal(action.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
             }
 
-            case CallKind.VerifyEquivalent:
+            case CallKind.VerifyEquivalent or CallKind.CheckEquivalent:
             {
                 var actual = VerifyCalls.Argument(call, VerifyCalls.ActualParameter, 0)!;
                 var expected = VerifyCalls.Argument(call, VerifyCalls.ExpectedParameter, 1)!;
@@ -385,6 +385,7 @@ internal sealed class CopyBuilder
                 var expectedExpression = VerifyCalls.Argument(call, VerifyCalls.ExpectedExpressionParameter, first + 1);
                 return EquivalenceEmitter.Call(
                     EquivalenceBuilder.Build(target, _model.Compilation, options, _model),
+                    kind,
                     Render(actual.Span),
                     Render(expected.Span),
                     actualExpression is null ? Literal(actual.ToString()) : Render(actualExpression.Span),

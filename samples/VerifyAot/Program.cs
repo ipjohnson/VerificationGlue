@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:256
+      at Program.cs:270
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:265
+      at Program.cs:279
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -117,7 +117,7 @@ Verify(sequence.Message == """
       expected has 1 item past the end of lines: 40
       lines    → 3 items: 10, 20, 25
       expected → 4 items: 10, 20, 30, 40
-      at Program.cs:274
+      at Program.cs:288
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -127,7 +127,7 @@ Verify(set.Message == """
       tags has 2 items that expected does not: "fragile", "express"
       tags     → 3 items: "gift", "fragile", "express"
       expected → 2 items: "gift", "priority"
-      at Program.cs:280
+      at Program.cs:294
     """);
 
 // Tier 3: a failed count, Any or Contains lists the items, and a failed All names the first item that fails.
@@ -136,7 +136,7 @@ Verify(counted.Message == """
     Verify failed: lines.Count == 3
       lines.Count → 2
       lines       → 2 items: 10, 20
-      at Program.cs:286
+      at Program.cs:300
     """);
 
 var every = Throws<VerifyException>(() => CollectionChecks.VerifyQuantities([2, 5, 0, 3]));
@@ -144,21 +144,21 @@ Verify(every.Message == """
     Verify failed: quantities.All(quantity => quantity > 0)
       first item that fails at index 2: 0
       quantities → 4 items: 2, 5, 0, 3
-      at Program.cs:292
+      at Program.cs:306
     """);
 
 var some = Throws<VerifyException>(() => CollectionChecks.VerifyBackorder([2, 5, 3]));
 Verify(some.Message == """
     Verify failed: quantities.Any(quantity => quantity > 10)
       quantities → 3 items: 2, 5, 3
-      at Program.cs:298
+      at Program.cs:312
     """);
 
 var contained = Throws<VerifyException>(() => CollectionChecks.VerifyExpress(["gift", "fragile"]));
 Verify(contained.Message == """
     Verify failed: tags.Contains("express")
       tags → 2 items: "gift", "fragile"
-      at Program.cs:304
+      at Program.cs:318
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -184,7 +184,7 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:312
+      at Program.cs:326
     """);
 
 // A collection value shows its count and items. A lazy sequence shows its type and is not read again.
@@ -242,6 +242,20 @@ Verify(notEquivalentStock.Message == """
       Tags: missing "express"
       Tags: extra "fragile"
       at Program.cs:236
+    """);
+
+// CheckEquivalent records its failure in the scope like Check. docs/guide/messages.md has the same lines.
+var collected = EquivalentChecks.CheckInScope();
+Verify(collected.Message == """
+    2 checks failed
+
+    CheckEquivalent failed: parsed is not equivalent to expected
+      Lines[0].Quantity: expected 2, found 1
+      at EquivalentChecks.cs:14
+
+    Check failed: parsed.Lines.Count == 2
+      expected parsed.Lines.Count to equal 2
+      at EquivalentChecks.cs:16
     """);
 
 Console.WriteLine("VerifyAot passed.");

@@ -213,7 +213,7 @@ public static class VerifySyntax
     /// with a comparer written for <typeparamref name="T"/>, and the message lists the path of each
     /// member that differs. Without the generator, they compare with <see cref="EqualityComparer{T}.Default"/>.
     /// </summary>
-    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>.</remarks>
+    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>. <c>CheckEquivalent</c> records the failure in the scope instead.</remarks>
     /// <typeparam name="T">The type of the two values.</typeparam>
     /// <param name="actual">The value the code produced.</param>
     /// <param name="expected">The value it should equal member by member.</param>
@@ -224,7 +224,7 @@ public static class VerifySyntax
         T expected,
         [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
         [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
-        VerifyFailure.EquivalentWithoutGenerator(actual, expected, actualExpression, expectedExpression);
+        VerifyFailure.EquivalentWithoutGenerator("VerifyEquivalent", actual, expected, actualExpression, expectedExpression);
 
     /// <summary>
     /// Throws a <see cref="VerifyException"/> when <paramref name="actual"/> is not equivalent to
@@ -233,7 +233,7 @@ public static class VerifySyntax
     /// the options from the call and never runs the lambda. Without the generator, the options have
     /// no effect and the two compare with <see cref="EqualityComparer{T}.Default"/>.
     /// </summary>
-    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>.</remarks>
+    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>. <c>CheckEquivalent</c> records the failure in the scope instead.</remarks>
     /// <typeparam name="T">The type of the two values.</typeparam>
     /// <param name="actual">The value the code produced.</param>
     /// <param name="expected">The value it should equal member by member.</param>
@@ -246,7 +246,46 @@ public static class VerifySyntax
         Func<EquivalenceOptions<T>, EquivalenceOptions<T>> options,
         [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
         [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
-        VerifyFailure.EquivalentWithoutGenerator(actual, expected, actualExpression, expectedExpression);
+        VerifyFailure.EquivalentWithoutGenerator("VerifyEquivalent", actual, expected, actualExpression, expectedExpression);
+
+    /// <summary>
+    /// Records a failure in the current <see cref="VerifyScope"/> when <paramref name="actual"/> is
+    /// not equivalent to <paramref name="expected"/>, and returns so the caller continues. With no
+    /// open scope it throws a <see cref="VerifyException"/> like <c>VerifyEquivalent</c>. The two
+    /// compare as in <c>VerifyEquivalent</c>, and the message lists the same differences.
+    /// </summary>
+    /// <typeparam name="T">The type of the two values.</typeparam>
+    /// <param name="actual">The value the code produced.</param>
+    /// <param name="expected">The value it should equal member by member.</param>
+    /// <param name="actualExpression">The source text of <paramref name="actual"/>. The compiler fills it in.</param>
+    /// <param name="expectedExpression">The source text of <paramref name="expected"/>. The compiler fills it in.</param>
+    public static void CheckEquivalent<T>(
+        T actual,
+        T expected,
+        [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
+        [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
+        VerifyFailure.EquivalentWithoutGenerator("CheckEquivalent", actual, expected, actualExpression, expectedExpression);
+
+    /// <summary>
+    /// Records a failure in the current <see cref="VerifyScope"/> when <paramref name="actual"/> is
+    /// not equivalent to <paramref name="expected"/>, with the comparison changed by
+    /// <paramref name="options"/>, and returns so the caller continues. With no open scope it throws
+    /// a <see cref="VerifyException"/>. The generator reads the options from the call and never runs
+    /// the lambda.
+    /// </summary>
+    /// <typeparam name="T">The type of the two values.</typeparam>
+    /// <param name="actual">The value the code produced.</param>
+    /// <param name="expected">The value it should equal member by member.</param>
+    /// <param name="options">A lambda that calls <see cref="EquivalenceOptions{T}.Unordered"/> and <see cref="EquivalenceOptions{T}.Ignore"/> on its parameter.</param>
+    /// <param name="actualExpression">The source text of <paramref name="actual"/>. The compiler fills it in.</param>
+    /// <param name="expectedExpression">The source text of <paramref name="expected"/>. The compiler fills it in.</param>
+    public static void CheckEquivalent<T>(
+        T actual,
+        T expected,
+        Func<EquivalenceOptions<T>, EquivalenceOptions<T>> options,
+        [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
+        [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
+        VerifyFailure.EquivalentWithoutGenerator("CheckEquivalent", actual, expected, actualExpression, expectedExpression);
 
     /// <summary>Returns <paramref name="value"/> when it is not null, and throws a <see cref="VerifyException"/> when it is.</summary>
     /// <remarks>It throws inside a <see cref="VerifyScope"/> too, because a failure has no value to return.</remarks>

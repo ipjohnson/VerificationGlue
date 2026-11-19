@@ -48,5 +48,6 @@ public static class Gallery
         ("lambda-fallback", LambdaMessages.Fallback),
         ("check-tier2", CheckMessages.Tier2),
         ("check-tier3", CheckMessages.Tier3),
+        ("check-equivalent", EquivalentMessages.CheckInScope),
     ];
 }
