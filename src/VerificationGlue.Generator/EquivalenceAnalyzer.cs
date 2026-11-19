@@ -6,11 +6,14 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace VerificationGlue.Generator;
 
-/// <summary>Reports a <c>VerifyEquivalent</c> option that the generated comparer does not apply.</summary>
+/// <summary>
+/// Reports a <c>VerifyEquivalent</c> option that the generated comparer does not apply, and a type
+/// that the comparer reaches but cannot walk.
+/// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class EquivalenceAnalyzer : DiagnosticAnalyzer
 {
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Diagnostics.EquivalenceOption);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Diagnostics.EquivalenceOption, Diagnostics.EquivalenceUnwalked);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -24,15 +27,23 @@ public sealed class EquivalenceAnalyzer : DiagnosticAnalyzer
         var invocation = (IInvocationOperation)context.Operation;
         if (VerifyCalls.KindOf(invocation.TargetMethod) is not CallKind.VerifyEquivalent ||
             invocation.Syntax is not InvocationExpressionSyntax syntax ||
-            VerifyCalls.Options(syntax, invocation.TargetMethod) is not { } options ||
             invocation.SemanticModel is not { } model)
         {
             return;
         }
 
-        foreach (var problem in EquivalenceBuilder.Problems(invocation.TargetMethod, context.Compilation, options, model))
+        var options = VerifyCalls.Options(syntax, invocation.TargetMethod);
+        if (options is not null)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.EquivalenceOption, problem.Syntax.GetLocation(), problem.Syntax.ToString(), problem.Reason));
+            foreach (var problem in EquivalenceBuilder.Problems(invocation.TargetMethod, context.Compilation, options, model))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(Diagnostics.EquivalenceOption, problem.Syntax.GetLocation(), problem.Syntax.ToString(), problem.Reason));
+            }
+        }
+
+        foreach (var type in EquivalenceBuilder.Unwalked(invocation.TargetMethod, context.Compilation, options, model))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.EquivalenceUnwalked, syntax.GetLocation(), type.Type, type.Fallback, type.Reason));
         }
     }
 }

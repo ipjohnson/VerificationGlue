@@ -102,6 +102,11 @@ internal static class EquivalenceEmitter
                     index.ToString(CultureInfo.InvariantCulture));
             }
 
+            if (type.IsReference)
+            {
+                text.Append("            differences.Leave();\n");
+            }
+
             text.Append("        }\n\n");
         }
 

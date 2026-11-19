@@ -17,7 +17,9 @@ public sealed class EquivalenceDifferences
     public const int Limit = 10;
 
     private readonly List<string> _listed = new();
+    private readonly List<Frame> _frames = new();
     private readonly EquivalenceDifferences? _outer;
+    private readonly int _depth;
     private HashSet<Pair>? _seen;
 
     /// <summary>Creates an empty list of differences.</summary>
@@ -25,7 +27,11 @@ public sealed class EquivalenceDifferences
     {
     }
 
-    private EquivalenceDifferences(EquivalenceDifferences outer) => _outer = outer;
+    private EquivalenceDifferences(EquivalenceDifferences outer)
+    {
+        _outer = outer;
+        _depth = outer._depth + outer._frames.Count;
+    }
 
     /// <summary>The number of differences found.</summary>
     public int Count { get; private set; }
@@ -78,7 +84,9 @@ public sealed class EquivalenceDifferences
     /// <summary>
     /// Whether the comparison of two references at <paramref name="path"/> ends without reading their
     /// members. It ends when both are the same reference, when either is null, which is a difference,
-    /// and when this pair was compared before, which stops a cycle.
+    /// when either is a value that holds it on the path, which is a cycle, and when this pair was
+    /// compared before. A cycle is a difference unless both sides refer back to the same depth of
+    /// the path. When it does not end, the comparer reads the members and then calls <see cref="Leave"/>.
     /// </summary>
     /// <param name="path">The path of the two values.</param>
     /// <param name="actual">The actual value.</param>
@@ -96,17 +104,29 @@ public sealed class EquivalenceDifferences
             return true;
         }
 
-        var pair = new Pair(actual, expected);
-        for (var outer = _outer; outer is not null; outer = outer._outer)
+        var actualCycle = Ancestor(actual, expectedSide: false);
+        var expectedCycle = Ancestor(expected, expectedSide: true);
+        if (actualCycle >= 0 || expectedCycle >= 0)
         {
-            if (outer._seen?.Contains(pair) == true)
+            if (actualCycle != expectedCycle)
             {
-                return true;
+                Add(path, "expected " + Cycle(expectedCycle) + ", found " + Cycle(actualCycle));
             }
+
+            return true;
         }
 
-        return !(_seen ??= new HashSet<Pair>()).Add(pair);
+        if (!(_seen ??= new HashSet<Pair>()).Add(new Pair(actual, expected)))
+        {
+            return true;
+        }
+
+        _frames.Add(new Frame(actual, expected, path));
+        return false;
     }
+
+    /// <summary>Ends the comparison of the two references that the last call of <see cref="Settled"/> that returned false started.</summary>
+    public void Leave() => _frames.RemoveAt(_frames.Count - 1);
 
     /// <summary>Whether two items of an unordered array or list are equal by <see cref="EqualityComparer{T}.Default"/>.</summary>
     /// <typeparam name="T">The item type.</typeparam>
@@ -200,6 +220,53 @@ public sealed class EquivalenceDifferences
 
     private static string Items(int count) =>
         count.ToString(CultureInfo.InvariantCulture) + (count == 1 ? " item" : " items");
+
+    /// <summary>The depth on the path, counted from the outermost comparison, of the frame whose value on one side is <paramref name="value"/>, or -1.</summary>
+    private int Ancestor(object value, bool expectedSide)
+    {
+        for (var index = _frames.Count - 1; index >= 0; index--)
+        {
+            if (ReferenceEquals(expectedSide ? _frames[index].Expected : _frames[index].Actual, value))
+            {
+                return _depth + index;
+            }
+        }
+
+        return _outer?.Ancestor(value, expectedSide) ?? -1;
+    }
+
+    private string Cycle(int depth)
+    {
+        if (depth < 0)
+        {
+            return "no cycle";
+        }
+
+        var owner = this;
+        while (depth < owner._depth)
+        {
+            owner = owner._outer!;
+        }
+
+        var path = owner._frames[depth - owner._depth].Path;
+        return "a cycle back to " + (path.Length == 0 ? "the root" : path);
+    }
+
+    private sealed class Frame
+    {
+        public Frame(object actual, object expected, string path)
+        {
+            Actual = actual;
+            Expected = expected;
+            Path = path;
+        }
+
+        public object Actual { get; }
+
+        public object Expected { get; }
+
+        public string Path { get; }
+    }
 
     private readonly struct Pair : IEquatable<Pair>
     {

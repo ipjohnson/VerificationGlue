@@ -307,6 +307,7 @@ It suggests the lambda form in a test method:
 
 - [VG0009](../diagnostics/VG0009.md): `Verify(condition)` or `Check(condition)` where `Verify(() => condition)` loses nothing. Set `VerificationGlueLambdaSeverity` to `warning` to make it a build warning.
 
-It reports a `VerifyEquivalent` option that the comparer cannot apply:
+It reports a `VerifyEquivalent` option that the comparer cannot apply, and a type that it cannot walk:
 
 - [VG0010](../diagnostics/VG0010.md): an `Unordered` or `Ignore` lambda that is not a chain of member accesses, or that names a member the comparer does not read.
+- [VG0011](../diagnostics/VG0011.md): a type that the comparer compares by reference or with `ValueType.Equals`, because it has no public field or property or the generated code cannot name it, and an open generic type.

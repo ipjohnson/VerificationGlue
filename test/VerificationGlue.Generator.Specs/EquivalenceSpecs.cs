@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 
 namespace VerificationGlue.Generator.Specs;
@@ -57,6 +58,25 @@ public class EquivalenceSpecs
         {
             public int Value { get; set; }
             public Node? Next { get; set; }
+        }
+
+        public sealed class Link
+        {
+            public Node? From { get; set; }
+            public Node? To { get; set; }
+        }
+
+        public sealed class Folder
+        {
+            public string Name { get; set; } = "";
+            public Folder? Parent { get; set; }
+            public List<Folder> Children { get; set; } = [];
+
+            public Folder Add(string name)
+            {
+                Children.Add(new Folder { Name = name, Parent = this });
+                return this;
+            }
         }
 
         public sealed class Wide
@@ -160,6 +180,38 @@ public class EquivalenceSpecs
                 expected.Next = expected;
                 VerifyEquivalent(actual, expected);
             }
+
+            private static Node Loop(int value)
+            {
+                var node = new Node { Value = value };
+                node.Next = node;
+                return node;
+            }
+
+            public static void ActualCycle() => VerifyEquivalent(Loop(1), new Node { Value = 1, Next = new Node { Value = 1 } });
+            public static void ExpectedCycle() => VerifyEquivalent(new Node { Value = 1, Next = new Node { Value = 1 } }, Loop(1));
+            public static void CycleDepths()
+            {
+                var expected = new Node { Value = 1 };
+                expected.Next = new Node { Value = 1, Next = expected };
+                VerifyEquivalent(new Node { Value = 1, Next = Loop(1) }, expected);
+            }
+
+            public static void SharedReference()
+            {
+                var shared = new Node { Value = 1 };
+                VerifyEquivalent(new Link { From = shared, To = shared }, new Link { From = new Node { Value = 1 }, To = new Node { Value = 2 } });
+            }
+
+            public static void SharedReferencePass()
+            {
+                var shared = new Node { Value = 1 };
+                VerifyEquivalent(new Link { From = shared, To = shared }, new Link { From = new Node { Value = 1 }, To = new Node { Value = 1 } });
+            }
+
+            public static void ParentLinks() => VerifyEquivalent(new Folder { Name = "root" }.Add("a").Add("b"), new Folder { Name = "root" }.Add("a").Add("c"));
+            public static void ParentLinksPass() => VerifyEquivalent(new Folder { Name = "root" }.Add("a").Add("b"), new Folder { Name = "root" }.Add("a").Add("b"));
+            public static void ParentLinksUnordered() => VerifyEquivalent(new Folder { Name = "root" }.Add("a").Add("b"), new Folder { Name = "root" }.Add("b").Add("a"), o => o.Unordered(x => x.Children));
 
             [Verify]
             public static void InCopy() => VerifyEquivalent(Invoice("London"), Invoice("Paris"));
@@ -454,6 +506,74 @@ public class EquivalenceSpecs
     }
 
     [VerifyTest]
+    public void A_cycle_on_the_actual_side_only_is_a_difference_at_its_path()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: Loop(1) is not equivalent to new Node { Value = 1, Next = new Node { Value = 1 } }",
+                "  Next: expected no cycle, found a cycle back to the root",
+                $"  at Tests/Equivalence.cs:{LineOf("ActualCycle()")}"),
+            Fail("ActualCycle").Message);
+    }
+
+    [VerifyTest]
+    public void A_cycle_on_the_expected_side_only_is_a_difference_at_its_path()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: new Node { Value = 1, Next = new Node { Value = 1 } } is not equivalent to Loop(1)",
+                "  Next: expected a cycle back to the root, found no cycle",
+                $"  at Tests/Equivalence.cs:{LineOf("ExpectedCycle()")}"),
+            Fail("ExpectedCycle").Message);
+    }
+
+    [VerifyTest]
+    public void Cycles_back_to_different_depths_name_both_values()
+    {
+        Assert.Equal("  Next.Next: expected a cycle back to the root, found a cycle back to Next", string.Join("\n", Fail("CycleDepths").Message.Split('\n')[1..^1]));
+    }
+
+    [VerifyTest]
+    public void Cycles_back_to_the_same_depth_on_both_sides_are_equivalent()
+    {
+        Run("Cycle");
+        Run("ParentLinksPass");
+        Run("ParentLinksUnordered");
+        Assert.Equal("  Children[1].Name: expected \"c\", found \"b\"", string.Join("\n", Fail("ParentLinks").Message.Split('\n')[1..^1]));
+    }
+
+    [VerifyTest]
+    public void A_shared_reference_that_is_not_a_cycle_compares_at_each_path()
+    {
+        Run("SharedReferencePass");
+        Assert.Equal("  To.Value: expected 2, found 1", string.Join("\n", Fail("SharedReference").Message.Split('\n')[1..^1]));
+    }
+
+    [VerifyTest]
+    public void VG0011_reports_each_type_the_comparer_cannot_walk_at_the_call()
+    {
+        var diagnostics = Analyze(
+            "VerifyEquivalent(session, session);",
+            "VerifyEquivalent(new Secret(), new Secret());",
+            "void Generic<T>(T actual, T expected) => VerifyEquivalent(actual, expected);",
+            "void Items<T>(List<T> actual, List<T> expected) => VerifyEquivalent(actual, expected);",
+            "VerifyEquivalent(new Opaque(), new Opaque());",
+            "VerifyEquivalent(invoice, invoice);");
+
+        Assert.Equal(
+            [
+                "VG0011: VerifyEquivalent compares 'Token' by reference, because it has no public field or property and does not implement IEquatable<Token>",
+                "VG0011: VerifyEquivalent compares 'Handle' with ValueType.Equals, because it has no public field or property and does not implement IEquatable<Handle>",
+                "VG0011: VerifyEquivalent compares 'Tests.Secret' by reference, because the generated code cannot name it",
+                "VG0011: VerifyEquivalent compares 'T' with Equals, because it is an open generic type, which the generator cannot walk",
+                "VG0011: VerifyEquivalent compares 'List<T>' with Equals, because it is an open generic type, which the generator cannot walk",
+            ],
+            diagnostics.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}"));
+        Assert.All(diagnostics, diagnostic => Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity));
+        Assert.Equal("VerifyEquivalent(session, session)", diagnostics[0].Location.SourceTree!.GetText().ToString(diagnostics[0].Location.SourceSpan));
+    }
+
+    [VerifyTest]
     public void The_interceptor_calls_a_comparer_written_for_the_type()
     {
         var result = GeneratorHarness.Generate(GeneratorHarness.Compilation((Path, Source)), new VerificationGlueGenerator(), out _);
@@ -464,6 +584,10 @@ public class EquivalenceSpecs
         Assert.Contains("(global::Sample.Invoice actual, global::Sample.Invoice expected, string? actualExpression = null, string? expectedExpression = null)", interceptors);
         Assert.Contains("global::VerificationGlue.Generated.Equivalence.Verify_Invoice_", interceptors);
         Assert.Contains("differences.Equal(path, \"City\", actual.City, expected.City);", comparers);
+        Assert.Contains("Compare_Address_", comparers);
+        Assert.Equal(
+            Regex.Count(comparers, @"if \(differences\.Settled\(path, actual, expected\)\)"),
+            Regex.Count(comparers, @"differences\.Leave\(\);"));
         Assert.Contains("Compare_AddressList_", comparers);
         Assert.Contains("(global::System.Collections.Generic.IReadOnlyList<global::Sample.Address> actual, ", comparers);
         Assert.Contains("differences.ItemCount(path, actual.Length, expected.Length);", comparers);
@@ -501,11 +625,36 @@ public class EquivalenceSpecs
                 internal int Hidden { get; set; }
             }
 
+            public sealed class Token
+            {
+                private readonly string _value;
+                public Token(string value) => _value = value;
+            }
+
+            public struct Handle
+            {
+                private int _value;
+            }
+
+            public sealed class Opaque
+            {
+                private readonly int _value = 1;
+                public override bool Equals(object? obj) => obj is Opaque other && other._value == _value;
+                public override int GetHashCode() => _value;
+            }
+
+            public sealed record Session(int Id, Token Token, Token Backup, Handle Handle);
+
             static class Tests
             {
-                static void M(Batch batch, Invoice invoice, Stock stock, Func<EquivalenceOptions<Invoice>, EquivalenceOptions<Invoice>> options)
+                static void M(Batch batch, Invoice invoice, Stock stock, Session session, Func<EquivalenceOptions<Invoice>, EquivalenceOptions<Invoice>> options)
                 {
                     {{string.Join("\n            ", statements)}}
+                }
+
+                private sealed class Secret
+                {
+                    public int Value;
                 }
             }
             """);

@@ -16,8 +16,22 @@ At the end of this page you can compare two records or objects with `VerifyEquiv
 | A type that implements `IEquatable<T>` and is not a record | `Equals` |
 | Any other collection, an interface, or a type in a `System` or `Microsoft` namespace | `Equals` |
 | A type with no public field or property, or a type the generated code cannot name, such as a private nested type | `Equals` |
+| An open generic type, such as `T` in a generic helper | `Equals` |
 
-Null on one side is a difference at that path. A pair of references compares once, so a graph with a cycle ends. The [messages page](messages.md#verifyequivalent) shows a failure for members of records.
+A type in the last two rows that has no `Equals` of its own compares by reference, so the build warns with [VG0011](../diagnostics/VG0011.md) at the call. So does an open generic type.
+
+Null on one side is a difference at that path. The [messages page](messages.md#verifyequivalent) shows a failure for members of records.
+
+## Cycles
+
+A value that refers back to a value on its own path, such as a child that points to its parent, is a cycle. The comparer does not follow it. When both sides refer back to the same depth of the path, the cycle is not a difference. When only one side has a cycle there, or the two refer back to different depths, the message names the value that the cycle goes back to:
+
+```text
+  Next: expected no cycle, found a cycle back to the root
+  Child.Parent: expected a cycle back to Child, found a cycle back to the root
+```
+
+A value that two members share is not a cycle. Each other pair of references compares once, at the first path that reaches it.
 
 These records hold the values in the examples below:
 
