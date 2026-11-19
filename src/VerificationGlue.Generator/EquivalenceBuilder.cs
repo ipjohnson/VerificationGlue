@@ -9,8 +9,9 @@ namespace VerificationGlue.Generator;
 /// <summary>
 /// Finds the types and members that the comparer of a <c>VerifyEquivalent</c> call walks. A class,
 /// a struct or a record walks its public instance fields and properties, its base types' included.
-/// Everything else compares with <c>Equals</c>: primitives, strings, enums, a type that implements
-/// <c>IEquatable&lt;T&gt;</c> and is not a record, a collection, an interface, a type in a
+/// An array or a list compares its count and then its items in order. Everything else compares with
+/// <c>Equals</c>: primitives, strings, enums, a type that implements <c>IEquatable&lt;T&gt;</c> and
+/// is not a record, any other collection, such as a dictionary or a set, an interface, a type in a
 /// <c>System</c> or <c>Microsoft</c> namespace, a type with no member to walk, and a type the
 /// generated code cannot name.
 /// </summary>
@@ -37,6 +38,11 @@ internal sealed class EquivalenceBuilder
     /// <summary>The key of the comparer for <paramref name="type"/>, or null when it compares with <c>Equals</c>.</summary>
     private string? Visit(ITypeSymbol type)
     {
+        if (Sequence(type) is { } sequence)
+        {
+            return VisitItems(sequence.Parameter, sequence.Item, sequence.Count);
+        }
+
         if (type is not INamedTypeSymbol named || !Walks(named))
         {
             return null;
@@ -65,15 +71,8 @@ internal sealed class EquivalenceBuilder
                 }
 
                 var access = SyntaxFacts.GetKeywordKind(member.Name) == SyntaxKind.None ? member.Name : "@" + member.Name;
-                if (memberType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable &&
-                    Visit(nullable.TypeArguments[0]) is { } inner)
-                {
-                    members.Add(new ComparedMember(member.Name, access, inner, true));
-                }
-                else
-                {
-                    members.Add(new ComparedMember(member.Name, access, Visit(memberType), false));
-                }
+                var (memberKey, isNullable) = Compared(memberType);
+                members.Add(new ComparedMember(member.Name, access, memberKey, isNullable));
             }
         }
 
@@ -89,6 +88,73 @@ internal sealed class EquivalenceBuilder
         _types[index] = new ComparedType(key, name, named.IsReferenceType, new EquatableArray<ComparedMember>(members.ToArray()));
         return key;
     }
+
+    /// <summary>The comparer key of a member or item type, and whether it is a <c>Nullable&lt;T&gt;</c> of a walked struct.</summary>
+    private (string? Key, bool Nullable) Compared(ITypeSymbol type) =>
+        type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable && Visit(nullable.TypeArguments[0]) is { } inner
+            ? (inner, true)
+            : (Visit(type), false);
+
+    /// <summary>The key of the comparer that compares the items of an array or a list in order.</summary>
+    private string VisitItems(ITypeSymbol parameter, ITypeSymbol item, string count)
+    {
+        var name = parameter.ToDisplayString(KeyFormat);
+        var key = Key((item.Name.Length == 0 ? "Item" : item.Name) + (parameter is IArrayTypeSymbol ? "Array" : "List"), name);
+        if (_indexes.ContainsKey(key))
+        {
+            return key;
+        }
+
+        var index = _types.Count;
+        _indexes.Add(key, index);
+        _types.Add(null);
+
+        var (itemKey, isNullable) = Compared(item);
+        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), new ComparedItems(count, itemKey, isNullable));
+        return key;
+    }
+
+    /// <summary>
+    /// The parameter type and the item type of the comparer for a one-dimensional array, or for a
+    /// class or interface that implements <c>IReadOnlyList&lt;T&gt;</c> or <c>IList&lt;T&gt;</c>, or
+    /// null. A dictionary and a set compare with <c>Equals</c>, even one that is also a list.
+    /// </summary>
+    private (ITypeSymbol Parameter, ITypeSymbol Item, string Count)? Sequence(ITypeSymbol type)
+    {
+        if (!Nameable(type))
+        {
+            return null;
+        }
+
+        if (type is IArrayTypeSymbol { IsSZArray: true } array)
+        {
+            return (array, array.ElementType, "Length");
+        }
+
+        if (type is not INamedTypeSymbol { TypeKind: TypeKind.Class or TypeKind.Interface } named ||
+            named.SpecialType != SpecialType.None ||
+            Interfaces(named).Any(face => face is { Name: "IDictionary" or "IReadOnlyDictionary" or "ISet" or "IReadOnlySet" } && InCollections(face)))
+        {
+            return null;
+        }
+
+        var list = List(named, SpecialType.System_Collections_Generic_IReadOnlyList_T) ?? List(named, SpecialType.System_Collections_Generic_IList_T);
+        return list is null ? null : (list, list.TypeArguments[0], "Count");
+    }
+
+    /// <summary>The one list interface of <paramref name="special"/> that the type is or implements, or null.</summary>
+    private static INamedTypeSymbol? List(INamedTypeSymbol type, SpecialType special)
+    {
+        var lists = Interfaces(type).Where(face => face.OriginalDefinition.SpecialType == special).Distinct<INamedTypeSymbol>(SymbolEqualityComparer.Default).ToList();
+        return lists.Count == 1 ? lists[0] : null;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> Interfaces(INamedTypeSymbol type) =>
+        type.TypeKind == TypeKind.Interface ? type.AllInterfaces.Prepend(type) : type.AllInterfaces;
+
+    private static bool InCollections(INamedTypeSymbol type) =>
+        type.ContainingNamespace is { Name: "Generic", ContainingNamespace: { Name: "Collections", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } ||
+        type.ContainingNamespace is { Name: "Collections", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } };
 
     /// <summary>The type of a public instance field or property that the comparer can read, or null.</summary>
     private static ITypeSymbol? MemberType(ISymbol member)
