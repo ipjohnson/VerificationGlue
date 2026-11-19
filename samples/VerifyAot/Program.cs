@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:242
+      at Program.cs:256
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:251
+      at Program.cs:265
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -117,7 +117,7 @@ Verify(sequence.Message == """
       expected has 1 item past the end of lines: 40
       lines    → 3 items: 10, 20, 25
       expected → 4 items: 10, 20, 30, 40
-      at Program.cs:260
+      at Program.cs:274
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -127,7 +127,7 @@ Verify(set.Message == """
       tags has 2 items that expected does not: "fragile", "express"
       tags     → 3 items: "gift", "fragile", "express"
       expected → 2 items: "gift", "priority"
-      at Program.cs:266
+      at Program.cs:280
     """);
 
 // Tier 3: a failed count, Any or Contains lists the items, and a failed All names the first item that fails.
@@ -136,7 +136,7 @@ Verify(counted.Message == """
     Verify failed: lines.Count == 3
       lines.Count → 2
       lines       → 2 items: 10, 20
-      at Program.cs:272
+      at Program.cs:286
     """);
 
 var every = Throws<VerifyException>(() => CollectionChecks.VerifyQuantities([2, 5, 0, 3]));
@@ -144,21 +144,21 @@ Verify(every.Message == """
     Verify failed: quantities.All(quantity => quantity > 0)
       first item that fails at index 2: 0
       quantities → 4 items: 2, 5, 0, 3
-      at Program.cs:278
+      at Program.cs:292
     """);
 
 var some = Throws<VerifyException>(() => CollectionChecks.VerifyBackorder([2, 5, 3]));
 Verify(some.Message == """
     Verify failed: quantities.Any(quantity => quantity > 10)
       quantities → 3 items: 2, 5, 3
-      at Program.cs:284
+      at Program.cs:298
     """);
 
 var contained = Throws<VerifyException>(() => CollectionChecks.VerifyExpress(["gift", "fragile"]));
 Verify(contained.Message == """
     Verify failed: tags.Contains("express")
       tags → 2 items: "gift", "fragile"
-      at Program.cs:290
+      at Program.cs:304
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -184,7 +184,7 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:298
+      at Program.cs:312
     """);
 
 // A collection value shows its count and items. A lazy sequence shows its type and is not read again.
@@ -228,6 +228,20 @@ Verify(notEquivalent.Message == """
       Lines[0].Quantity: expected 2, found 1
       Tags: expected 1 item, found 2 items
       at Program.cs:224
+    """);
+
+// A dictionary compares by key and a set compares without order. docs/guide/messages.md has the same lines.
+var parsedStock = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["fragile", "gift"]);
+var expectedStock = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift", "express"]);
+var notEquivalentStock = Throws<VerifyException>(() => VerifyEquivalent(parsedStock, expectedStock));
+Verify(notEquivalentStock.Message == """
+    VerifyEquivalent failed: parsedStock is not equivalent to expectedStock
+      Levels["gift"]: expected 5, found 3
+      Levels: missing "card": 2
+      Levels: extra "wrap": 1
+      Tags: missing "express"
+      Tags: extra "fragile"
+      at Program.cs:236
     """);
 
 Console.WriteLine("VerifyAot passed.");
@@ -301,3 +315,5 @@ sealed class Counter
 public sealed record InvoiceLine(string Sku, int Quantity);
 
 public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);
+
+public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);

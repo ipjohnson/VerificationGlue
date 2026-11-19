@@ -32,11 +32,29 @@ public static class EquivalentMessages
         #endregion
     }
 
+    public static void Maps()
+    {
+        #region message-tier2-equivalent-maps
+        var parsed = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["fragile", "gift"]);
+        var expected = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift", "express"]);
+        VerifyEquivalent(parsed, expected);
+        #endregion
+    }
+
     public static void Dictionary()
     {
         #region verify-equivalent-dictionary
-        var parsed = new Stock(new Dictionary<string, int> { ["gift"] = 3 });
-        var expected = new Stock(new Dictionary<string, int> { ["gift"] = 3 });
+        var parsed = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["gift"]);
+        var expected = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift"]);
+        VerifyEquivalent(parsed, expected);
+        #endregion
+    }
+
+    public static void Set()
+    {
+        #region verify-equivalent-set
+        var parsed = new Stock(new() { ["gift"] = 3 }, ["fragile", "gift"]);
+        var expected = new Stock(new() { ["gift"] = 3 }, ["gift", "express"]);
         VerifyEquivalent(parsed, expected);
         #endregion
     }
@@ -56,7 +74,7 @@ public sealed record InvoiceLine(string Sku, int Quantity);
 
 public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);
 
-public sealed record Stock(Dictionary<string, int> Levels);
+public sealed record Stock(Dictionary<string, int> Levels, HashSet<string> Tags);
 #endregion
 
 public enum ShipmentStatus
