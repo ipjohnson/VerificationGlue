@@ -449,7 +449,7 @@ internal sealed class ConditionRewriter
         _model.GetTypeInfo(binary.Right, _token).Type?.SpecialType == SpecialType.System_Boolean;
 
     /// <summary>Whether a local can be declared with the type's name.</summary>
-    private static bool CanName(ITypeSymbol type) => type switch
+    internal static bool CanName(ITypeSymbol type) => type switch
     {
         IErrorTypeSymbol => false,
         IArrayTypeSymbol array => CanName(array.ElementType),

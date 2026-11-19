@@ -31,7 +31,78 @@ internal static class Explanations
             lines.Add(difference);
         }
 
+        if (Collections(condition, rewritten, model, token) is { } collections)
+        {
+            lines.Add(collections);
+        }
+
         return lines;
+    }
+
+    /// <summary>
+    /// <c>a.SequenceEqual(b)</c> from <c>Enumerable</c> or <c>MemoryExtensions</c>, without a
+    /// comparer, in extension or static form, and <c>a.SetEquals(b)</c> on any set.
+    /// </summary>
+    private static string? Collections(ExpressionSyntax condition, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        if (Unwrap(condition) is not InvocationExpressionSyntax invocation ||
+            model.GetSymbolInfo(invocation, token).Symbol is not IMethodSymbol method ||
+            invocation.ArgumentList.Arguments.Any(argument => argument.NameColon is not null || !argument.RefKindKeyword.IsKind(SyntaxKind.None)))
+        {
+            return null;
+        }
+
+        var arguments = invocation.ArgumentList.Arguments;
+        var (first, second) = (method.IsStatic, invocation.Expression, arguments.Count) switch
+        {
+            (false, MemberAccessExpressionSyntax access, 1) when access.IsKind(SyntaxKind.SimpleMemberAccessExpression) => (access.Expression, arguments[0].Expression),
+            (true, _, 2) => (arguments[0].Expression, arguments[1].Expression),
+            _ => (null!, null!),
+        };
+        if (first is null)
+        {
+            return null;
+        }
+
+        var definition = method.ReducedFrom ?? method;
+        string call;
+        ITypeSymbol item;
+        if (method.Name == "SequenceEqual" && definition.Parameters.Length == 2 && method.TypeArguments.Length == 1 &&
+            definition.ContainingType is { Name: "Enumerable", ContainingNamespace: { Name: "Linq", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } } or
+                                         { Name: "MemoryExtensions", ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } })
+        {
+            call = "SequenceDifference";
+            item = method.TypeArguments[0];
+        }
+        else if (method is { Name: "SetEquals", IsStatic: false, MethodKind: MethodKind.Ordinary, Parameters.Length: 1 } &&
+                 method.Parameters[0].Type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Collections_Generic_IEnumerable_T } other)
+        {
+            call = "SetDifference";
+            item = other.TypeArguments[0];
+        }
+        else
+        {
+            return null;
+        }
+
+        first = Unwrap(first);
+        second = Unwrap(second);
+        if (!ConditionRewriter.CanName(item) ||
+            !IsSequenceOf(first, item, model, token) || !IsSequenceOf(second, item, model, token) ||
+            Captured(first, rewritten) is not { } firstValue || Captured(second, rewritten) is not { } secondValue)
+        {
+            return null;
+        }
+
+        return $"{call}<{item.ToDisplayString(TypeFormat)}>({CopyBuilder.Literal(ConditionRewriter.OneLine(first))}, {firstValue}, " +
+               $"{CopyBuilder.Literal(ConditionRewriter.OneLine(second))}, {secondValue})";
+    }
+
+    /// <summary>Whether the part's own type converts to <c>IEnumerable&lt;item&gt;</c>, as the captured local must.</summary>
+    private static bool IsSequenceOf(ExpressionSyntax part, ITypeSymbol item, SemanticModel model, CancellationToken token)
+    {
+        var sequence = model.Compilation.GetSpecialType(SpecialType.System_Collections_Generic_IEnumerable_T).Construct(item);
+        return model.GetTypeInfo(part, token).Type is { } type && model.Compilation.ClassifyConversion(type, sequence) is { IsImplicit: true, IsUserDefined: false };
     }
 
     /// <summary><c>a == b</c> on two strings, with the string equality operator.</summary>

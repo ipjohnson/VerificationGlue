@@ -439,6 +439,60 @@ Verify failed: title == expected
 ```
 <!-- endMessage -->
 
+### Collections
+
+A condition of the form `a.SequenceEqual(b)` adds lines before the values. They give the first index at which the items differ with the item each side has there, both lengths, and the items the longer side has past the end of the shorter. It works for the `Enumerable` and `MemoryExtensions` forms without a comparer.
+
+<!-- snippet: message-tier3-sequence-equal -->
+<a id='snippet-message-tier3-sequence-equal'></a>
+```cs
+[Verify]
+public static void VerifyLines(int[] lines, int[] expected)
+{
+    Verify(lines.SequenceEqual(expected));
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L13-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-sequence-equal' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-sequence-equal -->
+```text
+Verify failed: lines.SequenceEqual(expected)
+  first difference at index 2: lines has 25, expected has 30
+  lines has 3 items, expected has 4
+  expected has 1 item past the end of lines: 40
+  lines    → System.Int32[]
+  expected → System.Int32[]
+  at CollectionMessages.cs:17
+```
+<!-- endMessage -->
+
+A condition of the form `a.SetEquals(b)` adds a line for the items of `b` that `a` is missing and a line for the items of `a` that `b` does not have. Items match by the comparer of a `HashSet<T>`, and by the default comparer for any other set.
+
+<!-- snippet: message-tier3-set-equals -->
+<a id='snippet-message-tier3-set-equals'></a>
+```cs
+[Verify]
+public static void VerifyTags(HashSet<string> tags, string[] expected)
+{
+    Verify(tags.SetEquals(expected));
+}
+```
+<sup><a href='/samples/Messages/CollectionMessages.cs#L21-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier3-set-equals' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: tier3-set-equals -->
+```text
+Verify failed: tags.SetEquals(expected)
+  tags is missing 1 item that expected has: "priority"
+  tags has 2 items that expected does not: "fragile", "express"
+  tags     → System.Collections.Generic.HashSet`1[System.String]
+  expected → System.String[]
+  at CollectionMessages.cs:25
+```
+<!-- endMessage -->
+
+Items print the way values do, and a list of items stops after 10 with `…`. Both sides must be collections, such as an array, a list or a set. A side that is a lazy sequence, such as the result of `Select`, would run its code again when read, so it gets no lines.
 ## A lambda: values in any method
 
 `Verify(() => ...)` and `Check(() => ...)` take the condition as a lambda. The generator writes a check for each call that reads the variables the lambda captured and runs the lambda's body once, keeping the value of each part. It works in any method, including a test body in xunit, NUnit, MSTest or TUnit. The method needs no `[Verify]`, its type needs no `partial`, and the project does not need `VerificationGlueRewrite`.
