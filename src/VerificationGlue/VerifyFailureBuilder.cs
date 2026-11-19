@@ -24,13 +24,24 @@ public sealed class VerifyFailureBuilder
 
     private const int MaxStringLength = 200;
 
+    /// <summary>The length a string value is cut to when the message shows where two strings differ.</summary>
+    private const int DifferenceStringLength = 40;
+
+    /// <summary>The characters of a line the difference shows, and how many come before the first that differs.</summary>
+    private const int DifferenceWidth = 80;
+    private const int DifferenceLead = 30;
+
+    /// <summary>The lines shown before and after the line that differs.</summary>
+    private const int DifferenceContext = 2;
+
     private readonly string _kind;
     private readonly string _expression;
     private readonly string _file;
     private readonly int _line;
-    private readonly List<(string Label, string Value)> _rows = new();
+    private readonly List<(string Label, string Value, string? Text)> _rows = new();
     private readonly List<string> _explanations = new();
     private readonly List<string> _notes = new();
+    private List<string>? _difference;
 
     internal VerifyFailureBuilder(string kind, string expression, string file, int line)
     {
@@ -48,7 +59,7 @@ public sealed class VerifyFailureBuilder
     /// <returns>This builder.</returns>
     public VerifyFailureBuilder Value<T>(string label, T value, bool evaluated = true)
     {
-        AddRow(label, evaluated ? Format(value) : NotEvaluated);
+        AddRow(label, evaluated ? Format(value) : NotEvaluated, evaluated && value is string text ? text : null);
         return this;
     }
 
@@ -58,7 +69,43 @@ public sealed class VerifyFailureBuilder
     /// <returns>This builder.</returns>
     public VerifyFailureBuilder NotCaptured(string label, bool evaluated = true)
     {
-        AddRow(label, evaluated ? Unavailable : NotEvaluated);
+        AddRow(label, evaluated ? Unavailable : NotEvaluated, null);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds the lines for a failed <c>left == right</c> on two strings that show where they first
+    /// differ. When either string has more than one line, they give the line and column and the lines
+    /// around it. Otherwise, when either string is long, they give the index and the text around it.
+    /// Lines from <paramref name="left"/> start with <c>-</c> and lines from <paramref name="right"/>
+    /// with <c>+</c>. Once the lines are shown, the message cuts long string values short.
+    /// </summary>
+    /// <param name="left">The value of the left operand.</param>
+    /// <param name="right">The value of the right operand.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder StringDifference(string? left, string? right)
+    {
+        if (left is null || right is null || string.Equals(left, right, StringComparison.Ordinal))
+        {
+            return this;
+        }
+
+        if (left.IndexOf('\n') >= 0 || right.IndexOf('\n') >= 0)
+        {
+            _difference = LineDifference(left, right);
+        }
+        else if (Math.Max(left.Length, right.Length) > DifferenceStringLength)
+        {
+            var index = FirstDifference(left, right);
+            var start = WindowStart(index, Math.Max(left.Length, right.Length));
+            _difference = new List<string>
+            {
+                "first difference at index " + index.ToString(CultureInfo.InvariantCulture),
+                "- " + Window(left, start, quoted: true),
+                "+ " + Window(right, start, quoted: true),
+            };
+        }
+
         return this;
     }
 
@@ -137,9 +184,15 @@ public sealed class VerifyFailureBuilder
             width = Math.Max(width, row.Label.Length);
         }
 
-        foreach (var (label, value) in _rows)
+        foreach (var (label, value, raw) in _rows)
         {
-            text.Append("\n  ").Append(label).Append(' ', width - label.Length).Append(" → ").Append(value);
+            text.Append("\n  ").Append(label).Append(' ', width - label.Length).Append(" → ")
+                .Append(_difference is not null && raw is { Length: > DifferenceStringLength } ? Quote(raw, DifferenceStringLength) : value);
+        }
+
+        foreach (var line in _difference ?? new List<string>())
+        {
+            text.Append("\n  ").Append(line);
         }
 
         foreach (var note in _notes)
@@ -157,7 +210,7 @@ public sealed class VerifyFailureBuilder
     /// Adds a row unless an earlier row has the same text and value. A later read of the same text
     /// with a different value keeps its row, and so does a skipped one whose text was not shown.
     /// </summary>
-    private void AddRow(string label, string value)
+    private void AddRow(string label, string value, string? text)
     {
         foreach (var row in _rows)
         {
@@ -167,7 +220,97 @@ public sealed class VerifyFailureBuilder
             }
         }
 
-        _rows.Add((label, value));
+        _rows.Add((label, value, text));
+    }
+
+    /// <summary>
+    /// The lines for two strings that differ and of which at least one has more than one line. Lines
+    /// split at <c>\n</c>, so a <c>\r</c> before it stays in the line and shows as <c>\r</c>.
+    /// </summary>
+    private static List<string> LineDifference(string left, string right)
+    {
+        var leftLines = left.Split('\n');
+        var rightLines = right.Split('\n');
+        var line = 0;
+        while (line < leftLines.Length && line < rightLines.Length && leftLines[line] == rightLines[line])
+        {
+            line++;
+        }
+
+        var column = line < leftLines.Length && line < rightLines.Length ? FirstDifference(leftLines[line], rightLines[line]) : 0;
+        var first = Math.Max(0, line - DifferenceContext);
+        var last = Math.Min(Math.Max(leftLines.Length, rightLines.Length) - 1, line + DifferenceContext);
+        var longest = 0;
+        for (var index = first; index <= last; index++)
+        {
+            longest = Math.Max(longest, Math.Max(index < leftLines.Length ? leftLines[index].Length : 0, index < rightLines.Length ? rightLines[index].Length : 0));
+        }
+
+        var start = WindowStart(column, longest);
+        var width = (last + 1).ToString(CultureInfo.InvariantCulture).Length;
+        string Row(char marker, int index, string? text)
+        {
+            var number = (index + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width);
+            var shown = text is null ? "<end of text>" : Window(text, start, quoted: false);
+            return marker + " " + number + (shown.Length > 0 ? "   " + shown : "");
+        }
+
+        var lines = new List<string>
+        {
+            "first difference at line " + (line + 1).ToString(CultureInfo.InvariantCulture) + ", column " + (column + 1).ToString(CultureInfo.InvariantCulture),
+        };
+        for (var index = first; index <= last; index++)
+        {
+            var inLeft = index < leftLines.Length;
+            var inRight = index < rightLines.Length;
+            if (index < line || (index > line && inLeft && inRight && leftLines[index] == rightLines[index]))
+            {
+                lines.Add(Row(' ', index, leftLines[index]));
+                continue;
+            }
+
+            if (inLeft || index == line)
+            {
+                lines.Add(Row('-', index, inLeft ? leftLines[index] : null));
+            }
+
+            if (inRight || index == line)
+            {
+                lines.Add(Row('+', index, inRight ? rightLines[index] : null));
+            }
+        }
+
+        return lines;
+    }
+
+    /// <summary>The first index at which the strings differ, or the length of the shorter one.</summary>
+    private static int FirstDifference(string left, string right)
+    {
+        var index = 0;
+        while (index < left.Length && index < right.Length && left[index] == right[index])
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    /// <summary>
+    /// Where the shown part of the text starts: at the beginning when the longest text fits, and
+    /// otherwise <see cref="DifferenceLead"/> characters before <paramref name="position"/>.
+    /// </summary>
+    private static int WindowStart(int position, int longest) =>
+        longest <= DifferenceWidth ? 0 : Math.Max(0, Math.Min(position - DifferenceLead, longest - DifferenceWidth));
+
+    /// <summary>The text from <paramref name="start"/>, or the whole text when it fits.</summary>
+    private static string Window(string text, int start, bool quoted)
+    {
+        start = text.Length <= DifferenceWidth ? 0 : start;
+        var length = Math.Max(0, Math.Min(DifferenceWidth, text.Length - start));
+        var segment = length > 0 ? text.Substring(start, length) : "";
+        return (start > 0 && text.Length > 0 ? "…" : "") +
+               (quoted ? "\"" + Escape(segment) + "\"" : Escape(segment, quoted: false)) +
+               (start + length < text.Length ? "…" : "");
     }
 
     internal static string Format<T>(T value)
@@ -197,20 +340,21 @@ public sealed class VerifyFailureBuilder
         _ => false,
     };
 
-    private static string Quote(string text) =>
-        text.Length > MaxStringLength
-            ? "\"" + Escape(text.Substring(0, MaxStringLength)) + "\"… (" + text.Length.ToString(CultureInfo.InvariantCulture) + " characters)"
+    private static string Quote(string text, int maxLength = MaxStringLength) =>
+        text.Length > maxLength
+            ? "\"" + Escape(text.Substring(0, maxLength)) + "\"… (" + text.Length.ToString(CultureInfo.InvariantCulture) + " characters)"
             : "\"" + Escape(text) + "\"";
 
-    private static string Escape(string text)
+    /// <summary>Escapes control characters, and also <c>\</c> and <c>"</c> when the text is shown in quotes.</summary>
+    private static string Escape(string text, bool quoted = true)
     {
         var escaped = new StringBuilder(text.Length);
         foreach (var character in text)
         {
             escaped.Append(character switch
             {
-                '\\' => "\\\\",
-                '"' => "\\\"",
+                '\\' when quoted => "\\\\",
+                '"' when quoted => "\\\"",
                 '\n' => "\\n",
                 '\r' => "\\r",
                 '\t' => "\\t",

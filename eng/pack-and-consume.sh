@@ -8,7 +8,7 @@
 #      test, lists them, runs one by UID and writes TRX, and the script records how long the runs take;
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line, at tier 2
-#      and, for its [Verify] method, at tier 3;
+#      and, for its [Verify] methods, at tier 3;
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
 #      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface;
 #   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
