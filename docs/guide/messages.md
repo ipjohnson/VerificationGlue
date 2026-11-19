@@ -461,8 +461,8 @@ Verify failed: lines.SequenceEqual(expected)
   first difference at index 2: lines has 25, expected has 30
   lines has 3 items, expected has 4
   expected has 1 item past the end of lines: 40
-  lines    → System.Int32[]
-  expected → System.Int32[]
+  lines    → 3 items: 10, 20, 25
+  expected → 4 items: 10, 20, 30, 40
   at CollectionMessages.cs:28
 ```
 <!-- endMessage -->
@@ -486,13 +486,13 @@ public static void VerifyTags(HashSet<string> tags, string[] expected)
 Verify failed: tags.SetEquals(expected)
   tags is missing 1 item that expected has: "priority"
   tags has 2 items that expected does not: "fragile", "express"
-  tags     → System.Collections.Generic.HashSet`1[System.String]
-  expected → System.String[]
+  tags     → 3 items: "gift", "fragile", "express"
+  expected → 2 items: "gift", "priority"
   at CollectionMessages.cs:36
 ```
 <!-- endMessage -->
 
-A comparison with `a.Count`, `a.Length` or `a.Count()` on either side adds a line that lists the items of `a`. An empty `a` shows `a is empty`. The `Length` of a string gets no line.
+A comparison with `a.Count`, `a.Length` or `a.Count()` on either side lists the items of `a`. The row of `a` lists them, as [Collection values](#collection-values) says. When that row cannot list them, a line before the values does, and an empty `a` shows `a is empty`. The `Length` of a string gets no line.
 
 <!-- snippet: message-tier3-count -->
 <a id='snippet-message-tier3-count'></a>
@@ -509,9 +509,8 @@ public static void VerifyLineCount(List<int> lines)
 <!-- message: tier3-count -->
 ```text
 Verify failed: lines.Count == 3
-  lines has 2 items: 10, 20
   lines.Count → 2
-  lines       → System.Collections.Generic.List`1[System.Int32]
+  lines       → 2 items: 10, 20
   at CollectionMessages.cs:44
 ```
 <!-- endMessage -->
@@ -534,12 +533,12 @@ public static void VerifyQuantities(int[] quantities)
 ```text
 Verify failed: quantities.All(quantity => quantity > 0)
   first item that fails at index 2: 0
-  quantities → System.Int32[]
+  quantities → 4 items: 2, 5, 0, 3
   at CollectionMessages.cs:52
 ```
 <!-- endMessage -->
 
-A condition of the form `a.Any()`, `a.Any(x => ...)` or `a.Contains(x)` adds a line that lists the items of `a`. The lambda in `Any` does not run again, because the line does not need it.
+A condition of the form `a.Any()`, `a.Any(x => ...)` or `a.Contains(x)` lists the items of `a` in the same way. The lambda in `Any` does not run again, because the list does not need it.
 
 <!-- snippet: message-tier3-any -->
 <a id='snippet-message-tier3-any'></a>
@@ -556,8 +555,7 @@ public static void VerifyBackorder(int[] quantities)
 <!-- message: tier3-any -->
 ```text
 Verify failed: quantities.Any(quantity => quantity > 10)
-  quantities has 3 items: 2, 5, 3
-  quantities → System.Int32[]
+  quantities → 3 items: 2, 5, 3
   at CollectionMessages.cs:60
 ```
 <!-- endMessage -->
@@ -577,8 +575,7 @@ public static void VerifyExpress(string[] tags)
 <!-- message: tier3-contains -->
 ```text
 Verify failed: tags.Contains("express")
-  tags has 2 items: "gift", "fragile"
-  tags → System.String[]
+  tags → 2 items: "gift", "fragile"
   at CollectionMessages.cs:68
 ```
 <!-- endMessage -->
@@ -613,6 +610,50 @@ Verify failed: order.Shipping.StartsWith("express") && order.Lines.Count < 3
 ```
 <!-- endMessage -->
 
+### Collection values
+
+A value that is a collection, such as an array, a list, a set, a queue or a dictionary, shows its count and its items. This holds for `Verify(() => ...)`, `Check(() => ...)` and tier 3. The items go on the same line when they fit, and one per line when they do not. The list stops after 10 items with `…`. A dictionary shows each key and its value. A collection inside a collection shows its items in brackets. A string shows as a string. The message reads the items when it is built, so a collection that the condition changed shows its items after the change.
+
+<!-- snippet: message-lambda-collection -->
+<a id='snippet-message-lambda-collection'></a>
+```cs
+var problems = new List<string> { "flowchart/a: box differs", "pie/b: missing label" };
+Verify(() => problems.Count == 0);
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L25-L28' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-collection' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-collection -->
+```text
+Verify failed: problems.Count == 0
+  problems.Count → 2
+  problems       → 2 items
+                     "flowchart/a: box differs"
+                     "pie/b: missing label"
+  at LambdaMessages.cs:27
+```
+<!-- endMessage -->
+
+A sequence that is not a collection, such as the result of `Select` or a method that uses `yield`, is not read again, because reading it could run its code. It shows its type with a note. The runtime picks the type of a LINQ result, so the name can differ under Native AOT.
+
+<!-- snippet: message-lambda-lazy -->
+<a id='snippet-message-lambda-lazy'></a>
+```cs
+var totals = new[] { 30, 45 }.Select(total => total * 2);
+Verify(() => totals.Count() == 0);
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L33-L36' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-lazy' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-lazy -->
+```text
+Verify failed: totals.Count() == 0
+  totals.Count() → 2
+  totals         → ArraySelectIterator<Int32, Int32> (not read again, because reading it could run its code)
+  at LambdaMessages.cs:35
+```
+<!-- endMessage -->
+
 ### Members of the type
 
 The body can use the fields, properties and methods of the type it is in, including private ones.
@@ -625,7 +666,7 @@ private void VerifyTotal(int expected)
     Verify(() => _order.Total == expected);
 }
 ```
-<sup><a href='/samples/Messages/LambdaMessages.cs#L25-L30' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-members' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/LambdaMessages.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-members' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: lambda-members -->
@@ -634,7 +675,7 @@ Verify failed: _order.Total == expected
   _order.Total → 30
   _order       → order 7
   expected     → 40
-  at LambdaMessages.cs:28
+  at LambdaMessages.cs:44
 ```
 <!-- endMessage -->
 
@@ -650,14 +691,14 @@ Verify(() => IsEven(total + 1));
 
 static bool IsEven(int value) => value % 2 == 0;
 ```
-<sup><a href='/samples/Messages/LambdaMessages.cs#L34-L39' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-fallback' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/LambdaMessages.cs#L50-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-fallback' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: lambda-fallback -->
 ```text
 Verify failed: IsEven(total + 1)
   expected IsEven(total + 1) to return true
-  at LambdaMessages.cs:36
+  at LambdaMessages.cs:52
 ```
 <!-- endMessage -->
 

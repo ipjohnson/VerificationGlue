@@ -37,12 +37,25 @@ public sealed class VerifyFailureBuilder
     /// <summary>The items a list of items shows before it ends with <c>…</c>.</summary>
     private const int MaxListedItems = 10;
 
+    /// <summary>The length of a row past which a collection's items go one per line.</summary>
+    private const int RowWidth = 60;
+
+    /// <summary>How deep collections inside collections show their items. Deeper ones show <c>[…]</c>.</summary>
+    private const int MaxDepth = 3;
+
+    private const string NotRead = "not read again, because reading it could run its code";
+
     private readonly string _kind;
     private readonly string _expression;
     private readonly string _file;
     private readonly int _line;
-    private readonly List<(string Label, string Value, string? Text)> _rows = new();
-    private readonly List<string> _explanations = new();
+    private readonly List<(string Label, string Value, string? Text, Listing? Items)> _rows = new();
+
+    /// <summary>
+    /// The lines before the rows. <c>Listed</c> names the sequence whose items a line lists, so the
+    /// line is left out when that sequence's row lists them.
+    /// </summary>
+    private readonly List<(string? Listed, string Text)> _explanations = new();
     private readonly List<string> _notes = new();
     private List<string>? _difference;
 
@@ -62,7 +75,23 @@ public sealed class VerifyFailureBuilder
     /// <returns>This builder.</returns>
     public VerifyFailureBuilder Value<T>(string label, T value, bool evaluated = true)
     {
-        AddRow(label, evaluated ? Format(value) : NotEvaluated, evaluated && value is string text ? text : null);
+        if (!evaluated)
+        {
+            AddRow(label, NotEvaluated, null, null);
+            return this;
+        }
+
+        Listing? items;
+        try
+        {
+            items = value is null or string ? null : List(value, 0);
+        }
+        catch (Exception)
+        {
+            items = null;
+        }
+
+        AddRow(label, items is null ? Format(value) : items.Inline(), value as string, items);
         return this;
     }
 
@@ -72,7 +101,7 @@ public sealed class VerifyFailureBuilder
     /// <returns>This builder.</returns>
     public VerifyFailureBuilder NotCaptured(string label, bool evaluated = true)
     {
-        AddRow(label, evaluated ? Unavailable : NotEvaluated, null);
+        AddRow(label, evaluated ? Unavailable : NotEvaluated, null, null);
         return this;
     }
 
@@ -128,7 +157,7 @@ public sealed class VerifyFailureBuilder
     public VerifyFailureBuilder Tolerance<T, TTolerance>(string left, T leftValue, string right, T rightValue, T difference, TTolerance tolerance)
     {
         var within = Format(tolerance);
-        _explanations.Add((IsNaN(leftValue), IsNaN(rightValue)) switch
+        Explain((IsNaN(leftValue), IsNaN(rightValue)) switch
         {
             (true, true) => $"{left} and {right} are NaN, so they are not within tolerance {within}",
             (true, false) => $"{left} is NaN, so it is not within tolerance {within} of {right}",
@@ -170,14 +199,14 @@ public sealed class VerifyFailureBuilder
         }
 
         string At(string name, List<T> items) => index < items.Count ? name + " has " + Format(items[index]) : name + " has no item";
-        _explanations.Add("first difference at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + At(left, leftItems) + ", " + At(right, rightItems));
-        _explanations.Add(left + " has " + Items(leftItems.Count) + ", " + right + " has " + rightItems.Count.ToString(CultureInfo.InvariantCulture));
+        Explain("first difference at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + At(left, leftItems) + ", " + At(right, rightItems));
+        Explain(left + " has " + Items(leftItems.Count) + ", " + right + " has " + rightItems.Count.ToString(CultureInfo.InvariantCulture));
         if (leftItems.Count != rightItems.Count)
         {
             var (longer, longerItems, shorter, end) = leftItems.Count > rightItems.Count
                 ? (left, leftItems, right, rightItems.Count)
                 : (right, rightItems, left, leftItems.Count);
-            _explanations.Add(longer + " has " + Items(longerItems.Count - end) + " past the end of " + shorter + ": " + ItemList(longerItems.GetRange(end, longerItems.Count - end)));
+            Explain(longer + " has " + Items(longerItems.Count - end) + " past the end of " + shorter + ": " + ItemList(longerItems.GetRange(end, longerItems.Count - end)));
         }
 
         return this;
@@ -227,12 +256,12 @@ public sealed class VerifyFailureBuilder
 
         if (missing.Count > 0)
         {
-            _explanations.Add(set + " is missing " + Items(missing.Count) + " that " + other + " has: " + ItemList(missing));
+            Explain(set + " is missing " + Items(missing.Count) + " that " + other + " has: " + ItemList(missing));
         }
 
         if (extra.Count > 0)
         {
-            _explanations.Add(set + " has " + Items(extra.Count) + " that " + other + " does not: " + ItemList(extra));
+            Explain(set + " has " + Items(extra.Count) + " that " + other + " does not: " + ItemList(extra));
         }
 
         return this;
@@ -251,7 +280,7 @@ public sealed class VerifyFailureBuilder
     {
         if (Materialize(value) is { } items)
         {
-            _explanations.Add(items.Count == 0 ? label + " is empty" : label + " has " + Items(items.Count) + ": " + ItemList(items));
+            Explain(items.Count == 0 ? label + " is empty" : label + " has " + Items(items.Count) + ": " + ItemList(items), label);
         }
 
         return this;
@@ -287,7 +316,7 @@ public sealed class VerifyFailureBuilder
 
             if (!passed)
             {
-                _explanations.Add("first item that fails at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + Format(items[index]));
+                Explain("first item that fails at index " + index.ToString(CultureInfo.InvariantCulture) + ": " + Format(items[index]));
                 return this;
             }
         }
@@ -333,9 +362,12 @@ public sealed class VerifyFailureBuilder
     public override string ToString()
     {
         var text = new StringBuilder(_kind).Append(" failed: ").Append(_expression);
-        foreach (var explanation in _explanations)
+        foreach (var (listed, explanation) in _explanations)
         {
-            text.Append("\n  ").Append(explanation);
+            if (listed is null || !_rows.Exists(row => row.Label == listed && row.Items is not null))
+            {
+                text.Append("\n  ").Append(explanation);
+            }
         }
 
         var width = 0;
@@ -344,10 +376,27 @@ public sealed class VerifyFailureBuilder
             width = Math.Max(width, row.Label.Length);
         }
 
-        foreach (var (label, value, raw) in _rows)
+        foreach (var (label, value, raw, items) in _rows)
         {
-            text.Append("\n  ").Append(label).Append(' ', width - label.Length).Append(" → ")
-                .Append(_difference is not null && raw is { Length: > DifferenceStringLength } ? Quote(raw, DifferenceStringLength) : value);
+            text.Append("\n  ").Append(label).Append(' ', width - label.Length).Append(" → ");
+            if (items is not null && width + 5 + value.Length > RowWidth)
+            {
+                var indent = new string(' ', width + 7);
+                text.Append(Items(items.Count));
+                foreach (var item in items.Shown)
+                {
+                    text.Append('\n').Append(indent).Append(item);
+                }
+
+                if (items.Count > items.Shown.Count)
+                {
+                    text.Append('\n').Append(indent).Append('…');
+                }
+
+                continue;
+            }
+
+            text.Append(_difference is not null && raw is { Length: > DifferenceStringLength } ? Quote(raw, DifferenceStringLength) : value);
         }
 
         foreach (var line in _difference ?? new List<string>())
@@ -370,7 +419,7 @@ public sealed class VerifyFailureBuilder
     /// Adds a row unless an earlier row has the same text and value. A later read of the same text
     /// with a different value keeps its row, and so does a skipped one whose text was not shown.
     /// </summary>
-    private void AddRow(string label, string value, string? text)
+    private void AddRow(string label, string value, string? text, Listing? items)
     {
         foreach (var row in _rows)
         {
@@ -380,8 +429,10 @@ public sealed class VerifyFailureBuilder
             }
         }
 
-        _rows.Add((label, value, text));
+        _rows.Add((label, value, text, items));
     }
+
+    private void Explain(string text, string? listed = null) => _explanations.Add((listed, text));
 
     /// <summary>
     /// The lines for two strings that differ and of which at least one has more than one line. Lines
@@ -473,7 +524,9 @@ public sealed class VerifyFailureBuilder
                (start + length < text.Length ? "…" : "");
     }
 
-    internal static string Format<T>(T value)
+    internal static string Format<T>(T value) => Format(value, 0);
+
+    private static string Format<T>(T value, int depth)
     {
         try
         {
@@ -484,6 +537,7 @@ public sealed class VerifyFailureBuilder
                 char character => "'" + Escape(character.ToString()) + "'",
                 bool flag => flag ? "true" : "false",
                 IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+                System.Collections.IEnumerable => List(value, depth) is { } items ? items.Bracketed() : Unread(value),
                 _ => value.ToString() ?? value.GetType().Name,
             };
         }
@@ -491,6 +545,77 @@ public sealed class VerifyFailureBuilder
         {
             return $"<ToString threw {exception.GetType().Name}>";
         }
+    }
+
+    /// <summary>
+    /// The count and the first items of a collection, or null when the value is not a collection.
+    /// A collection holds its items, so reading it runs no code of the condition. Covariance lets
+    /// <see cref="IReadOnlyCollection{T}"/> of <see cref="object"/> match a collection of any
+    /// reference type without reflection, so the check is the same under Native AOT. A
+    /// <see cref="HashSet{T}"/> of a value type has neither interface, so it is matched by its type.
+    /// </summary>
+    private static Listing? List(object value, int depth)
+    {
+        int count;
+        switch (value)
+        {
+            case System.Collections.ICollection collection:
+                count = collection.Count;
+                break;
+            case IReadOnlyCollection<object> collection:
+                count = collection.Count;
+                break;
+            case System.Collections.IEnumerable set when value.GetType() is { IsGenericType: true } type && type.GetGenericTypeDefinition() == typeof(HashSet<>):
+                count = 0;
+                foreach (var _ in set)
+                {
+                    count++;
+                }
+
+                break;
+            default:
+                return null;
+        }
+
+        var shown = new List<string>();
+        if (depth < MaxDepth)
+        {
+            if (value is System.Collections.IDictionary dictionary)
+            {
+                var entries = dictionary.GetEnumerator();
+                while (shown.Count < MaxListedItems && entries.MoveNext())
+                {
+                    shown.Add(Format(entries.Key, depth + 1) + ": " + Format(entries.Value, depth + 1));
+                }
+
+                (entries as IDisposable)?.Dispose();
+            }
+            else
+            {
+                foreach (var item in (System.Collections.IEnumerable)value)
+                {
+                    if (shown.Count == MaxListedItems)
+                    {
+                        break;
+                    }
+
+                    shown.Add(Format(item, depth + 1));
+                }
+            }
+        }
+
+        return new Listing(count, shown);
+    }
+
+    /// <summary>
+    /// A sequence that is not a collection, such as the result of <c>Select</c>. It is shown by its
+    /// <c>ToString</c> when the type has one, and otherwise by its type name with a note.
+    /// </summary>
+    private static string Unread(object value)
+    {
+        var text = value.ToString();
+        var type = value.GetType();
+        return text is null || text == type.ToString() ? VerifyFailure.TypeName(type) + " (" + NotRead + ")" : text;
     }
 
     /// <summary>
@@ -513,6 +638,39 @@ public sealed class VerifyFailureBuilder
         }
 
         return items.Count > MaxListedItems ? text.Append(", …").ToString() : text.ToString();
+    }
+
+    /// <summary>
+    /// The count of a collection and its first <see cref="MaxListedItems"/> items, formatted. A
+    /// collection deeper than <see cref="MaxDepth"/> has no items shown.
+    /// </summary>
+    private sealed class Listing
+    {
+        public Listing(int count, List<string> shown)
+        {
+            Count = count;
+            Shown = shown;
+        }
+
+        public int Count { get; }
+
+        public List<string> Shown { get; }
+
+        /// <summary>The form for a row: <c>2 items: "a", "b"</c>.</summary>
+        public string Inline() => Count == 0 ? Items(0) : Items(Count) + ": " + Joined();
+
+        /// <summary>The form for an item or a line: <c>["a", "b"]</c>.</summary>
+        public string Bracketed() => "[" + Joined() + "]";
+
+        private string Joined()
+        {
+            if (Shown.Count == 0)
+            {
+                return Count == 0 ? "" : "…";
+            }
+
+            return string.Join(", ", Shown) + (Count > Shown.Count ? ", …" : "");
+        }
     }
 
     private static bool IsNaN<T>(T value) => value switch

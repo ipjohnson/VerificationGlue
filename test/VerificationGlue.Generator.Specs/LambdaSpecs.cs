@@ -212,9 +212,9 @@ public class LambdaSpecs
         ("PrivateMethod", "Verify failed: HasSku(sku)\n  sku → \"c\""),
         ("PrivateStatic", "Verify failed: count <= limit && count <= Most\n  count <= limit → false\n  count          → 4\n  limit          → 3\n  count <= Most  → <not evaluated>"),
         ("Protected", "Verify failed: Inherited == 10\n  Inherited → 9"),
-        ("NestedLambda", "Verify failed: order.Lines.Any(line => line.Quantity >= minimum)\n  order.Lines → System.Collections.Generic.List`1[Sample.Line]\n  order       → order 7"),
+        ("NestedLambda", "Verify failed: order.Lines.Any(line => line.Quantity >= minimum)\n  order.Lines → 2 items\n                  Line { Sku = a, Quantity = 1 }\n                  Line { Sku = b, Quantity = 3 }\n  order       → order 7"),
         ("NoCaptures", "Verify failed: NewOrder().Id == 8\n  NewOrder().Id → 7\n  NewOrder()    → order 7"),
-        ("SideEffect", "Verify failed: queue.Dequeue() == 7\n  queue.Dequeue() → 1\n  queue           → System.Collections.Generic.Queue`1[System.Int32]"),
+        ("SideEffect", "Verify failed: queue.Dequeue() == 7\n  queue.Dequeue() → 1\n  queue           → 2 items: 2, 3"),
         ("Primary", "Verify failed: size == 5\n  size → 4"),
     ];
 

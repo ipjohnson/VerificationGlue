@@ -93,6 +93,9 @@ public class CountSpecs
             public static void SetContains(HashSet<string> tags) => Verify(tags.Contains("gift"));
 
             [Verify]
+            public static void IdContains(HashSet<int> ids) => Verify(ids.Contains(7));
+
+            [Verify]
             public static void StringContains(string text) => Verify(text.Contains('x'));
 
             [Verify]
@@ -133,46 +136,52 @@ public class CountSpecs
         Assert.Equal(
             Lines(
                 "Verify failed: items.Count == 3",
-                "  items has 2 items: 10, 20",
                 "  items.Count → 2",
-                "  items       → System.Collections.Generic.List`1[System.Int32]",
+                "  items       → 2 items: 10, 20",
                 $"  at Tests/Counts.cs:{LineOf("ListCount")}"),
             Fail("ListCount", new List<int> { 10, 20 }).Message);
     }
 
     [VerifyTest]
-    public void An_empty_collection_is_named_empty()
+    public void An_empty_collection_shows_no_items()
     {
-        Assert.Contains("\n  items is empty\n", Fail("ListCount", new List<int>()).Message);
-        Assert.Contains("\n  names is empty\n", Fail("ArrayLength", new object[] { Array.Empty<string>() }).Message);
-        Assert.Contains("\n  items is empty\n", Fail("AnyItem", new List<int>()).Message);
+        Assert.Contains("\n  items       → 0 items\n", Fail("ListCount", new List<int>()).Message);
+        Assert.Contains("\n  names        → 0 items\n", Fail("ArrayLength", new object[] { Array.Empty<string>() }).Message);
+        Assert.Contains("\n  items → 0 items\n", Fail("AnyItem", new List<int>()).Message);
     }
 
     [VerifyTest]
     public void Items_stop_after_ten()
     {
         Assert.Contains(
-            "\n  items has 12 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, …\n",
+            "\n  items       → 12 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, …\n",
             Fail("ListCount", Enumerable.Range(1, 12).ToList()).Message);
         Assert.Contains(
-            "\n  items has 10 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10\n",
+            "\n  items       → 10 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10\n",
             Fail("ListCount", Enumerable.Range(1, 10).ToList()).Message);
     }
 
     [VerifyTest]
     public void Length_count_call_and_the_static_form_list_the_items()
     {
-        Assert.Contains("\n  names has 1 item: \"Ann\"\n", Fail("ArrayLength", new object[] { new[] { "Ann" } }).Message);
-        Assert.Contains("\n  items is empty\n", Fail("CountCall", new List<int>()).Message);
-        Assert.Contains("\n  items has 2 items: 4, 5\n", Fail("StaticCount", new[] { 4, 5 }).Message);
+        Assert.Contains("\n  names        → 1 item: \"Ann\"\n", Fail("ArrayLength", new object[] { new[] { "Ann" } }).Message);
+        Assert.Contains("→ 0 items\n", Fail("CountCall", new List<int>()).Message);
+        Assert.Contains("→ 2 items: 4, 5\n", Fail("StaticCount", new[] { 4, 5 }).Message);
     }
 
     [VerifyTest]
     public void A_count_on_each_side_lists_both()
     {
-        Assert.Contains(
-            "\n  left has 1 item: 1\n  right has 2 items: 1, 2\n",
-            Fail("BothCounts", new List<int> { 1 }, new[] { 1, 2 }).Message);
+        var message = Fail("BothCounts", new List<int> { 1 }, new[] { 1, 2 }).Message;
+
+        Assert.Contains("\n  left         → 1 item: 1\n", message);
+        Assert.Contains("\n  right        → 2 items: 1, 2\n", message);
+    }
+
+    [VerifyTest]
+    public void A_set_of_values_lists_its_items()
+    {
+        Assert.Contains("\n  ids → 2 items: 1, 2\n", Fail("IdContains", new HashSet<int> { 1, 2 }).Message);
     }
 
     [VerifyTest]
@@ -202,7 +211,7 @@ public class CountSpecs
     [VerifyTest]
     public void Dictionary_entries_print_as_pairs()
     {
-        Assert.Contains("\n  stock has 1 item: [gift, 3]\n", Fail("DictionaryCount", new Dictionary<string, int> { ["gift"] = 3 }).Message);
+        Assert.Contains("\n  stock       → 1 item: \"gift\": 3\n", Fail("DictionaryCount", new Dictionary<string, int> { ["gift"] = 3 }).Message);
     }
 
     [VerifyTest]
@@ -212,7 +221,7 @@ public class CountSpecs
             Lines(
                 "Verify failed: values.All(value => value > 0)",
                 "  first item that fails at index 2: -1",
-                "  values → System.Int32[]",
+                "  values → 4 items: 4, 5, -1, -2",
                 $"  at Tests/Counts.cs:{LineOf("AllPositive")}"),
             Fail("AllPositive", new[] { 4, 5, -1, -2 }).Message);
     }
@@ -249,7 +258,7 @@ public class CountSpecs
         Assert.Equal(
             Lines(
                 "Verify failed: values.All(value => ++ThrowCalls < 3 ? value < 2 : Throw())",
-                "  values → System.Int32[]",
+                "  values → 2 items: 1, 5",
                 $"  at Tests/Counts.cs:{LineOf("AllThrows")}"),
             Fail("AllThrows", new[] { 1, 5 }).Message);
         Assert.Equal(3, calls.GetValue(null));
@@ -265,8 +274,7 @@ public class CountSpecs
         Assert.Equal(
             Lines(
                 "Verify failed: values.Any(value => { AnyCalls++; return value > 10; })",
-                "  values has 3 items: 1, 2, 3",
-                "  values → System.Int32[]",
+                "  values → 3 items: 1, 2, 3",
                 $"  at Tests/Counts.cs:{LineOf("AnyMatch")}"),
             Fail("AnyMatch", new[] { 1, 2, 3 }).Message);
         Assert.Equal(3, calls.GetValue(null));
@@ -278,20 +286,19 @@ public class CountSpecs
         Assert.Equal(
             Lines(
                 "Verify failed: tags.Contains(tag)",
-                "  tags has 2 items: \"gift\", \"fragile\"",
-                "  tags → System.Collections.Generic.List`1[System.String]",
+                "  tags → 2 items: \"gift\", \"fragile\"",
                 "  tag  → \"express\"",
                 $"  at Tests/Counts.cs:{LineOf("ListContains")}"),
             Fail("ListContains", new List<string> { "gift", "fragile" }, "express").Message);
-        Assert.Contains("\n  values has 2 items: 1, 2\n", Fail("ArrayContains", new[] { 1, 2 }, 3).Message);
-        Assert.Contains("\n  values is empty\n", Fail("StaticContains", new List<int>(), 3).Message);
-        Assert.Contains("\n  tags has 1 item: \"fragile\"\n", Fail("SetContains", new HashSet<string> { "fragile" }).Message);
+        Assert.Contains("\n  values → 2 items: 1, 2\n", Fail("ArrayContains", new[] { 1, 2 }, 3).Message);
+        Assert.Contains("\n  values → 0 items\n", Fail("StaticContains", new List<int>(), 3).Message);
+        Assert.Contains("\n  tags → 1 item: \"fragile\"\n", Fail("SetContains", new HashSet<string> { "fragile" }).Message);
     }
 
     [VerifyTest]
-    public void Check_gives_the_line()
+    public void Check_lists_the_items()
     {
-        Assert.Contains("\n  items has 1 item: 4\n", Fail("Checked", new List<int> { 4 }).Message);
+        Assert.Contains("→ 1 item: 4\n", Fail("Checked", new List<int> { 4 }).Message);
     }
 
     private static VerifyException Fail(string method, params object[] arguments)

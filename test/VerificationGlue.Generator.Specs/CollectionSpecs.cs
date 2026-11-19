@@ -77,8 +77,8 @@ public class CollectionSpecs
                 "Verify failed: actual.SequenceEqual(expected)",
                 "  first difference at index 2: actual has 3, expected has 4",
                 "  actual has 4 items, expected has 4",
-                "  actual   → System.Int32[]",
-                "  expected → System.Int32[]",
+                "  actual   → 4 items: 1, 2, 3, 4",
+                "  expected → 4 items: 1, 2, 4, 4",
                 $"  at Tests/Collections.cs:{LineOf("Arrays")}"),
             Fail("Arrays", new[] { 1, 2, 3, 4 }, new[] { 1, 2, 4, 4 }).Message);
     }
@@ -187,8 +187,8 @@ public class CollectionSpecs
                 "Verify failed: tags.SetEquals(expected)",
                 "  tags is missing 1 item that expected has: \"beta\"",
                 "  tags has 2 items that expected does not: \"gamma\", \"delta\"",
-                "  tags     → System.Collections.Generic.HashSet`1[System.String]",
-                "  expected → System.String[]",
+                "  tags     → 3 items: \"alpha\", \"gamma\", \"delta\"",
+                "  expected → 2 items: \"alpha\", \"beta\"",
                 $"  at Tests/Collections.cs:{LineOf("Sets")}"),
             Fail("Sets", new HashSet<string> { "alpha", "gamma", "delta" }, new[] { "alpha", "beta" }).Message);
     }

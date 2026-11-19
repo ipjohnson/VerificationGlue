@@ -418,7 +418,7 @@ public class RewriteSpecs
     {
         var failure = Fail("RefStruct", new[] { 1, 2 });
 
-        Assert.Equal(["  values.AsSpan().Length → 2", "  values.AsSpan()        → <unavailable>", "  values                 → System.Int32[]"], failure.Message.Split('\n')[1..^1]);
+        Assert.Equal(["  values.AsSpan().Length → 2", "  values.AsSpan()        → <unavailable>", "  values                 → 2 items: 1, 2"], failure.Message.Split('\n')[1..^1]);
     }
 
     [VerifyTest]
@@ -481,7 +481,7 @@ public class RewriteSpecs
     {
         var thrown = Assert.Throws<TargetInvocationException>(() => Cases.Value.GetMethod("CallsExtension")!.Invoke(null, [new List<int> { 1 }]));
 
-        Assert.StartsWith("Verify failed: items.Count == count\n  items has 1 item: 1\n  items.Count → 1\n  items       → System.Collections.Generic.List`1[System.Int32]\n  count       → 3\n", thrown.InnerException!.Message);
+        Assert.StartsWith("Verify failed: items.Count == count\n  items.Count → 1\n  items       → 1 item: 1\n  count       → 3\n", thrown.InnerException!.Message);
     }
 
     [VerifyTest]
