@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:230
+      at Program.cs:242
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:239
+      at Program.cs:251
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -117,7 +117,7 @@ Verify(sequence.Message == """
       expected has 1 item past the end of lines: 40
       lines    → 3 items: 10, 20, 25
       expected → 4 items: 10, 20, 30, 40
-      at Program.cs:248
+      at Program.cs:260
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -127,7 +127,7 @@ Verify(set.Message == """
       tags has 2 items that expected does not: "fragile", "express"
       tags     → 3 items: "gift", "fragile", "express"
       expected → 2 items: "gift", "priority"
-      at Program.cs:254
+      at Program.cs:266
     """);
 
 // Tier 3: a failed count, Any or Contains lists the items, and a failed All names the first item that fails.
@@ -136,7 +136,7 @@ Verify(counted.Message == """
     Verify failed: lines.Count == 3
       lines.Count → 2
       lines       → 2 items: 10, 20
-      at Program.cs:260
+      at Program.cs:272
     """);
 
 var every = Throws<VerifyException>(() => CollectionChecks.VerifyQuantities([2, 5, 0, 3]));
@@ -144,21 +144,21 @@ Verify(every.Message == """
     Verify failed: quantities.All(quantity => quantity > 0)
       first item that fails at index 2: 0
       quantities → 4 items: 2, 5, 0, 3
-      at Program.cs:266
+      at Program.cs:278
     """);
 
 var some = Throws<VerifyException>(() => CollectionChecks.VerifyBackorder([2, 5, 3]));
 Verify(some.Message == """
     Verify failed: quantities.Any(quantity => quantity > 10)
       quantities → 3 items: 2, 5, 3
-      at Program.cs:272
+      at Program.cs:284
     """);
 
 var contained = Throws<VerifyException>(() => CollectionChecks.VerifyExpress(["gift", "fragile"]));
 Verify(contained.Message == """
     Verify failed: tags.Contains("express")
       tags → 2 items: "gift", "fragile"
-      at Program.cs:278
+      at Program.cs:290
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
@@ -184,7 +184,7 @@ var members = Throws<VerifyException>(new Counter().Check);
 Verify(members.Message == """
     Verify failed: _count == 3
       _count → 2
-      at Program.cs:286
+      at Program.cs:298
     """);
 
 // A collection value shows its count and items. A lazy sequence shows its type and is not read again.
@@ -217,6 +217,18 @@ var doubled = names.Select(name => name + name);
 var lazy = Throws<VerifyException>(() => Verify(() => doubled.Count() == 0));
 Verify(() => lazy.Message.Contains("\n  doubled.Count() → 2\n  doubled         → "));
 Verify(() => lazy.Message.Contains("Iterator<String, String> (not read again, because reading it could run its code)\n"));
+
+// VerifyEquivalent calls a generated comparer, which compares lists and arrays item by item. docs/guide/verify-equivalent.md has the same message.
+var parsed = new Invoice(7, [new InvoiceLine("A-1", 1)], ["gift", "fragile"]);
+var expectedInvoice = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["gift"]);
+var notEquivalent = Throws<VerifyException>(() => VerifyEquivalent(parsed, expectedInvoice));
+Verify(notEquivalent.Message == """
+    VerifyEquivalent failed: parsed is not equivalent to expectedInvoice
+      Lines: expected 2 items, found 1 item
+      Lines[0].Quantity: expected 2, found 1
+      Tags: expected 1 item, found 2 items
+      at Program.cs:224
+    """);
 
 Console.WriteLine("VerifyAot passed.");
 
@@ -285,3 +297,7 @@ sealed class Counter
 
     public void Check() => Verify(() => _count == 3);
 }
+
+public sealed record InvoiceLine(string Sku, int Quantity);
+
+public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);

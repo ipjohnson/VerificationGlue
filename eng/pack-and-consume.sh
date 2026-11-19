@@ -8,7 +8,7 @@
 #      test, lists them, runs one by UID and writes TRX, and the script records how long the runs take;
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line, at tier 2
-#      and, for its [Verify] methods, at tier 3;
+#      and, for its [Verify] methods, at tier 3. The JIT build then runs the same checks;
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
 #      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface;
 #   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
@@ -192,6 +192,8 @@ dotnet publish "$aot/VerifyAot.csproj" -c Release -warnaserror \
 [ -x "$aot/publish/VerifyAot" ] || [ -f "$aot/publish/VerifyAot.exe" ] \
   || fail "the Native AOT publish of VerifyAot produced no executable"
 "$aot/publish/VerifyAot" || fail "VerifyAot reported a wrong message under Native AOT"
+dotnet build "$aot/VerifyAot.csproj" -c Release -warnaserror -p:VerificationGlueVersion="$version"
+"$aot/bin/Release/net10.0/VerifyAot" || fail "VerifyAot reported a wrong message on the JIT"
 
 echo "== Mocks under Native AOT"
 mocks="$work/mocks-aot"
