@@ -26,7 +26,41 @@ internal static class Explanations
             lines.Add(tolerance);
         }
 
+        if (StringEquality(condition, rewritten, model, token) is { } difference)
+        {
+            lines.Add(difference);
+        }
+
         return lines;
+    }
+
+    /// <summary><c>a == b</c> on two strings, with the string equality operator.</summary>
+    private static string? StringEquality(ExpressionSyntax condition, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        if (Unwrap(condition) is not BinaryExpressionSyntax equality ||
+            !equality.IsKind(SyntaxKind.EqualsExpression) ||
+            model.GetSymbolInfo(equality, token).Symbol is not IMethodSymbol { ContainingType.SpecialType: SpecialType.System_String } ||
+            ReadString(Unwrap(equality.Left), rewritten, model, token) is not { } left ||
+            ReadString(Unwrap(equality.Right), rewritten, model, token) is not { } right)
+        {
+            return null;
+        }
+
+        return $"StringDifference({left}, {right})";
+    }
+
+    /// <summary>
+    /// The text that reads a string operand on the failure path: its captured local, or its constant
+    /// value as a literal. Null when the operand was not captured or is the constant <c>null</c>.
+    /// </summary>
+    private static string? ReadString(ExpressionSyntax part, RewrittenCondition rewritten, SemanticModel model, CancellationToken token)
+    {
+        if (model.GetConstantValue(part, token) is { HasValue: true } constant)
+        {
+            return constant.Value is string text ? CopyBuilder.Literal(text) : null;
+        }
+
+        return model.GetTypeInfo(part, token).Type?.SpecialType == SpecialType.System_String ? Captured(part, rewritten) : null;
     }
 
     /// <summary>
