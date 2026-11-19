@@ -481,7 +481,7 @@ public class RewriteSpecs
     {
         var thrown = Assert.Throws<TargetInvocationException>(() => Cases.Value.GetMethod("CallsExtension")!.Invoke(null, [new List<int> { 1 }]));
 
-        Assert.StartsWith("Verify failed: items.Count == count\n  items.Count → 1\n  items       → System.Collections.Generic.List`1[System.Int32]\n  count       → 3\n", thrown.InnerException!.Message);
+        Assert.StartsWith("Verify failed: items.Count == count\n  items has 1 item: 1\n  items.Count → 1\n  items       → System.Collections.Generic.List`1[System.Int32]\n  count       → 3\n", thrown.InnerException!.Message);
     }
 
     [VerifyTest]
