@@ -19,7 +19,7 @@ public class ReportSpecs
         ];
         var generated = Enum.GetValues<Tier>().ToDictionary(tier => tier, _ => new GeneratedCounts(0, 0, 0));
 
-        var report = new Report(2, 1_000, 50_000, runs, generated, "");
+        var report = new Report(2, 1_000, 50_000, 1_100, runs, generated, "");
 
         var tier2 = report.Results.Single(result => result.Tier == Tier.Tier2);
         Assert.Equal(32, tier2.MedianSeconds);
@@ -30,6 +30,7 @@ public class ReportSpecs
         var tier3 = report.Results.Single(result => result.Tier == Tier.Tier3);
         Assert.Equal(40, tier3.AddedSecondsAt100000Calls);
         Assert.Contains("| Tier 3 with redirects | 42.0 | 20.0 | 40.0 | 1.91 |", report.ToMarkdown(), StringComparison.Ordinal);
+        Assert.Contains("1,000 tests and 50,000 calls in 2 assemblies, of which 1,100 are `VerifyEquivalent`", report.ToMarkdown(), StringComparison.Ordinal);
     }
 
     [VerifyTest]
@@ -42,7 +43,7 @@ public class ReportSpecs
             new(Tier.Tier3, 0, [30]),
         ];
         var generated = Enum.GetValues<Tier>().ToDictionary(tier => tier, _ => new GeneratedCounts(0, 0, 0));
-        var report = new Report(1, 1_000, 100_000, runs, generated, "");
+        var report = new Report(1, 1_000, 100_000, 0, runs, generated, "");
         var budgets = new Budgets(new TierBudget(160, 5), new TierBudget(120, 7));
 
         var checks = budgets.Check(report);

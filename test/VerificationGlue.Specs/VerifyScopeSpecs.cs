@@ -54,6 +54,37 @@ public class VerifyScopeSpecs
     });
 
     [VerifyTest]
+    public void CheckEquivalent_records_its_failure_in_the_scope_and_continues()
+    {
+        var actual = new Point(1, 2);
+        var reached = false;
+
+        var scope = VerifyScope.Begin();
+        CheckEquivalent(actual, new Point(1, 3));
+        CheckEquivalent(actual, new Point(1, 2));
+        reached = true;
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.True(reached);
+        Assert.Equal(
+            "1 check failed\n\n" +
+            "CheckEquivalent failed: actual is not equivalent to new Point(1, 3)\n" +
+            "  expected Point { X = 1, Y = 3 }, found Point { X = 1, Y = 2 }\n" +
+            "  compared with Equals, because the VerificationGlue generator did not run",
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public Task CheckEquivalent_with_no_scope_throws_like_VerifyEquivalent() => OutsideTheRunnersScope(() =>
+    {
+        var actual = new Point(1, 2);
+
+        var failure = Assert.Throws<VerifyException>(() => CheckEquivalent(actual, new Point(1, 3), options => options));
+
+        Assert.StartsWith("CheckEquivalent failed: actual is not equivalent to new Point(1, 3)\n", failure.Message);
+    });
+
+    [VerifyTest]
     public void An_inner_scope_reports_its_own_failures_and_restores_the_outer_scope()
     {
         var outer = VerifyScope.Begin();
@@ -130,4 +161,6 @@ public class VerifyScopeSpecs
         await Task.Yield();
         Check(value > 0);
     }
+
+    private sealed record Point(int X, int Y);
 }

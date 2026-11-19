@@ -7,6 +7,7 @@ namespace ColdBuild;
 /// <summary>
 /// The test files of one benchmark assembly. Each class holds up to ten <c>[VerifyTest]</c> methods
 /// and one <c>[Verify]</c> helper that every test in it calls, so tier 3 has a call to redirect.
+/// Each test and each helper also has one <c>VerifyEquivalent</c> call, so the build writes comparers.
 /// </summary>
 public sealed class TestSources(string assemblyName, int tests, int callsPerTest)
 {
@@ -28,8 +29,11 @@ public sealed class TestSources(string assemblyName, int tests, int callsPerTest
 
     public int Classes => (tests + TestsPerClass - 1) / TestsPerClass;
 
-    /// <summary>Every <c>Verify</c> call: the calls in each test and the one in each helper.</summary>
-    public int Calls => (tests * callsPerTest) + Classes;
+    /// <summary>Every call: the <c>Verify</c> and <c>VerifyEquivalent</c> calls in each test and in each helper.</summary>
+    public int Calls => (tests * callsPerTest) + Classes + EquivalentCalls;
+
+    /// <summary>The <c>VerifyEquivalent</c> calls: one in each test and one in each helper.</summary>
+    public int EquivalentCalls => tests + Classes;
 
     public IEnumerable<(string Path, string Text)> Files()
     {
@@ -46,6 +50,12 @@ public sealed class TestSources(string assemblyName, int tests, int callsPerTest
 
                 public IReadOnlyList<int> Lines { get; } = lines;
             }
+
+            public sealed record Customer(string Name, string City);
+
+            public sealed record Line(string Sku, int Quantity);
+
+            public sealed record Snapshot(int Id, Customer Customer, List<Line> Lines, Dictionary<string, int> Stock);
 
             """);
 
@@ -84,6 +94,7 @@ public sealed class TestSources(string assemblyName, int tests, int callsPerTest
                 private static void VerifyOrder(Order order)
                 {
                     Verify(order.Lines.Count == 3);
+                    VerifyEquivalent(order.Lines, new[] { 1, 2, 3 });
                 }
             {{methods}}
             }
@@ -102,7 +113,9 @@ public sealed class TestSources(string assemblyName, int tests, int callsPerTest
                 {
                     var order = new Order({{test + 1}}, "order{{test}}", new[] { 1, 2, 3 });
                     var count = order.Lines.Count;
-            {{calls}}        VerifyOrder(order);
+            {{calls}}        var snapshot = new Snapshot(order.Id, new Customer(order.Name, "Paris"), [new Line("A-1", count)], new() { ["A-1"] = 3 });
+                    VerifyEquivalent(snapshot, new Snapshot({{test + 1}}, new Customer("order{{test}}", "Paris"), [new Line("A-1", 3)], new() { ["A-1"] = 3 }));
+                    VerifyOrder(order);
                 }
             """;
     }

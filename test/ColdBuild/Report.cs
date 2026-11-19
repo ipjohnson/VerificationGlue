@@ -34,11 +34,12 @@ public sealed class Report
 {
     public const int ReferenceCalls = 100_000;
 
-    public Report(int assemblies, int tests, int calls, IReadOnlyList<Run> runs, IReadOnlyDictionary<Tier, GeneratedCounts> generated, string environment)
+    public Report(int assemblies, int tests, int calls, int equivalentCalls, IReadOnlyList<Run> runs, IReadOnlyDictionary<Tier, GeneratedCounts> generated, string environment)
     {
         Assemblies = assemblies;
         Tests = tests;
         Calls = calls;
+        EquivalentCalls = equivalentCalls;
         Runs = runs;
         Environment = environment;
 
@@ -57,6 +58,9 @@ public sealed class Report
 
     public int Calls { get; }
 
+    /// <summary>The <c>VerifyEquivalent</c> calls among <see cref="Calls"/>.</summary>
+    public int EquivalentCalls { get; }
+
     public IReadOnlyList<Run> Runs { get; }
 
     public string Environment { get; }
@@ -74,7 +78,7 @@ public sealed class Report
     {
         var text = new StringBuilder();
         text.Append("## Cold-build benchmark\n\n");
-        text.Append(CultureInfo.InvariantCulture, $"{Tests:N0} tests and {Calls:N0} `Verify` calls in {Assemblies} assemblies. ");
+        text.Append(CultureInfo.InvariantCulture, $"{Tests:N0} tests and {Calls:N0} calls in {Assemblies} assemblies, of which {EquivalentCalls:N0} are `VerifyEquivalent` and the rest are `Verify`. ");
         text.Append(CultureInfo.InvariantCulture, $"Each build is a cold rebuild with build servers off, run {Runs.Count(run => run.Tier == Tier.GeneratorOff)} times per configuration in rotating order. ");
         text.Append("Seconds are the median over runs of the summed build time of all assemblies. ");
         text.Append(CultureInfo.InvariantCulture, $"Added seconds are scaled to {ReferenceCalls:N0} calls. {Environment}\n\n");

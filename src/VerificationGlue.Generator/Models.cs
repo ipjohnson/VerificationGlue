@@ -19,6 +19,7 @@ internal enum CallKind
     VerifyLambda,
     CheckLambda,
     VerifyEquivalent,
+    CheckEquivalent,
 }
 
 /// <summary>
@@ -35,7 +36,7 @@ internal enum CallKind
 /// call gets no interceptor.
 /// </param>
 /// <param name="Lambda">For <c>Verify(() =&gt; ...)</c> and <c>Check(() =&gt; ...)</c>, the generated check of the lambda; otherwise null.</param>
-/// <param name="Equivalence">For <c>VerifyEquivalent</c>, the comparer of its type; otherwise null.</param>
+/// <param name="Equivalence">For <c>VerifyEquivalent</c> and <c>CheckEquivalent</c>, the comparer of its type; otherwise null.</param>
 internal sealed record CallModel(
     string FilePath,
     int Line,
@@ -50,7 +51,7 @@ internal sealed record CallModel(
     LambdaModel? Lambda = null,
     EquivalenceModel? Equivalence = null);
 
-/// <summary>The comparer of one <c>VerifyEquivalent</c> call.</summary>
+/// <summary>The comparer of one <c>VerifyEquivalent</c> or <c>CheckEquivalent</c> call.</summary>
 /// <param name="ParameterType">The type of the <c>actual</c> and <c>expected</c> parameters, with its nullable annotation, as the interceptor declares them.</param>
 /// <param name="Root">
 /// The <see cref="ComparedType.Key"/> of the type the call compares, or null when the values

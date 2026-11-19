@@ -226,7 +226,7 @@ CSharpAuthor use:
 
 The phase 0 cold-build benchmark adds 53.9 s at 100,000 calls for tier 2 alone and 42.7 s for tier 3 with redirects. The CI job `cold-build` measures it on every push and pull request and uploads `report.md`.
 
-The benchmark is `test/ColdBuild`. It writes 10,000 `[VerifyTest]` methods with 10 `Verify` calls each into three assemblies. Each test class also has one `[Verify]` helper that every test in it calls, which gives tier 3 a call to redirect. That makes 101,002 calls, and added seconds are scaled to 100,000. Each configuration is a cold rebuild of all three assemblies with build servers off, run three times in rotating order. The table gives the median of the summed build times.
+The benchmark is `test/ColdBuild`. It writes 10,000 `[VerifyTest]` methods with 10 `Verify` calls and one `VerifyEquivalent` call each into three assemblies. Each test class also has one `[Verify]` helper that every test in it calls, which gives tier 3 a call to redirect. The helper has one `Verify` and one `VerifyEquivalent` call. That makes 112,004 calls, 11,002 of them `VerifyEquivalent`, and added seconds are scaled to 100,000. Each configuration is a cold rebuild of all three assemblies with build servers off, run three times in rotating order. The table gives the median of the summed build times.
 
 Since Phase 2 the benchmark times the product generator, `src/VerificationGlue.Generator`, with `VerificationGlueRewrite` switching tier 3. The benchmark sources declare a `[VerifyRewrite]` attribute named `VerifyTest` in place of the one from `VerificationGlue.Tests`.
 
@@ -239,6 +239,16 @@ Phase 0 timed a stand-in generator, `test/ColdBuild.Generator`, which Phase 2 re
 | Tier 3 with redirects | 50.2 | 42.7 | 7.08 | 1,002 | 11,002 | 10,000 |
 
 Tier 3 costs less than tier 2 alone. Under tier 3 the 100,000 calls in test bodies get no interceptor, because the runner calls the copies. One interceptor per call is the main cost of tier 2.
+
+The `VerifyEquivalent` calls were added to the benchmark with `CheckEquivalent`. On this Mac, the fastest of five interleaved cold builds of one benchmark assembly took these times. Main had 33,674 `Verify` calls in the assembly, and the branch added 3,668 `VerifyEquivalent` calls to them:
+
+| Build | Main | With `VerifyEquivalent` | Added |
+|---|---:|---:|---:|
+| Generator off | 2.4 s | 3.1 s | 0.7 s |
+| Tier 2 alone | 21.5 s | 28.7 s | 7.2 s |
+| Tier 3 with redirects | 16.8 s | 22.5 s | 5.7 s |
+
+After the 0.7 s that the larger source costs without the generator, a `VerifyEquivalent` call adds about 1.8 ms to a cold build at tier 2 and 1.4 ms at tier 3. A `Verify` call adds about 0.57 ms at tier 2. The ratio to generator off grows by about 3% at tier 2 and 4% at tier 3.
 
 The assertion spike measured about 0.7 ms per call with a generator that was not incremental, about 70 s at 100,000 calls. The benchmark replaces that figure.
 

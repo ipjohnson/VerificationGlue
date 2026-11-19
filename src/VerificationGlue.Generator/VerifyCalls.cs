@@ -21,14 +21,14 @@ internal static class VerifyCalls
     public const string ExpectedExpressionParameter = "expectedExpression";
     public const string OptionsParameter = "options";
 
-    /// <summary>The options argument of a <c>VerifyEquivalent</c> call, or null for the overload without options.</summary>
+    /// <summary>The options argument of a <c>VerifyEquivalent</c> or <c>CheckEquivalent</c> call, or null for the overload without options.</summary>
     public static ExpressionSyntax? Options(InvocationExpressionSyntax invocation, IMethodSymbol method) =>
         method.Parameters.Length > 2 && method.Parameters[2].Name == OptionsParameter ? Argument(invocation, OptionsParameter, 2) : null;
 
     /// <summary>A cheap syntax test: an invocation whose method name is one of ours.</summary>
     public static bool IsCandidate(SyntaxNode node) =>
         node is InvocationExpressionSyntax invocation && MethodName(invocation.Expression) is
-            "Verify" or "Check" or "Throws" or "ThrowsAsync" or "ThrowsExactly" or "ThrowsExactlyAsync" or "Single" or "Is" or "NotNull" or "VerifyEquivalent";
+            "Verify" or "Check" or "Throws" or "ThrowsAsync" or "ThrowsExactly" or "ThrowsExactlyAsync" or "Single" or "Is" or "NotNull" or "VerifyEquivalent" or "CheckEquivalent";
 
     public static CallKind? KindOf(IMethodSymbol method)
     {
@@ -53,12 +53,16 @@ internal static class VerifyCalls
             "Is" => CallKind.Is,
             "NotNull" => method.OriginalDefinition.TypeParameters[0].HasValueTypeConstraint ? CallKind.NotNullValue : CallKind.NotNull,
             "VerifyEquivalent" => CallKind.VerifyEquivalent,
+            "CheckEquivalent" => CallKind.CheckEquivalent,
             _ => null,
         };
     }
 
     /// <summary>Whether the kind is a <c>Check</c>, which records its failure in the current scope.</summary>
-    public static bool IsCheck(CallKind kind) => kind is CallKind.Check or CallKind.CheckLambda;
+    public static bool IsCheck(CallKind kind) => kind is CallKind.Check or CallKind.CheckLambda or CallKind.CheckEquivalent;
+
+    /// <summary>Whether the kind compares two values with a generated comparer.</summary>
+    public static bool IsEquivalent(CallKind kind) => kind is CallKind.VerifyEquivalent or CallKind.CheckEquivalent;
 
     /// <summary>
     /// The body of a parameterless lambda with an expression body, as passed to

@@ -1,8 +1,9 @@
+using VerificationGlue;
 using static VerificationGlue.VerifySyntax;
 
 namespace Messages;
 
-/// <summary>Tier 2: <c>VerifyEquivalent</c>, which compares two values member by member.</summary>
+/// <summary>Tier 2: <c>VerifyEquivalent</c> and <c>CheckEquivalent</c>, which compare two values member by member.</summary>
 public static class EquivalentMessages
 {
     public static void Members()
@@ -65,6 +66,21 @@ public static class EquivalentMessages
         var parsed = new Invoice(8, [new InvoiceLine("B-2", 3), new InvoiceLine("A-1", 2)], ["gift", "gift"]);
         var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["fragile", "gift"]);
         VerifyEquivalent(parsed, expected, options => options.Unordered(x => x.Lines).Unordered(x => x.Tags).Ignore(x => x.Id));
+        #endregion
+    }
+
+    public static void CheckInScope()
+    {
+        #region check-equivalent
+        var parsed = new Invoice(7, [new InvoiceLine("A-1", 1)], ["gift"]);
+        var expected = new Invoice(8, [new InvoiceLine("A-1", 2)], ["gift"]);
+
+        using (VerifyScope.Begin())
+        {
+            CheckEquivalent(parsed, expected, options => options.Ignore(x => x.Id));
+            CheckEquivalent(parsed.Tags, expected.Tags);
+            Check(parsed.Lines.Count == 2);
+        }
         #endregion
     }
 }

@@ -6,9 +6,9 @@ using System.Text;
 namespace VerificationGlue.Generator;
 
 /// <summary>
-/// Writes the <c>VerifyEquivalent</c> comparers of a compilation into one internal class, which the
-/// interceptors and the tier 3 copies call, and the interceptors of the <c>VerifyEquivalent</c>
-/// calls in one file.
+/// Writes the <c>VerifyEquivalent</c> and <c>CheckEquivalent</c> comparers of a compilation into
+/// one internal class, which the interceptors and the tier 3 copies call, and the interceptors of
+/// those calls in one file.
 /// </summary>
 internal static class EquivalenceEmitter
 {
@@ -19,12 +19,14 @@ internal static class EquivalenceEmitter
     private const string Runtime = "global::VerificationGlue.VerifyFailure";
 
     /// <summary>
-    /// The call that replaces a <c>VerifyEquivalent</c> call: the generated entry for its type, or
-    /// <c>EquivalentByEquals</c> when its type has no comparer.
+    /// The call that replaces a <c>VerifyEquivalent</c> or <c>CheckEquivalent</c> call. It passes the
+    /// differences that the generated entry for its type finds, or that <c>EqualsDifferences</c>
+    /// finds when its type has no comparer, to <c>Equivalent</c> or <c>CheckEquivalent</c>.
     /// </summary>
-    public static string Call(EquivalenceModel model, string actual, string expected, string actualExpression, string expectedExpression, string path, string line) =>
-        (model.Root is { } root ? $"{Class}.Verify_{root}" : $"{Runtime}.EquivalentByEquals") +
-        $"({actual}, {expected}, {actualExpression}, {expectedExpression}, {path}, {line})";
+    public static string Call(EquivalenceModel model, CallKind kind, string actual, string expected, string actualExpression, string expectedExpression, string path, string line) =>
+        $"{Runtime}.{(kind == CallKind.CheckEquivalent ? "CheckEquivalent" : "Equivalent")}(" +
+        (model.Root is { } root ? $"{Class}.Differences_{root}" : $"{Runtime}.EqualsDifferences") +
+        $"({actual}, {expected}), {actualExpression}, {expectedExpression}, {path}, {line})";
 
     /// <summary>The comparers of every model, each type once, or null when no model walks a type.</summary>
     public static string? Emit(IEnumerable<EquivalenceModel> models)
@@ -59,11 +61,11 @@ internal static class EquivalenceEmitter
 
         foreach (var root in roots)
         {
-            text.Append("        public static void Verify_").Append(root.Key).Append('(').Append(root.Value).Append(" actual, ").Append(root.Value)
-                .Append(" expected, string actualExpression, string expectedExpression, string file, int line)\n        {\n")
+            text.Append("        public static ").Append(Differences).Append(" Differences_").Append(root.Key).Append('(').Append(root.Value).Append(" actual, ").Append(root.Value)
+                .Append(" expected)\n        {\n")
                 .Append("            var differences = new ").Append(Differences).Append("();\n")
                 .Append("            Compare_").Append(root.Key).Append("(actual, expected, \"\", differences);\n")
-                .Append("            ").Append(Runtime).Append(".Equivalent(differences, actualExpression, expectedExpression, file, line);\n")
+                .Append("            return differences;\n")
                 .Append("        }\n\n");
         }
 
@@ -230,7 +232,7 @@ internal static class EquivalenceEmitter
         }
     }
 
-    /// <summary>The interceptors of the <c>VerifyEquivalent</c> calls of one file, or an empty string when it has none.</summary>
+    /// <summary>The interceptors of the <c>VerifyEquivalent</c> and <c>CheckEquivalent</c> calls of one file, or an empty string when it has none.</summary>
     public static string Interceptors(FileCalls file)
     {
         var calls = file.Calls.Where(call => call.Equivalence is not null).ToList();
@@ -248,12 +250,13 @@ internal static class EquivalenceEmitter
             text.Append(first ? "" : "\n")
                 .Append("        [global::System.Runtime.CompilerServices.InterceptsLocation(")
                 .Append(call.LocationVersion.ToString(CultureInfo.InvariantCulture)).Append(", ").Append(CopyBuilder.Literal(call.LocationData)).Append(")]\n")
-                .Append("        public static void VerifyEquivalent_").Append(call.Line.ToString(CultureInfo.InvariantCulture)).Append('_').Append(call.Column.ToString(CultureInfo.InvariantCulture))
+                .Append("        public static void ").Append(call.Kind.ToString()).Append('_').Append(call.Line.ToString(CultureInfo.InvariantCulture)).Append('_').Append(call.Column.ToString(CultureInfo.InvariantCulture))
                 .Append(model.Root is null ? "<T>(" : "(").Append(type).Append(" actual, ").Append(type)
                 .Append(" expected, ").Append(model.OptionsType is null ? "" : model.OptionsType + " options, ")
                 .Append("string? actualExpression = null, string? expectedExpression = null)\n        {\n            ")
                 .Append(Call(
                     model,
+                    call.Kind,
                     "actual",
                     "expected",
                     "actualExpression",

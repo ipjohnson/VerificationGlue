@@ -216,6 +216,18 @@ public class EquivalenceSpecs
             [Verify]
             public static void InCopy() => VerifyEquivalent(Invoice("London"), Invoice("Paris"));
 
+            public static void CheckThree()
+            {
+                CheckEquivalent(Invoice("London"), Invoice("Paris"));
+                CheckEquivalent(Invoice("London"), Invoice("London"));
+                CheckEquivalent(new Hidden(1), new Hidden(2));
+            }
+
+            public static void CheckWithOptions() => CheckEquivalent(Invoice("London"), Invoice("Paris", Status.Paid), o => o.Ignore(x => x.Customer!.Address.City));
+
+            [Verify]
+            public static void CheckInCopy() => CheckEquivalent(Invoice("London"), Invoice("Paris"));
+
             private sealed record Hidden(int Value);
         }
         """;
@@ -574,6 +586,79 @@ public class EquivalenceSpecs
     }
 
     [VerifyTest]
+    public void CheckEquivalent_records_each_failure_in_the_scope_and_continues()
+    {
+        var scope = VerifyScope.Begin();
+        Run("CheckThree");
+        Run("CheckWithOptions");
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        var first = LineOf("CheckThree()") + 2;
+        Assert.Equal(
+            Lines(
+                "3 checks failed",
+                "",
+                "CheckEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\")",
+                "  Customer.Address.City: expected \"Paris\", found \"London\"",
+                $"  at Tests/Equivalence.cs:{first}",
+                "",
+                "CheckEquivalent failed: new Hidden(1) is not equivalent to new Hidden(2)",
+                "  expected Hidden { Value = 2 }, found Hidden { Value = 1 }",
+                $"  at Tests/Equivalence.cs:{first + 2}",
+                "",
+                "CheckEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\", Status.Paid)",
+                "  Status: expected Paid, found Open",
+                $"  at Tests/Equivalence.cs:{LineOf("CheckWithOptions()")}"),
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public Task CheckEquivalent_with_no_scope_throws_like_VerifyEquivalent() => OutsideTheRunnersScope(() =>
+    {
+        Assert.Equal(
+            Lines(
+                "CheckEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\", Status.Paid)",
+                "  Status: expected Paid, found Open",
+                $"  at Tests/Equivalence.cs:{LineOf("CheckWithOptions()")}"),
+            Fail("CheckWithOptions").Message);
+        Assert.StartsWith("CheckEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\")\n", Fail("CheckThree").Message);
+    });
+
+    [VerifyTest]
+    public void CheckEquivalent_in_a_tier_3_copy_records_its_failure_in_the_scope()
+    {
+        var scope = VerifyScope.Begin();
+        Assembly.Value.GetType("Sample.Cases")!.GetMethod("CheckInCopy__Verified")!.Invoke(null, null);
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.Equal(
+            Lines(
+                "1 check failed",
+                "",
+                "CheckEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\")",
+                "  Customer.Address.City: expected \"Paris\", found \"London\"",
+                $"  at Tests/Equivalence.cs:{LineOf("CheckInCopy()")}"),
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public void VG0010_and_VG0011_name_CheckEquivalent_at_its_call()
+    {
+        var diagnostics = Analyze(
+            "CheckEquivalent(invoice, invoice, o => o.Ignore(x => x.Customer!.Name.Length));",
+            "CheckEquivalent(new Secret(), new Secret());");
+
+        Assert.Equal(
+            [
+                "VG0010: The CheckEquivalent option 'x => x.Customer!.Name.Length' is not applied, because the comparer compares 'Customer.Name' with Equals, so it does not read 'Length'",
+                "VG0011: CheckEquivalent compares 'Tests.Secret' by reference, because the generated code cannot name it",
+            ],
+            diagnostics.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}"));
+    }
+
+    [VerifyTest]
     public void The_interceptor_calls_a_comparer_written_for_the_type()
     {
         var result = GeneratorHarness.Generate(GeneratorHarness.Compilation((Path, Source)), new VerificationGlueGenerator(), out _);
@@ -582,7 +667,10 @@ public class EquivalenceSpecs
         var comparers = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(EquivalenceEmitter.HintName, StringComparison.Ordinal)).ToString();
         Assert.Contains("VerifyEquivalent_", interceptors);
         Assert.Contains("(global::Sample.Invoice actual, global::Sample.Invoice expected, string? actualExpression = null, string? expectedExpression = null)", interceptors);
-        Assert.Contains("global::VerificationGlue.Generated.Equivalence.Verify_Invoice_", interceptors);
+        Assert.Contains("global::VerificationGlue.VerifyFailure.Equivalent(global::VerificationGlue.Generated.Equivalence.Differences_Invoice_", interceptors);
+        Assert.Contains("public static void CheckEquivalent_", interceptors);
+        Assert.Contains("global::VerificationGlue.VerifyFailure.CheckEquivalent(global::VerificationGlue.Generated.Equivalence.Differences_Invoice_", interceptors);
+        Assert.Contains("global::VerificationGlue.VerifyFailure.CheckEquivalent(global::VerificationGlue.VerifyFailure.EqualsDifferences(actual, expected)", interceptors);
         Assert.Contains("differences.Equal(path, \"City\", actual.City, expected.City);", comparers);
         Assert.Contains("Compare_Address_", comparers);
         Assert.Equal(
@@ -600,7 +688,7 @@ public class EquivalenceSpecs
             "(global::Sample.Invoice actual, global::Sample.Invoice expected, global::System.Func<global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>, global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>> options, string? actualExpression = null",
             interceptors);
         Assert.Contains("<T>(T actual, T expected, global::System.Func<global::VerificationGlue.EquivalenceOptions<T>, global::VerificationGlue.EquivalenceOptions<T>> options, ", interceptors);
-        Assert.Contains("Verify_InvoiceOptions_", interceptors);
+        Assert.Contains("Differences_InvoiceOptions_", interceptors);
         Assert.Contains("differences.Same(actual[other], expected[index], Compare_Address_", comparers);
         Assert.Contains("differences.Same(actual[other], expected[index]))", comparers);
         Assert.DoesNotContain("Reflection", comparers);
@@ -660,6 +748,16 @@ public class EquivalenceSpecs
             """);
 
     private static void Run(string method) => Assembly.Value.GetType("Sample.Cases")!.GetMethod(method)!.Invoke(null, null);
+
+    // VerificationGlue.Tests runs each test inside a VerifyScope. The body runs without the
+    // execution context, so it starts with no scope.
+    private static Task OutsideTheRunnersScope(Action body)
+    {
+        using (ExecutionContext.SuppressFlow())
+        {
+            return Task.Run(body);
+        }
+    }
 
     private static VerifyException Fail(string method)
     {

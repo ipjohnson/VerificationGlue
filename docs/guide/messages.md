@@ -248,7 +248,7 @@ var parsed = new Shipment(7, new Address("Ada", "London"), ShipmentStatus.Packed
 var expected = new Shipment(7, new Address("Ada", "Paris"), ShipmentStatus.Sent, new Address("Ada", "Paris"));
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L10-L14' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-equivalent' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L11-L15' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-equivalent' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: tier2-equivalent -->
@@ -257,7 +257,7 @@ VerifyEquivalent failed: parsed is not equivalent to expected
   To.City: expected "Paris", found "London"
   Status: expected Sent, found Packed
   ReturnTo: expected Address { Name = Ada, City = Paris }, found null
-  at EquivalentMessages.cs:13
+  at EquivalentMessages.cs:14
 ```
 <!-- endMessage -->
 
@@ -270,7 +270,7 @@ var parsed = new Stock(new() { ["gift"] = 3, ["wrap"] = 1 }, ["fragile", "gift"]
 var expected = new Stock(new() { ["gift"] = 5, ["card"] = 2 }, ["gift", "express"]);
 VerifyEquivalent(parsed, expected);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L37-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-equivalent-maps' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L38-L42' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-tier2-equivalent-maps' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: tier2-equivalent-maps -->
@@ -281,11 +281,13 @@ VerifyEquivalent failed: parsed is not equivalent to expected
   Levels: extra "wrap": 1
   Tags: missing "express"
   Tags: extra "fragile"
-  at EquivalentMessages.cs:40
+  at EquivalentMessages.cs:41
 ```
 <!-- endMessage -->
 
 Without the generator, `VerifyEquivalent` compares the two values with `Equals`. A record then still compares member by member, but a class compares by reference. The message gives both values and says that the generator did not run.
+
+`VerifyEquivalent` throws inside a `VerifyScope` too. [CheckEquivalent](#checkequivalent) records the failure in the scope instead.
 
 ## Tier 3: captured values
 
@@ -843,5 +845,39 @@ Check failed: order.Shipping.Length > 8
   order.Shipping        → "standard"
   order                 → order 7
   at CheckMessages.cs:36
+```
+<!-- endMessage -->
+
+### CheckEquivalent
+
+`CheckEquivalent(actual, expected)` compares as `VerifyEquivalent` does and takes the same options. It records its failure in the scope like `Check`, so the calls after it still run:
+
+<!-- snippet: check-equivalent -->
+<a id='snippet-check-equivalent'></a>
+```cs
+var parsed = new Invoice(7, [new InvoiceLine("A-1", 1)], ["gift"]);
+var expected = new Invoice(8, [new InvoiceLine("A-1", 2)], ["gift"]);
+
+using (VerifyScope.Begin())
+{
+    CheckEquivalent(parsed, expected, options => options.Ignore(x => x.Id));
+    CheckEquivalent(parsed.Tags, expected.Tags);
+    Check(parsed.Lines.Count == 2);
+}
+```
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L74-L84' title='Snippet source file'>snippet source</a> | <a href='#snippet-check-equivalent' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: check-equivalent -->
+```text
+2 checks failed
+
+CheckEquivalent failed: parsed is not equivalent to expected
+  Lines[0].Quantity: expected 2, found 1
+  at EquivalentMessages.cs:80
+
+Check failed: parsed.Lines.Count == 2
+  expected parsed.Lines.Count to equal 2
+  at EquivalentMessages.cs:82
 ```
 <!-- endMessage -->

@@ -82,7 +82,12 @@ public sealed class RewriteAnalyzer : DiagnosticAnalyzer
         var kind = VerifyCalls.KindOf(invocation.TargetMethod);
         if (kind is { } found && VerifyCalls.IsCheck(found) && ScopelessMember(context.ContainingSymbol) is { } member)
         {
-            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.CheckWithoutScope, syntax.GetLocation(), member));
+            context.ReportDiagnostic(Diagnostic.Create(
+                Diagnostics.CheckWithoutScope,
+                syntax.GetLocation(),
+                invocation.TargetMethod.Name,
+                member,
+                found == CallKind.CheckEquivalent ? "VerifyEquivalent" : "Verify"));
         }
 
         if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check or CallKind.VerifyLambda or CallKind.CheckLambda && IsRewritten(context, syntax, out var condition, out var model))
