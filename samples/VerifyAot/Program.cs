@@ -81,8 +81,31 @@ Verify(noValue.Message == """
       at Program.cs:78
     """);
 
+// Tier 3: the rewritten copy of a [Verify] method adds the tolerance line before the values.
+var apart = Throws<VerifyException>(() => ToleranceChecks.VerifyLeft(new Box(120.5625, 40)));
+Verify(apart.Message == """
+    Verify failed: Math.Abs(box.X - 120.5) <= 0.01
+      box.X differs from 120.5 by 0.0625, tolerance 0.01
+      Math.Abs(box.X - 120.5) → 0.0625
+      box.X - 120.5           → 0.0625
+      box.X                   → 120.5625
+      box                     → Box { X = 120.5625, Y = 40 }
+      at Program.cs:109
+    """);
+
 Verify(Single(names, n => n.Length == 2) == "Bo");
 Verify(Is<List<int>>(shape).Count == 0);
 Verify(NotNull((int?)3) == 3);
 
 Console.WriteLine("VerifyAot passed.");
+
+public sealed record Box(double X, double Y);
+
+public static partial class ToleranceChecks
+{
+    [Verify]
+    public static void VerifyLeft(Box box)
+    {
+        Verify(Math.Abs(box.X - 120.5) <= 0.01);
+    }
+}
