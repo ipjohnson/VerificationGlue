@@ -306,3 +306,7 @@ It also reports what keeps a method from tier 3, and a misplaced `Check`:
 It suggests the lambda form in a test method:
 
 - [VG0009](../diagnostics/VG0009.md): `Verify(condition)` or `Check(condition)` where `Verify(() => condition)` loses nothing. Set `VerificationGlueLambdaSeverity` to `warning` to make it a build warning.
+
+It reports a `VerifyEquivalent` option that the comparer cannot apply:
+
+- [VG0010](../diagnostics/VG0010.md): an `Unordered` or `Ignore` lambda that is not a chain of member accesses, or that names a member the comparer does not read.

@@ -66,4 +66,4 @@ Keep `Verify(order.Total == 30)` without a lambda in three cases: the condition 
 - [Compare two values with VerifyEquivalent](../../docs/guide/verify-equivalent.md), including arrays and lists.
 - [Migrate from xunit Assert](../../docs/guide/migrate-from-xunit-assert.md).
 - [Generated interceptors](../../docs/guide/generated/interceptors.md) and [generated tier 3 copies](../../docs/guide/generated/rewritten-methods.md), the code the generator writes.
-- Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0009](../../docs/diagnostics/VG0009.md).
+- Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0010](../../docs/diagnostics/VG0010.md).

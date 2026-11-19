@@ -57,7 +57,8 @@ internal sealed record CallModel(
 /// compare with <c>Equals</c>, because the generated code cannot name the type or does not walk it.
 /// </param>
 /// <param name="Types">Every type the comparer walks, the root first.</param>
-internal sealed record EquivalenceModel(string ParameterType, string? Root, EquatableArray<ComparedType> Types);
+/// <param name="OptionsType">The type of the <c>options</c> parameter as the interceptor declares it, or null for the call without options.</param>
+internal sealed record EquivalenceModel(string ParameterType, string? Root, EquatableArray<ComparedType> Types, string? OptionsType = null);
 
 /// <summary>A type whose members, or whose items, the generated comparer compares one by one.</summary>
 /// <param name="Key">The name of its compare method, which is unique per type.</param>
@@ -66,11 +67,12 @@ internal sealed record EquivalenceModel(string ParameterType, string? Root, Equa
 /// <param name="Items">The items of an array or a list, or null for a type whose members are compared.</param>
 internal sealed record ComparedType(string Key, string Name, bool IsReference, EquatableArray<ComparedMember> Members, ComparedItems? Items = null);
 
-/// <summary>The items of an array or a list, which the comparer compares in order.</summary>
+/// <summary>The items of an array or a list, which the comparer compares in order, or without order when an <c>Unordered</c> option names it.</summary>
 /// <param name="Count">The member that gives the number of items: <c>Length</c> for an array, <c>Count</c> for a list.</param>
 /// <param name="Type">The <see cref="ComparedType.Key"/> of the item type, or null to compare with <c>Equals</c>.</param>
 /// <param name="Nullable">True when the item type is a <c>Nullable&lt;T&gt;</c> of the walked type.</param>
-internal sealed record ComparedItems(string Count, string? Type, bool Nullable);
+/// <param name="Unordered">True when each expected item matches any one actual item.</param>
+internal sealed record ComparedItems(string Count, string? Type, bool Nullable, bool Unordered = false);
 
 /// <summary>A public field or property that the comparer reads.</summary>
 /// <param name="Name">The name of the member, as the path shows it.</param>

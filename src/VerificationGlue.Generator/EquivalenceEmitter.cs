@@ -106,6 +106,12 @@ internal static class EquivalenceEmitter
 
     private static void Items(StringBuilder text, ComparedItems items)
     {
+        if (items.Unordered)
+        {
+            UnorderedItems(text, items);
+            return;
+        }
+
         text.Append("            differences.ItemCount(path, actual.").Append(items.Count).Append(", expected.").Append(items.Count).Append(");\n")
             .Append("            var count = actual.").Append(items.Count).Append(" < expected.").Append(items.Count)
             .Append(" ? actual.").Append(items.Count).Append(" : expected.").Append(items.Count).Append(";\n")
@@ -113,6 +119,32 @@ internal static class EquivalenceEmitter
         var path = $"{Differences}.Item(path, index)";
         Value(text, "                ", items.Type, items.Nullable, "actual[index]", "expected[index]", path, path + ", \"\"", "Item");
         text.Append("            }\n");
+    }
+
+    /// <summary>
+    /// Matches each expected item with the first unmatched actual item that is the same, then lists
+    /// each expected item left as missing and each actual item left as extra.
+    /// </summary>
+    private static void UnorderedItems(StringBuilder text, ComparedItems items)
+    {
+        var count = items.Count;
+        var same = items.Type is null
+            ? "differences.Same(actual[other], expected[index])"
+            : $"differences.{(items.Nullable ? "SameNullable" : "Same")}(actual[other], expected[index], Compare_{items.Type})";
+        text.Append("            var matched = new bool[actual.").Append(count).Append("];\n")
+            .Append("            for (var index = 0; index < expected.").Append(count).Append("; index++)\n            {\n")
+            .Append("                var found = false;\n")
+            .Append("                for (var other = 0; other < actual.").Append(count).Append(" && !found; other++)\n                {\n")
+            .Append("                    if (!matched[other] && ").Append(same).Append(")\n                    {\n")
+            .Append("                        matched[other] = found = true;\n")
+            .Append("                    }\n                }\n\n")
+            .Append("                if (!found)\n                {\n")
+            .Append("                    differences.Missing(path, expected[index]);\n")
+            .Append("                }\n            }\n\n")
+            .Append("            for (var index = 0; index < actual.").Append(count).Append("; index++)\n            {\n")
+            .Append("                if (!matched[index])\n                {\n")
+            .Append("                    differences.Extra(path, actual[index]);\n")
+            .Append("                }\n            }\n");
     }
 
     /// <summary>
@@ -164,7 +196,8 @@ internal static class EquivalenceEmitter
                 .Append(call.LocationVersion.ToString(CultureInfo.InvariantCulture)).Append(", ").Append(CopyBuilder.Literal(call.LocationData)).Append(")]\n")
                 .Append("        public static void VerifyEquivalent_").Append(call.Line.ToString(CultureInfo.InvariantCulture)).Append('_').Append(call.Column.ToString(CultureInfo.InvariantCulture))
                 .Append(model.Root is null ? "<T>(" : "(").Append(type).Append(" actual, ").Append(type)
-                .Append(" expected, string? actualExpression = null, string? expectedExpression = null)\n        {\n            ")
+                .Append(" expected, ").Append(model.OptionsType is null ? "" : model.OptionsType + " options, ")
+                .Append("string? actualExpression = null, string? expectedExpression = null)\n        {\n            ")
                 .Append(Call(
                     model,
                     "actual",

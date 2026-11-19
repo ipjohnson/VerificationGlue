@@ -19,6 +19,11 @@ internal static class VerifyCalls
     public const string ExpectedParameter = "expected";
     public const string ActualExpressionParameter = "actualExpression";
     public const string ExpectedExpressionParameter = "expectedExpression";
+    public const string OptionsParameter = "options";
+
+    /// <summary>The options argument of a <c>VerifyEquivalent</c> call, or null for the overload without options.</summary>
+    public static ExpressionSyntax? Options(InvocationExpressionSyntax invocation, IMethodSymbol method) =>
+        method.Parameters.Length > 2 && method.Parameters[2].Name == OptionsParameter ? Argument(invocation, OptionsParameter, 2) : null;
 
     /// <summary>A cheap syntax test: an invocation whose method name is one of ours.</summary>
     public static bool IsCandidate(SyntaxNode node) =>

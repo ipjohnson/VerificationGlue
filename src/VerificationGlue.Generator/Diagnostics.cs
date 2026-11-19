@@ -90,4 +90,13 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VG0009.md");
+
+    public static readonly DiagnosticDescriptor EquivalenceOption = new(
+        id: "VG0010",
+        title: "A VerifyEquivalent option does not name a member the comparer reads",
+        messageFormat: "The VerifyEquivalent option '{0}' is not applied, because {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0010.md");
 }

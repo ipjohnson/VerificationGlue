@@ -379,10 +379,12 @@ internal sealed class CopyBuilder
             {
                 var actual = VerifyCalls.Argument(call, VerifyCalls.ActualParameter, 0)!;
                 var expected = VerifyCalls.Argument(call, VerifyCalls.ExpectedParameter, 1)!;
-                var actualExpression = VerifyCalls.Argument(call, VerifyCalls.ActualExpressionParameter, 2);
-                var expectedExpression = VerifyCalls.Argument(call, VerifyCalls.ExpectedExpressionParameter, 3);
+                var options = VerifyCalls.Options(call, target);
+                var first = target.Parameters.Length == 5 ? 3 : 2;
+                var actualExpression = VerifyCalls.Argument(call, VerifyCalls.ActualExpressionParameter, first);
+                var expectedExpression = VerifyCalls.Argument(call, VerifyCalls.ExpectedExpressionParameter, first + 1);
                 return EquivalenceEmitter.Call(
-                    EquivalenceBuilder.Build(target, _model.Compilation),
+                    EquivalenceBuilder.Build(target, _model.Compilation, options, _model),
                     Render(actual.Span),
                     Render(expected.Span),
                     actualExpression is null ? Literal(actual.ToString()) : Render(actualExpression.Span),

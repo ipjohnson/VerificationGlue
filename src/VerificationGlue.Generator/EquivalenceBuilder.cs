@@ -3,6 +3,7 @@ using System.Linq;
 using CSharpAuthor.Collections;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace VerificationGlue.Generator;
 
@@ -13,7 +14,9 @@ namespace VerificationGlue.Generator;
 /// <c>Equals</c>: primitives, strings, enums, a type that implements <c>IEquatable&lt;T&gt;</c> and
 /// is not a record, any other collection, such as a dictionary or a set, an interface, a type in a
 /// <c>System</c> or <c>Microsoft</c> namespace, a type with no member to walk, and a type the
-/// generated code cannot name.
+/// generated code cannot name. An <c>Ignore</c> option leaves a member out, and an <c>Unordered</c>
+/// option compares the items of an array or a list without order. A type below an option gets its
+/// own comparer, keyed by the options that reach it, so calls without the option keep the shared one.
 /// </summary>
 internal sealed class EquivalenceBuilder
 {
@@ -25,22 +28,101 @@ internal sealed class EquivalenceBuilder
 
     private EquivalenceBuilder(Compilation compilation) => _compilation = compilation;
 
-    public static EquivalenceModel Build(IMethodSymbol method, Compilation compilation)
+    /// <summary>
+    /// The comparer of a <c>VerifyEquivalent</c> call. <paramref name="options"/> is the options
+    /// argument of the overload that takes one, read with <paramref name="model"/>. An option that
+    /// <see cref="Problems"/> reports is left out.
+    /// </summary>
+    public static EquivalenceModel Build(IMethodSymbol method, Compilation compilation, ExpressionSyntax? options = null, SemanticModel? model = null)
     {
         var builder = new EquivalenceBuilder(compilation);
-        var root = builder.Visit(method.TypeArguments[0]);
+        var applied = model is null ? new List<EquivalenceOption>() : builder.Applied(method.TypeArguments[0], options, model, new List<OptionProblem>());
+        var root = builder.Visit(method.TypeArguments[0], applied.Select(option => new PathOption(option.Kind, option.Path)).ToList());
+        string? optionsType = null;
+        if (method.Parameters.Length > 2 && method.Parameters[2].Name == VerifyCalls.OptionsParameter)
+        {
+            optionsType = (root is null ? method.OriginalDefinition : method).Parameters[2].Type.ToDisplayString(TypeNames.Format);
+        }
+
         return new EquivalenceModel(
             method.Parameters[0].Type.ToDisplayString(TypeNames.Format),
             root,
-            new EquatableArray<ComparedType>(builder._types.Where(type => type is not null).Select(type => type!).ToArray()));
+            new EquatableArray<ComparedType>(builder._types.Where(type => type is not null).Select(type => type!).ToArray()),
+            optionsType);
     }
 
-    /// <summary>The key of the comparer for <paramref name="type"/>, or null when it compares with <c>Equals</c>.</summary>
-    private string? Visit(ITypeSymbol type)
+    /// <summary>The options of a <c>VerifyEquivalent</c> call that the comparer does not apply, each with the reason.</summary>
+    public static List<OptionProblem> Problems(IMethodSymbol method, Compilation compilation, ExpressionSyntax? options, SemanticModel model)
+    {
+        var problems = new List<OptionProblem>();
+        new EquivalenceBuilder(compilation).Applied(method.TypeArguments[0], options, model, problems);
+        return problems;
+    }
+
+    /// <summary>The options that name a member the comparer reads, with a problem added for each other one.</summary>
+    private List<EquivalenceOption> Applied(ITypeSymbol root, ExpressionSyntax? options, SemanticModel model, List<OptionProblem> problems)
+    {
+        var applied = new List<EquivalenceOption>();
+        foreach (var option in EquivalenceOptionReader.Read(options, model, problems))
+        {
+            if (Resolve(root, option) is { } reason)
+            {
+                problems.Add(new OptionProblem(option.Syntax, reason));
+            }
+            else
+            {
+                applied.Add(option);
+            }
+        }
+
+        return applied;
+    }
+
+    /// <summary>Null when the comparer of <paramref name="root"/> reads the member that the option names, or the reason it does not.</summary>
+    private string? Resolve(ITypeSymbol root, EquivalenceOption option)
+    {
+        if (option.Kind == OptionKind.Ignore && option.Path.Length == 0)
+        {
+            return "Ignore needs a member, and the lambda names the value itself";
+        }
+
+        var type = root;
+        for (var depth = 0; depth < option.Path.Length; depth++)
+        {
+            var holder = depth == 0 ? "the value" : "'" + string.Join(".", option.Path.Take(depth)) + "'";
+            if (Sequence(type) is not null || type is not INamedTypeSymbol named || !Walks(named))
+            {
+                return $"the comparer compares {holder} with Equals, so it does not read '{option.Path[depth]}'";
+            }
+
+            var found = Members(named).Where(member => member.Symbol.Name == option.Path[depth]).Select(member => member.Type).FirstOrDefault();
+            if (found is null)
+            {
+                return $"'{option.Path[depth]}' is not a public field or property that the comparer reads";
+            }
+
+            type = found;
+        }
+
+        if (option.Kind == OptionKind.Unordered && Sequence(type) is null)
+        {
+            var name = option.Path.Length == 0 ? "the value" : "'" + string.Join(".", option.Path) + "'";
+            return $"{name} is not an array or a list that the comparer walks";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The key of the comparer for <paramref name="type"/>, or null when it compares with <c>Equals</c>.
+    /// <paramref name="options"/> are the options whose paths start at this type.
+    /// </summary>
+    private string? Visit(ITypeSymbol type, IReadOnlyList<PathOption> options)
     {
         if (Sequence(type) is { } sequence)
         {
-            return VisitItems(sequence.Parameter, sequence.Item, sequence.Count);
+            var unordered = options.Any(option => option.Kind == OptionKind.Unordered && option.Path.Length == 0);
+            return VisitItems(sequence.Parameter, sequence.Item, sequence.Count, unordered);
         }
 
         if (type is not INamedTypeSymbol named || !Walks(named))
@@ -48,8 +130,10 @@ internal sealed class EquivalenceBuilder
             return null;
         }
 
+        var below = options.Where(option => option.Path.Length > 0).ToList();
+        var signature = string.Join("|", below.Select(option => (option.Kind == OptionKind.Ignore ? "I:" : "U:") + string.Join(".", option.Path)).Distinct().OrderBy(text => text, System.StringComparer.Ordinal));
         var name = named.ToDisplayString(KeyFormat);
-        var key = Key(named.Name, name);
+        var key = signature.Length == 0 ? Key(named.Name, name) : Key(named.Name + "Options", name + "|" + signature);
         if (_indexes.ContainsKey(key))
         {
             return key;
@@ -60,25 +144,24 @@ internal sealed class EquivalenceBuilder
         _types.Add(null);
 
         var members = new List<ComparedMember>();
-        var seen = new HashSet<string>();
-        for (var current = named; current is not null && current.SpecialType is not (SpecialType.System_Object or SpecialType.System_ValueType); current = current.BaseType)
+        var walked = 0;
+        foreach (var (member, memberType) in Members(named))
         {
-            foreach (var member in current.GetMembers())
+            walked++;
+            if (below.Any(option => option.Kind == OptionKind.Ignore && option.Path.Length == 1 && option.Path[0] == member.Name))
             {
-                if (member.DeclaredAccessibility == Accessibility.Private || member.IsImplicitlyDeclared || !seen.Add(member.Name) || MemberType(member) is not { } memberType)
-                {
-                    continue;
-                }
-
-                var access = SyntaxFacts.GetKeywordKind(member.Name) == SyntaxKind.None ? member.Name : "@" + member.Name;
-                var (memberKey, isNullable) = Compared(memberType);
-                members.Add(new ComparedMember(member.Name, access, memberKey, isNullable));
+                continue;
             }
+
+            var access = SyntaxFacts.GetKeywordKind(member.Name) == SyntaxKind.None ? member.Name : "@" + member.Name;
+            var memberOptions = below.Where(option => option.Path[0] == member.Name).Select(option => new PathOption(option.Kind, option.Path.Skip(1).ToArray())).ToList();
+            var (memberKey, isNullable) = Compared(memberType, memberOptions);
+            members.Add(new ComparedMember(member.Name, access, memberKey, isNullable));
         }
 
         // A type with nothing to walk, such as one that keeps its state in private fields, compares
         // with Equals. Nothing refers to its key yet, because a reference back to it needs a member.
-        if (members.Count == 0)
+        if (walked == 0)
         {
             _indexes.Remove(key);
             _types.RemoveAt(index);
@@ -89,17 +172,37 @@ internal sealed class EquivalenceBuilder
         return key;
     }
 
-    /// <summary>The comparer key of a member or item type, and whether it is a <c>Nullable&lt;T&gt;</c> of a walked struct.</summary>
-    private (string? Key, bool Nullable) Compared(ITypeSymbol type) =>
-        type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable && Visit(nullable.TypeArguments[0]) is { } inner
-            ? (inner, true)
-            : (Visit(type), false);
+    /// <summary>The public instance fields and properties that the comparer reads, its base types' included, each name once.</summary>
+    private static IEnumerable<(ISymbol Symbol, ITypeSymbol Type)> Members(INamedTypeSymbol type)
+    {
+        var seen = new HashSet<string>();
+        for (var current = type; current is not null && current.SpecialType is not (SpecialType.System_Object or SpecialType.System_ValueType); current = current.BaseType)
+        {
+            foreach (var member in current.GetMembers())
+            {
+                if (member.DeclaredAccessibility == Accessibility.Private || member.IsImplicitlyDeclared || !seen.Add(member.Name) || MemberType(member) is not { } memberType)
+                {
+                    continue;
+                }
 
-    /// <summary>The key of the comparer that compares the items of an array or a list in order.</summary>
-    private string VisitItems(ITypeSymbol parameter, ITypeSymbol item, string count)
+                yield return (member, memberType);
+            }
+        }
+    }
+
+    /// <summary>The comparer key of a member or item type, and whether it is a <c>Nullable&lt;T&gt;</c> of a walked struct.</summary>
+    private (string? Key, bool Nullable) Compared(ITypeSymbol type, IReadOnlyList<PathOption> options) =>
+        type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable && Visit(nullable.TypeArguments[0], options) is { } inner
+            ? (inner, true)
+            : (Visit(type, options), false);
+
+    /// <summary>The key of the comparer that compares the items of an array or a list, in order unless <paramref name="unordered"/> is true.</summary>
+    private string VisitItems(ITypeSymbol parameter, ITypeSymbol item, string count, bool unordered)
     {
         var name = parameter.ToDisplayString(KeyFormat);
-        var key = Key((item.Name.Length == 0 ? "Item" : item.Name) + (parameter is IArrayTypeSymbol ? "Array" : "List"), name);
+        var key = Key(
+            (item.Name.Length == 0 ? "Item" : item.Name) + (parameter is IArrayTypeSymbol ? "Array" : "List") + (unordered ? "Unordered" : ""),
+            unordered ? name + "|unordered" : name);
         if (_indexes.ContainsKey(key))
         {
             return key;
@@ -109,10 +212,13 @@ internal sealed class EquivalenceBuilder
         _indexes.Add(key, index);
         _types.Add(null);
 
-        var (itemKey, isNullable) = Compared(item);
-        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), new ComparedItems(count, itemKey, isNullable));
+        var (itemKey, isNullable) = Compared(item, []);
+        _types[index] = new ComparedType(key, name, true, new EquatableArray<ComparedMember>([]), new ComparedItems(count, itemKey, isNullable, unordered));
         return key;
     }
+
+    /// <summary>An option whose path starts at the type being visited.</summary>
+    private sealed record PathOption(OptionKind Kind, string[] Path);
 
     /// <summary>
     /// The parameter type and the item type of the comparer for a one-dimensional array, or for a

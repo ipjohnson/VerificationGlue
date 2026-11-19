@@ -1,6 +1,6 @@
 # Compare two values with VerifyEquivalent
 
-At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays and lists, and read the path of each difference in its message.
+At the end of this page you can compare two records or objects with `VerifyEquivalent`, including their arrays and lists, compare a list without order or skip a member, and read the path of each difference in its message.
 
 `VerifyEquivalent(actual, expected)` compares two values member by member. The generator writes a comparer for the type at each call site, with no reflection. The message lists the path of each difference, with the expected and the found value. It lists up to 10 differences and counts the rest.
 
@@ -9,7 +9,7 @@ At the end of this page you can compare two records or objects with `VerifyEquiv
 | Type | How it compares |
 |---|---|
 | A class, a struct or a record | Each public field and property, including those of base types |
-| A one-dimensional array, or a class or interface that implements `IList<T>` or `IReadOnlyList<T>` | The number of items, then each item in order |
+| A one-dimensional array, or a class or interface that implements `IList<T>` or `IReadOnlyList<T>` | The number of items, then each item in order, or each item without order when `Unordered` names it |
 | A dictionary or a set | `Equals` |
 | A primitive, a string or an enum | `Equals` |
 | A type that implements `IEquatable<T>` and is not a record | `Equals` |
@@ -29,7 +29,7 @@ public sealed record Invoice(int Id, List<InvoiceLine> Lines, string[] Tags);
 
 public sealed record Stock(Dictionary<string, int> Levels);
 ```
-<sup><a href='/samples/Messages/EquivalentMessages.cs#L45-L51' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L54-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-types' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Arrays and lists
@@ -75,6 +75,33 @@ VerifyEquivalent failed: parsed is not equivalent to expected
   at EquivalentMessages.cs:31
 ```
 <!-- endMessage -->
+
+## Unordered and Ignore
+
+A third argument changes the comparison for the members it names. `Unordered` compares the items of an array or a list without order. `Ignore` skips a member. Each takes a lambda that names the member by a chain of member accesses, such as `x => x.Customer.Address`, and `x => x` names the value itself for `Unordered`. The generator reads the lambdas from the call and writes them into the comparer, so they never run:
+
+<!-- snippet: verify-equivalent-options -->
+<a id='snippet-verify-equivalent-options'></a>
+```cs
+var parsed = new Invoice(8, [new InvoiceLine("B-2", 3), new InvoiceLine("A-1", 2)], ["gift", "gift"]);
+var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["fragile", "gift"]);
+VerifyEquivalent(parsed, expected, options => options.Unordered(x => x.Lines).Unordered(x => x.Tags).Ignore(x => x.Id));
+```
+<sup><a href='/samples/Messages/EquivalentMessages.cs#L46-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-equivalent-options' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+An unordered list matches each expected item with an actual item that is equivalent to it, each item once, so duplicates count. The message lists each expected item with no match as missing, and each actual item with no match as extra:
+
+<!-- message: equivalent-options -->
+```text
+VerifyEquivalent failed: parsed is not equivalent to expected
+  Tags: missing "fragile"
+  Tags: extra "gift"
+  at EquivalentMessages.cs:49
+```
+<!-- endMessage -->
+
+An option applies only to the call that has it. Other calls that compare the same types still compare in order and read every member. A lambda that the generator cannot read, or that names a member the comparer does not read, is build error [VG0010](../diagnostics/VG0010.md). An option cannot name a member of the items of an array or a list yet.
 
 ## Dictionaries and sets
 

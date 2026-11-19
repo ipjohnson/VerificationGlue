@@ -76,7 +76,7 @@ internal static class GeneratorHarness
         }
 
         return compilation
-            .WithAnalyzers([new VerifyAnalyzer(), new RewriteAnalyzer()], new AnalyzerOptions([], new ProjectOptions(ProjectDirectory, rewrite)))
+            .WithAnalyzers([new VerifyAnalyzer(), new RewriteAnalyzer(), new EquivalenceAnalyzer()],new AnalyzerOptions([], new ProjectOptions(ProjectDirectory, rewrite)))
             .GetAnalyzerDiagnosticsAsync().Result
             .OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start)
             .ToImmutableArray();
