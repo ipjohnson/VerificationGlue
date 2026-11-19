@@ -5,5 +5,7 @@
   <ItemGroup>
     <!-- Set VerificationGlueRewrite to true to turn on tier 3: copies of eligible [Verify] methods that report captured values. -->
     <CompilerVisibleProperty Include="VerificationGlueRewrite" />
+    <!-- Set VerificationGlueLambdaSeverity to none, info, warning or error to set the severity of VG0009. -->
+    <CompilerVisibleProperty Include="VerificationGlueLambdaSeverity" />
   </ItemGroup>
 </Project>

@@ -13,3 +13,4 @@ VG0005 | VerificationGlue | Info | RewriteAnalyzer
 VG0006 | VerificationGlue | Info | RewriteAnalyzer
 VG0007 | VerificationGlue | Warning | RewriteAnalyzer
 VG0008 | VerificationGlue | Info | RewriteAnalyzer
+VG0009 | VerificationGlue | Warning | LambdaAnalyzer, reported as Info unless VerificationGlueLambdaSeverity is set
