@@ -29,6 +29,9 @@ public static class Gallery
         ("tier3-string-index", StringMessages.SingleLine),
         ("tier3-sequence-equal", CollectionMessages.Sequence),
         ("tier3-set-equals", CollectionMessages.Set),
+        ("lambda-values", LambdaMessages.Values),
+        ("lambda-members", LambdaMessages.Members),
+        ("lambda-fallback", LambdaMessages.Fallback),
         ("check-tier2", CheckMessages.Tier2),
         ("check-tier3", CheckMessages.Tier3),
     ];

@@ -87,7 +87,7 @@ internal sealed class CopyBuilder
     /// <summary>Where a path goes in the body, to be replaced by the path the message shows.</summary>
     public static string PathPlaceholder(string path) => CopyEmitter.PathMarker + path + CopyEmitter.PathMarker;
 
-    private static EquatableArray<string> Usings(SyntaxList<ExternAliasDirectiveSyntax> externs, SyntaxList<UsingDirectiveSyntax> usings) =>
+    internal static EquatableArray<string> Usings(SyntaxList<ExternAliasDirectiveSyntax> externs, SyntaxList<UsingDirectiveSyntax> usings) =>
         new(externs.Select(directive => directive.ToString())
             .Concat(usings.Where(directive => directive.GlobalKeyword.IsKind(SyntaxKind.None)).Select(directive => directive.ToString()))
             .ToArray());
@@ -249,13 +249,29 @@ internal sealed class CopyBuilder
 
     /// <summary>
     /// The statement that tier 3 replaces for a call in a copied body, or null when the call keeps
-    /// its tier 2 form. The call must be a <c>Verify</c> or <c>Check</c> statement outside lambdas
+    /// its tier 2 form. A lambda's body is rewritten in place of the call unless it declares a
+    /// variable, which the method's scope could already hold. The call must be a <c>Verify</c> or <c>Check</c> statement outside lambdas
     /// and local functions, with its source text left to the compiler and, for a message, an
     /// interpolated string.
     /// </summary>
     public static SyntaxNode? Tier3Statement(InvocationExpressionSyntax invocation, CallKind kind, SyntaxNode body, IMethodSymbol method, out ExpressionSyntax condition)
     {
         condition = null!;
+        if (kind is CallKind.VerifyLambda or CallKind.CheckLambda)
+        {
+            if (VerifyCalls.RewritableStatement(invocation, body) is { } lambdaStatement &&
+                (lambdaStatement is not ArrowExpressionClauseSyntax || ReturnsNothing(method)) &&
+                invocation.ArgumentList.Arguments.Count == 1 &&
+                VerifyCalls.LambdaBody(VerifyCalls.Argument(invocation, VerifyCalls.ConditionParameter)) is { } lambdaBody &&
+                !lambdaBody.DescendantNodesAndSelf().Any(node => node is SingleVariableDesignationSyntax or QueryExpressionSyntax))
+            {
+                condition = lambdaBody;
+                return lambdaStatement;
+            }
+
+            return null;
+        }
+
         if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check &&
             VerifyCalls.RewritableStatement(invocation, body) is { } statement &&
             (statement is not ArrowExpressionClauseSyntax || ReturnsNothing(method)) &&
@@ -273,7 +289,7 @@ internal sealed class CopyBuilder
     /// <summary>The <c>if</c> that replaces a <c>Verify</c> or <c>Check</c> statement.</summary>
     private string Tier3(InvocationExpressionSyntax call, CallKind kind, ExpressionSyntax condition, SyntaxNode statement, int site)
     {
-        var rewritten = new ConditionRewriter(_model, RenderForCondition, _wholeEdits.Contains, $"__vg{site.ToString(CultureInfo.InvariantCulture)}_", _token).Rewrite(condition);
+        var rewritten = new ConditionRewriter(_model, RenderForCondition, node => node is InvocationExpressionSyntax invocation && _wholeEdits.Contains(invocation), $"__vg{site.ToString(CultureInfo.InvariantCulture)}_", _token).Rewrite(condition);
         var path = call.SyntaxTree.FilePath;
         var start = statement.GetLocation().GetMappedLineSpan();
         var callLine = call.GetLocation().GetMappedLineSpan();
@@ -283,7 +299,7 @@ internal sealed class CopyBuilder
         var next = "\n" + indent + "        .";
 
         var failure = new StringBuilder(Runtime)
-            .Append(kind == CallKind.Check ? ".StartCheck(" : ".Start(")
+            .Append(VerifyCalls.IsCheck(kind) ? ".StartCheck(" : ".Start(")
             .Append(Literal(condition.ToString())).Append(", ").Append(PathPlaceholder(mappedPath)).Append(", ")
             .Append((callLine.StartLinePosition.Line + 1).ToString(CultureInfo.InvariantCulture)).Append(')');
         foreach (var explanation in Explanations.For(condition, rewritten, _model, RenderForCondition, _token))
@@ -328,9 +344,9 @@ internal sealed class CopyBuilder
         text.Append(LineDirective(start.StartLinePosition, path, statement.GetLocation()).TrimStart('\n'))
             .Append("if (!(").Append(rewritten.Text).Append("))\n")
             .Append("#line hidden\n").Append(indent).Append("{\n")
-            .Append(indent).Append("    ").Append(kind == CallKind.Check ? "" : "throw ")
+            .Append(indent).Append("    ").Append(VerifyCalls.IsCheck(kind) ? "" : "throw ")
             .Append(failure)
-            .Append(kind == CallKind.Check ? ".Report();" : ".Build();")
+            .Append(VerifyCalls.IsCheck(kind) ? ".Report();" : ".Build();")
             .Append('\n').Append(indent).Append("}\n").Append(embedded ? "}\n" : "");
         text.Append(LineDirective(start.EndLinePosition, path, statement.GetLocation(), indent: false).TrimStart('\n'));
         return text.ToString();
@@ -390,10 +406,11 @@ internal sealed class CopyBuilder
                 var withMessage = kind == CallKind.VerifyWithMessage;
                 var expression = VerifyCalls.Argument(call, VerifyCalls.ExpressionParameter, withMessage ? 2 : 1);
                 var userMessage = withMessage ? VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) : null;
-                var message = Shapes.Condition(condition, _model, _token);
-                return $"{Runtime}.{(kind == CallKind.Check ? "Check" : "Verify")}({Render(condition.Span)}, " +
+                var shown = kind is CallKind.VerifyLambda or CallKind.CheckLambda && VerifyCalls.LambdaBody(condition) is { } body ? body : condition;
+                var message = Shapes.Condition(shown, _model, _token);
+                return $"{Runtime}.{(VerifyCalls.IsCheck(kind) ? "Check" : "Verify")}({Render(condition.Span)}, " +
                        (userMessage is null ? "" : Render(userMessage.Span) + ", ") +
-                       $"{(expression is null ? Literal(condition.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
+                       $"{(expression is null ? Literal(shown.ToString()) : Render(expression.Span))}, {LiteralOrNull(message)}, {where})";
             }
         }
     }

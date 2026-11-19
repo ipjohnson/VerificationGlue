@@ -53,6 +53,8 @@ Verify failed: order.Total == 30
 
 A source generator in the package writes the second and third lines at compile time. Nothing is looked up at run time, so the message is the same under Native AOT.
 
+Write the condition as a lambda, `Verify(() => order.Total == 30)`, and the message also lists the value of each part, in any test framework.
+
 `Check` records a failure and lets the test continue. A `VerifyScope` reports every recorded failure when it ends.
 
 ## Learn more

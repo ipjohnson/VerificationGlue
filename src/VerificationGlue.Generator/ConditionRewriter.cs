@@ -45,7 +45,7 @@ internal sealed class ConditionRewriter
 
     private readonly SemanticModel _model;
     private readonly Func<SyntaxNode, string> _render;
-    private readonly Func<InvocationExpressionSyntax, bool> _keepWhole;
+    private readonly Func<ExpressionSyntax, bool> _keepWhole;
     private readonly string _prefix;
     private readonly CancellationToken _token;
     private readonly List<CaptureLocal> _locals = new();
@@ -54,9 +54,9 @@ internal sealed class ConditionRewriter
     private TextSpan _condition;
 
     /// <param name="render">The text of a node as the copy writes it, with the copy's call changes applied.</param>
-    /// <param name="keepWhole">True for an invocation that the copy changes as a whole, so its parts are not captured.</param>
+    /// <param name="keepWhole">True for an invocation or member access that the copy changes as a whole, so its parts are not captured.</param>
     /// <param name="prefix">The prefix of the local names, unique per rewritten call in the method.</param>
-    public ConditionRewriter(SemanticModel model, Func<SyntaxNode, string> render, Func<InvocationExpressionSyntax, bool> keepWhole, string prefix, CancellationToken token)
+    public ConditionRewriter(SemanticModel model, Func<SyntaxNode, string> render, Func<ExpressionSyntax, bool> keepWhole, string prefix, CancellationToken token)
     {
         _model = model;
         _render = render;
@@ -200,7 +200,7 @@ internal sealed class ConditionRewriter
             case AwaitExpressionSyntax awaited:
                 return "await " + Visit(awaited.Expression, guard, capture: true).Text;
 
-            case MemberAccessExpressionSyntax access when access.IsKind(SyntaxKind.SimpleMemberAccessExpression):
+            case MemberAccessExpressionSyntax access when access.IsKind(SyntaxKind.SimpleMemberAccessExpression) && !_keepWhole(access):
                 return Receiver(access.Expression, access, guard) + "." + _render(access.Name);
 
             case ElementAccessExpressionSyntax element:

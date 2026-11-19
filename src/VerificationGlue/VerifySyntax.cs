@@ -72,6 +72,41 @@ public static class VerifySyntax
     }
 
     /// <summary>
+    /// Throws a <see cref="VerifyException"/> when <paramref name="condition"/> returns false. With the
+    /// generator running, the message lists the value of each part of the lambda's body in any
+    /// method, and the body runs once.
+    /// </summary>
+    /// <param name="condition">A lambda that returns the condition that must hold, such as <c>() =&gt; order.Total == 40</c>.</param>
+    /// <param name="expression">The source text of <paramref name="condition"/>. The compiler fills it in.</param>
+    public static void Verify(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string? expression = null)
+    {
+        if (!condition())
+        {
+            throw VerifyFailure.Static(VerifyFailure.LambdaBody(expression), null, null, 0);
+        }
+    }
+
+    /// <summary>
+    /// Records a failure in the current <see cref="VerifyScope"/> when <paramref name="condition"/>
+    /// returns false, and returns so the caller continues. With no open scope it throws a
+    /// <see cref="VerifyException"/>. With the generator running, the message lists the value of each
+    /// part of the lambda's body, and the body runs once.
+    /// </summary>
+    /// <param name="condition">A lambda that returns the condition that should hold.</param>
+    /// <param name="expression">The source text of <paramref name="condition"/>. The compiler fills it in.</param>
+    public static void Check(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string? expression = null)
+    {
+        if (!condition())
+        {
+            VerifyFailure.CheckFailed(VerifyFailure.LambdaBody(expression), null, null, 0);
+        }
+    }
+
+    /// <summary>
     /// Runs <paramref name="action"/> and returns the exception it throws. Throws a
     /// <see cref="VerifyException"/> when it throws nothing, or throws an exception that is not a
     /// <typeparamref name="T"/>.

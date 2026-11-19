@@ -80,12 +80,12 @@ public sealed class RewriteAnalyzer : DiagnosticAnalyzer
         }
 
         var kind = VerifyCalls.KindOf(invocation.TargetMethod);
-        if (kind == CallKind.Check && ScopelessMember(context.ContainingSymbol) is { } member)
+        if (kind is { } found && VerifyCalls.IsCheck(found) && ScopelessMember(context.ContainingSymbol) is { } member)
         {
             context.ReportDiagnostic(Diagnostic.Create(Diagnostics.CheckWithoutScope, syntax.GetLocation(), member));
         }
 
-        if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check && IsRewritten(context, syntax, out var condition, out var model))
+        if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check or CallKind.VerifyLambda or CallKind.CheckLambda && IsRewritten(context, syntax, out var condition, out var model))
         {
             var rewritten = new ConditionRewriter(model, node => node.ToString(), _ => false, "__vg_", context.CancellationToken).Rewrite(condition);
             foreach (var part in rewritten.Uncaptured)

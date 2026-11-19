@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:146
+      at Program.cs:168
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,7 +105,7 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:155
+      at Program.cs:177
     """);
 
 // Tier 3: a failed SequenceEqual or SetEquals says which items differ.
@@ -117,7 +117,7 @@ Verify(sequence.Message == """
       expected has 1 item past the end of lines: 40
       lines    → System.Int32[]
       expected → System.Int32[]
-      at Program.cs:164
+      at Program.cs:186
     """);
 
 var set = Throws<VerifyException>(() => CollectionChecks.VerifyTags(["gift", "fragile", "express"], ["gift", "priority"]));
@@ -127,12 +127,34 @@ Verify(set.Message == """
       tags has 2 items that expected does not: "fragile", "express"
       tags     → System.Collections.Generic.HashSet`1[System.String]
       expected → System.String[]
-      at Program.cs:170
+      at Program.cs:192
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
 Verify(Is<List<int>>(shape).Count == 0);
 Verify(NotNull((int?)3) == 3);
+
+var expected = 60;
+var captured = Throws<VerifyException>(() => Verify(() => total + 10 == expected));
+Verify(captured.Message == """
+    Verify failed: total + 10 == expected
+      total + 10 → 50
+      total      → 40
+      expected   → 60
+      at Program.cs:138
+    """);
+
+var queue = new Queue<int>([1, 2, 3]);
+var once = Throws<VerifyException>(() => Verify(() => queue.Dequeue() == 7));
+Verify(queue.Count == 2);
+Verify(once.Message.Contains("queue.Dequeue() → 1"));
+
+var members = Throws<VerifyException>(new Counter().Check);
+Verify(members.Message == """
+    Verify failed: _count == 3
+      _count → 2
+      at Program.cs:200
+    """);
 
 Console.WriteLine("VerifyAot passed.");
 
@@ -169,4 +191,11 @@ public static partial class CollectionChecks
     {
         Verify(tags.SetEquals(expected));
     }
+}
+
+sealed class Counter
+{
+    private readonly int _count = 2;
+
+    public void Check() => Verify(() => _count == 3);
 }

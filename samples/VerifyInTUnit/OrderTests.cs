@@ -41,4 +41,24 @@ public class OrderTests
             """);
     }
     #endregion
+
+    #region lambda-in-tunit
+    [Test]
+    public void A_lambda_lists_the_value_of_each_part()
+    {
+        var order = new Order(Id: 7, Total: 40);
+
+        var failure = Throws<VerifyException>(() => Verify(() => order.Total == 30 && order.Id > 0));
+
+        Verify(failure.Message == """
+            Verify failed: order.Total == 30 && order.Id > 0
+              order.Total == 30 → false
+              order.Total       → 40
+              order             → Order { Id = 7, Total = 40 }
+              order.Id > 0      → <not evaluated>
+              order.Id          → <not evaluated>
+              at OrderTests.cs:51
+            """);
+    }
+    #endregion
 }

@@ -16,6 +16,8 @@ internal enum CallKind
     Is,
     NotNull,
     NotNullValue,
+    VerifyLambda,
+    CheckLambda,
 }
 
 /// <summary>
@@ -31,6 +33,7 @@ internal enum CallKind
 /// <c>[VerifyRewrite]</c>. The runner always calls that method's copy, so with tier 3 enabled the
 /// call gets no interceptor.
 /// </param>
+/// <param name="Lambda">For <c>Verify(() =&gt; ...)</c> and <c>Check(() =&gt; ...)</c>, the generated check of the lambda; otherwise null.</param>
 internal sealed record CallModel(
     string FilePath,
     int Line,
@@ -41,7 +44,30 @@ internal sealed record CallModel(
     string LocationData,
     CallKind Kind,
     string? Message,
-    bool InRunnerCopy);
+    bool InRunnerCopy,
+    LambdaModel? Lambda = null);
+
+/// <summary>
+/// The generated check of one <c>Verify(() =&gt; ...)</c> or <c>Check(() =&gt; ...)</c> call. It goes in
+/// the namespace of the call with the using directives of its file, so the copied body binds as it
+/// does in the lambda.
+/// </summary>
+/// <param name="Expression">The source text of the lambda's body, which the message shows.</param>
+/// <param name="Namespace">The namespace that contains the call, or null for the global namespace.</param>
+/// <param name="FileUsings">The extern alias and using directives of the compilation unit.</param>
+/// <param name="NamespaceUsings">The using directives of the namespaces around the call.</param>
+/// <param name="Members">The members of the check: its closure readers, accessors and the method itself. Null when the call keeps its tier 2 form.</param>
+/// <param name="Extensions">
+/// Extension methods that reach a method the check cannot call, named like that method. Two calls that
+/// reach the same method write the same text, so a namespace declares each one once.
+/// </param>
+internal sealed record LambdaModel(
+    string Expression,
+    string? Namespace,
+    EquatableArray<string> FileUsings,
+    EquatableArray<string> NamespaceUsings,
+    string? Members,
+    EquatableArray<string> Extensions);
 
 /// <summary>The calls of one source file. <see cref="ProjectDirectory"/> makes the reported paths relative.</summary>
 internal sealed record FileCalls(string FilePath, string ProjectDirectory, EquatableArray<CallModel> Calls);

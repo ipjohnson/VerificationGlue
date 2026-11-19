@@ -27,6 +27,36 @@ public class VerifySyntaxSpecs
     }
 
     [VerifyTest]
+    public void Verify_of_a_lambda_passes_when_it_returns_true()
+    {
+        var count = 3;
+
+        Verify(() => count == 3);
+    }
+
+    [VerifyTest]
+    public void Verify_of_a_lambda_reports_the_lambdas_body()
+    {
+        var count = 2;
+
+        var failure = Assert.Throws<VerifyException>(() => Verify(() => count == 3));
+
+        Assert.Equal("Verify failed: count == 3", failure.Message);
+    }
+
+    [VerifyTest]
+    public void Check_of_a_lambda_records_a_failure_in_the_scope()
+    {
+        var count = 2;
+        var scope = VerifyScope.Begin();
+
+        Check(() => count == 3);
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+        Assert.Equal("1 check failed\n\nCheck failed: count == 3", failure.Message);
+    }
+
+    [VerifyTest]
     public void Message_holes_run_only_on_failure()
     {
         var runs = 0;
