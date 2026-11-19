@@ -37,6 +37,7 @@ public static class Gallery
         ("lambda-values", LambdaMessages.Values),
         ("lambda-collection", LambdaMessages.Collection),
         ("lambda-lazy", LambdaMessages.Lazy),
+        ("lambda-sequence", LambdaMessages.Sequence),
         ("lambda-members", LambdaMessages.Members),
         ("lambda-fallback", LambdaMessages.Fallback),
         ("check-tier2", CheckMessages.Tier2),

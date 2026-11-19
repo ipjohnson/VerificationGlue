@@ -290,6 +290,7 @@ namespace VerifyInXunit
 #line hidden
             {
                 throw global::VerificationGlue.VerifyFailure.Start("error.Message == \"The cart is empty.\"", __path, 19)
+                    .StringDifference(__vg_1, "The cart is empty.")
                     .Value("error.Message", __vg_1)
                     .Value("error", __vg_0).Build();
             }
@@ -320,6 +321,7 @@ namespace VerifyInXunit
 #line hidden
             {
                 throw global::VerificationGlue.VerifyFailure.Start("exact.Message == \"The cart is empty.\"", __path, 22)
+                    .StringDifference(__vg_1, "The cart is empty.")
                     .Value("exact.Message", __vg_1)
                     .Value("exact", __vg_0).Build();
             }
@@ -384,6 +386,7 @@ namespace VerifyInXunit
 #line hidden
             {
                 throw global::VerificationGlue.VerifyFailure.Start("failure.Message == \"\"\"\n            Verify failed: order.Total == 30\n              expected order.Total to equal 30\n              at OrderTests.cs:35\n            \"\"\"", __path, 37)
+                    .StringDifference(__vg_1, "Verify failed: order.Total == 30\n  expected order.Total to equal 30\n  at OrderTests.cs:35")
                     .Value("failure.Message", __vg_1)
                     .Value("failure", __vg_0).Build();
             }
@@ -449,6 +452,7 @@ namespace VerifyInXunit
 #line hidden
             {
                 throw global::VerificationGlue.VerifyFailure.Start("failure.Message == \"\"\"\n            Verify failed: order.Total == 30\n              order.Total → 40\n              order       → Order { Id = 7, Total = 40 }\n              at OrderTests.cs:51\n            \"\"\"", __path, 53)
+                    .StringDifference(__vg_1, "Verify failed: order.Total == 30\n  order.Total → 40\n  order       → Order { Id = 7, Total = 40 }\n  at OrderTests.cs:51")
                     .Value("failure.Message", __vg_1)
                     .Value("failure", __vg_0).Build();
             }
@@ -490,7 +494,7 @@ namespace VerifyInXunit
     }
 }
 ```
-<sup><a href='/test/VerificationGlue.Generator.Specs/Snapshots/GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt#L1-L447' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/test/VerificationGlue.Generator.Specs/Snapshots/GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt#L1-L451' title='Snippet source file'>snippet source</a> | <a href='#snippet-GeneratedCodeSpecs.Interceptors_for_the_xunit_sample.verified.txt' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `test/VerificationGlue.Generator.Specs/GeneratedCodeSpecs.cs` runs the generator on the sample file and fails when its output differs from this snapshot.

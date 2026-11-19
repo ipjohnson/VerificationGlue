@@ -682,6 +682,31 @@ Verify failed: totals.Count() == 0
 ```
 <!-- endMessage -->
 
+### Recognised shapes
+
+A failed `SequenceEqual`, `SetEquals`, `==` on two strings or `Math.Abs(a - b) <= t` adds the same lines it adds at tier 3, as [Collections](#collections), [Strings](#strings) and [Tolerances](#tolerances) show. So do `Count`, `Any`, `Contains` and `All`. `Check(() => ...)` adds the same lines.
+
+<!-- snippet: message-lambda-sequence -->
+<a id='snippet-message-lambda-sequence'></a>
+```cs
+string[] a = ["x", "y", "z"];
+string[] b = ["x", "q", "z"];
+Verify(() => a.SequenceEqual(b));
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L41-L45' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-sequence' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-sequence -->
+```text
+Verify failed: a.SequenceEqual(b)
+  first difference at index 1: a has "y", b has "q"
+  a has 3 items, b has 3
+  a → 3 items: "x", "y", "z"
+  b → 3 items: "x", "q", "z"
+  at LambdaMessages.cs:44
+```
+<!-- endMessage -->
+
 ### Members of the type
 
 The body can use the fields, properties and methods of the type it is in, including private ones.
@@ -694,7 +719,7 @@ private void VerifyTotal(int expected)
     Verify(() => _order.Total == expected);
 }
 ```
-<sup><a href='/samples/Messages/LambdaMessages.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-members' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/LambdaMessages.cs#L50-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-members' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: lambda-members -->
@@ -703,7 +728,7 @@ Verify failed: _order.Total == expected
   _order.Total → 30
   _order       → order 7
   expected     → 40
-  at LambdaMessages.cs:44
+  at LambdaMessages.cs:53
 ```
 <!-- endMessage -->
 
@@ -719,14 +744,14 @@ Verify(() => IsEven(total + 1));
 
 static bool IsEven(int value) => value % 2 == 0;
 ```
-<sup><a href='/samples/Messages/LambdaMessages.cs#L50-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-fallback' title='Start of snippet'>anchor</a></sup>
+<sup><a href='/samples/Messages/LambdaMessages.cs#L59-L64' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-fallback' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 <!-- message: lambda-fallback -->
 ```text
 Verify failed: IsEven(total + 1)
   expected IsEven(total + 1) to return true
-  at LambdaMessages.cs:52
+  at LambdaMessages.cs:61
 ```
 <!-- endMessage -->
 
