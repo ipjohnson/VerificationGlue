@@ -19,8 +19,10 @@ public class GeneratedCodeSpecs
 
         var result = GeneratorHarness.Generate(compilation, new VerificationGlueGenerator(), out _);
 
-        var generated = Assert.Single(result.GeneratedTrees);
-        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Interceptors_for_the_xunit_sample), generated.GetText(cancellationToken).ToString());
+        var generated = result.GeneratedTrees
+            .OrderBy(tree => tree.FilePath, StringComparer.Ordinal)
+            .Select(tree => $"// {Path.GetFileName(tree.FilePath)}\n{tree.GetText(cancellationToken)}");
+        Snapshot.Match(typeof(GeneratedCodeSpecs), nameof(Interceptors_for_the_xunit_sample), string.Join("\n", generated));
     }
 
     [VerifyTest]

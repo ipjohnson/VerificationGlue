@@ -17,12 +17,13 @@ C# checks, generated mocks, and a test runner built for Native AOT. Use Verify a
 
 ## See what failed
 
-When `Verify(order.Total == 30)` fails, the message names the condition, its expected shape, and the source location:
+When `Verify(() => order.Total == 30)` fails, the message names the condition, the value of each part, and the source location:
 
 ```text
 Verify failed: order.Total == 30
-  expected order.Total to equal 30
-  at OrderTests.cs:32
+  order.Total → 40
+  order       → Order { Id = 7, Total = 40 }
+  at OrderTests.cs:51
 ```
 
 The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The same source information is available under Native AOT. [Read the failure message guide](docs/guide/getting-started-verify.md#read-a-failure).
@@ -42,7 +43,7 @@ Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package in
 
 ## Write expectations in C#
 
-Import `VerificationGlue.VerifySyntax` with `using static`, then write a condition:
+Import `VerificationGlue.VerifySyntax` with `using static`, then write a condition as a lambda:
 
 <!-- snippet: verify-in-xunit -->
 <a id='snippet-verify-in-xunit'></a>
@@ -51,21 +52,23 @@ Import `VerificationGlue.VerifySyntax` with `using static`, then write a conditi
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+Keep `Verify(condition)` without a lambda when the condition uses `await`, reads a `Span<T>`, or checks for null a value that the next lines use. A message such as `$"order {order.Id} has no id"` also needs `Verify(condition, $"...")`. Analyzer [VG0009](docs/diagnostics/VG0009.md) suggests the lambda form everywhere else in a test.
 
 [Install and use Verify](docs/guide/getting-started-verify.md) · [Collect failures with Check](docs/guide/check.md) · [Understand failure messages](docs/guide/messages.md)
 

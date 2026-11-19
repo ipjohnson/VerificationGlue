@@ -27,33 +27,34 @@ Import the checks with `using static VerificationGlue.VerifySyntax;`:
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-A failed `Verify(order.Total == 30)` reports:
+A failed `Verify(() => order.Total == 30)` lists the value of each part, in any test framework:
 
 ```text
 Verify failed: order.Total == 30
-  expected order.Total to equal 30
-  at OrderTests.cs:32
+  order.Total → 40
+  order       → Order { Id = 7, Total = 40 }
+  at OrderTests.cs:51
 ```
 
-A source generator in the package writes the second and third lines at compile time. Nothing is looked up at run time, so the message is the same under Native AOT.
+A source generator in the package writes the code that records the values, and the file and line, at compile time. Nothing is looked up at run time, so the message is the same under Native AOT.
 
-Write the condition as a lambda, `Verify(() => order.Total == 30)`, and the message also lists the value of each part, in any test framework.
+Keep `Verify(order.Total == 30)` without a lambda in three cases: the condition uses `await`, it reads a `Span<T>`, or the next lines rely on a null check in it. That form reports the shape of the condition, such as `expected order.Total to equal 30`. Analyzer VG0009 suggests the lambda form everywhere else in a test.
 
 `Check` records a failure and lets the test continue. A `VerifyScope` reports every recorded failure when it ends.
 
@@ -64,4 +65,4 @@ Write the condition as a lambda, `Verify(() => order.Total == 30)`, and the mess
 - [Failure messages](../../docs/guide/messages.md), the real output of each kind of failure.
 - [Migrate from xunit Assert](../../docs/guide/migrate-from-xunit-assert.md).
 - [Generated interceptors](../../docs/guide/generated/interceptors.md) and [generated tier 3 copies](../../docs/guide/generated/rewritten-methods.md), the code the generator writes.
-- Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0008](../../docs/diagnostics/VG0008.md).
+- Diagnostics [VG0001](../../docs/diagnostics/VG0001.md) to [VG0009](../../docs/diagnostics/VG0009.md).

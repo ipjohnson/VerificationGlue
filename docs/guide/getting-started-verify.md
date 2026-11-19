@@ -28,7 +28,8 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 
 | Call | What it does |
 |---|---|
-| `Verify(condition)` | Throws a `VerifyException` when `condition` is false. |
+| `Verify(() => condition)` | Throws a `VerifyException` when `condition` is false. The message lists the value of each part of `condition`. |
+| `Verify(condition)` | Throws a `VerifyException` when `condition` is false. The message gives the source text and the shape of `condition`. |
 | `Verify(condition, $"...")` | Adds the interpolated message to the failure. Its holes run only when `condition` is false. |
 | `Throws<T>(action)` | Returns the exception that `action` throws. Fails when it throws nothing, or throws an exception that is not a `T` or derived from `T`. |
 | `ThrowsAsync<T>(action)` | Awaits `action` and does the same as `Throws<T>`. |
@@ -41,6 +42,38 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 
 `Throws`, `Single`, `Is` and `NotNull` return a value, so they throw on failure also inside a `VerifyScope`. The [messages page](messages.md#single) shows what each one reports.
 
+Write a condition as a lambda by default. Keep `Verify(condition)` in three cases:
+
+- the condition uses `await`, which a lambda passed as `Func<bool>` cannot contain;
+- the condition reads a `Span<T>` or another `ref struct`, which a lambda cannot capture;
+- the next lines rely on a null check in the condition. Only `Verify(condition)` tells the compiler that the value is not null afterwards.
+
+<!-- snippet: keep-verify-bool-in-xunit -->
+<a id='snippet-keep-verify-bool-in-xunit'></a>
+```cs
+[Fact]
+public async Task Some_checks_keep_Verify_bool()
+{
+    var orders = new Order?[] { new Order(Id: 7, Total: 40) };
+
+    // A Func<bool> cannot contain await.
+    Verify(await Task.FromResult(orders.Length) == 1);
+
+    // A lambda cannot capture a Span<T>.
+    ReadOnlySpan<Order?> span = orders;
+    Verify(span.Length == 1);
+
+    // Only Verify(bool) tells the compiler that first is not null on the next line.
+    var first = orders[0];
+    Verify(first is not null);
+    Verify(() => first.Total == 40);
+}
+```
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L62-L80' title='Snippet source file'>snippet source</a> | <a href='#snippet-keep-verify-bool-in-xunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+Analyzer [VG0009](../diagnostics/VG0009.md) suggests the lambda form for every other `Verify(condition)` and `Check(condition)` in a test method.
+
 ### xunit
 
 <!-- snippet: verify-in-xunit -->
@@ -50,17 +83,17 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
@@ -75,17 +108,17 @@ public async Task Checkout_reports_an_empty_cart()
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInNUnit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-nunit' title='Start of snippet'>anchor</a></sup>
@@ -100,17 +133,17 @@ public async Task Checkout_reports_an_empty_cart()
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInMSTest/OrderTests.cs#L11-L28' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-mstest' title='Start of snippet'>anchor</a></sup>
@@ -125,17 +158,17 @@ public async Task Checkout_reports_an_empty_cart()
 public async Task Checkout_reports_an_empty_cart()
 {
     var order = new Order(Id: 7, Total: 40);
-    Verify(order.Total == 40);
+    Verify(() => order.Total == 40);
     Verify(order.Id > 0, $"order {order.Id} has no id");
 
     var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(error.Message == "The cart is empty.");
+    Verify(() => error.Message == "The cart is empty.");
 
     var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(exact.Message == "The cart is empty.");
+    Verify(() => exact.Message == "The cart is empty.");
 
     var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(timeout.Message.Contains("/orders/7"));
+    Verify(() => timeout.Message.Contains("/orders/7"));
 }
 ```
 <sup><a href='/samples/VerifyInTUnit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-tunit' title='Start of snippet'>anchor</a></sup>
@@ -145,7 +178,32 @@ Each sample runs in CI with the framework's own runner.
 
 ## Read a failure
 
-This test makes a check fail on purpose and checks its message:
+This test makes a lambda check fail on purpose and checks its message:
+
+<!-- snippet: lambda-in-xunit -->
+<a id='snippet-lambda-in-xunit'></a>
+```cs
+[Fact]
+public void A_lambda_lists_the_value_of_each_part()
+{
+    var order = new Order(Id: 7, Total: 40);
+
+    var failure = Throws<VerifyException>(() => Verify(() => order.Total == 30));
+
+    Verify(() => failure.Message == """
+        Verify failed: order.Total == 30
+          order.Total → 40
+          order       → Order { Id = 7, Total = 40 }
+          at OrderTests.cs:51
+        """);
+}
+```
+<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L45-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-lambda-in-xunit' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The first line names the call and shows the body of the lambda. Each next line gives the value of a part of the condition. The last line gives the file, relative to the project directory, and the line of the call.
+
+`Verify(condition)` without a lambda gives the shape of the condition instead of the values:
 
 <!-- snippet: failure-in-xunit -->
 <a id='snippet-failure-in-xunit'></a>
@@ -157,7 +215,7 @@ public void A_failure_names_the_shape_file_and_line()
 
     var failure = Throws<VerifyException>(() => Verify(order.Total == 30));
 
-    Verify(failure.Message == """
+    Verify(() => failure.Message == """
         Verify failed: order.Total == 30
           expected order.Total to equal 30
           at OrderTests.cs:35
@@ -224,7 +282,7 @@ Assert.Equal("Verify failed: count == 3", failure.Message);
 
 ## Captured values
 
-With tier 3 on, a check in a `[Verify]` method lists the value of each part of its condition. [How tiers work](tiers.md) explains how to turn it on, and the [messages page](messages.md) shows each message.
+`Verify(() => condition)` lists the value of each part of its condition in any method. With tier 3 on, `Verify(condition)` in a `[Verify]` method does the same. [How tiers work](tiers.md) explains how to turn it on, and the [messages page](messages.md) shows each message.
 
 ## Build warnings
 
@@ -241,3 +299,7 @@ It also reports what keeps a method from tier 3, and a misplaced `Check`:
 - [VG0006](../diagnostics/VG0006.md): a part of a condition that cannot be captured.
 - [VG0007](../diagnostics/VG0007.md): `Check` where no `VerifyScope` can be open.
 - [VG0008](../diagnostics/VG0008.md): a `[Verify]` method in a file that declares a `file` type.
+
+It suggests the lambda form in a test method:
+
+- [VG0009](../diagnostics/VG0009.md): `Verify(condition)` or `Check(condition)` where `Verify(() => condition)` loses nothing. Set `VerificationGlueLambdaSeverity` to `warning` to make it a build warning.
