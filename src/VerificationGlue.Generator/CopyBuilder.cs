@@ -302,6 +302,11 @@ internal sealed class CopyBuilder
             .Append(VerifyCalls.IsCheck(kind) ? ".StartCheck(" : ".Start(")
             .Append(Literal(condition.ToString())).Append(", ").Append(PathPlaceholder(mappedPath)).Append(", ")
             .Append((callLine.StartLinePosition.Line + 1).ToString(CultureInfo.InvariantCulture)).Append(')');
+        foreach (var explanation in Explanations.For(condition, rewritten, _model, RenderForCondition, _token))
+        {
+            failure.Append(next).Append(explanation);
+        }
+
         foreach (var row in rewritten.Rows)
         {
             failure.Append(next).Append(row.Capture is null ? "NotCaptured(" : "Value(").Append(Literal(row.Label));

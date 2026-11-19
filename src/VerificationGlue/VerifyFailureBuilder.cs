@@ -29,6 +29,7 @@ public sealed class VerifyFailureBuilder
     private readonly string _file;
     private readonly int _line;
     private readonly List<(string Label, string Value)> _rows = new();
+    private readonly List<string> _explanations = new();
     private readonly List<string> _notes = new();
 
     internal VerifyFailureBuilder(string kind, string expression, string file, int line)
@@ -58,6 +59,32 @@ public sealed class VerifyFailureBuilder
     public VerifyFailureBuilder NotCaptured(string label, bool evaluated = true)
     {
         AddRow(label, evaluated ? Unavailable : NotEvaluated);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds the line for a condition of the form <c>Math.Abs(left - right) &lt;= tolerance</c>: how far
+    /// apart the values were and what the tolerance was, or which value was NaN.
+    /// </summary>
+    /// <typeparam name="T">The type <c>Math.Abs</c> took: <c>double</c>, <c>float</c> or <c>decimal</c>.</typeparam>
+    /// <typeparam name="TTolerance">The static type of the tolerance.</typeparam>
+    /// <param name="left">The source text of the side the line names first.</param>
+    /// <param name="leftValue">The value of that side.</param>
+    /// <param name="right">The source text of the other side.</param>
+    /// <param name="rightValue">The value of the other side.</param>
+    /// <param name="difference">The value <c>Math.Abs</c> returned.</param>
+    /// <param name="tolerance">The value of the tolerance.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder Tolerance<T, TTolerance>(string left, T leftValue, string right, T rightValue, T difference, TTolerance tolerance)
+    {
+        var within = Format(tolerance);
+        _explanations.Add((IsNaN(leftValue), IsNaN(rightValue)) switch
+        {
+            (true, true) => $"{left} and {right} are NaN, so they are not within tolerance {within}",
+            (true, false) => $"{left} is NaN, so it is not within tolerance {within} of {right}",
+            (false, true) => $"{right} is NaN, so it is not within tolerance {within} of {left}",
+            _ => $"{left} differs from {right} by {Format(difference)}, tolerance {within}",
+        });
         return this;
     }
 
@@ -99,6 +126,11 @@ public sealed class VerifyFailureBuilder
     public override string ToString()
     {
         var text = new StringBuilder(_kind).Append(" failed: ").Append(_expression);
+        foreach (var explanation in _explanations)
+        {
+            text.Append("\n  ").Append(explanation);
+        }
+
         var width = 0;
         foreach (var row in _rows)
         {
@@ -157,6 +189,13 @@ public sealed class VerifyFailureBuilder
             return $"<ToString threw {exception.GetType().Name}>";
         }
     }
+
+    private static bool IsNaN<T>(T value) => value switch
+    {
+        double number => double.IsNaN(number),
+        float number => float.IsNaN(number),
+        _ => false,
+    };
 
     private static string Quote(string text) =>
         text.Length > MaxStringLength

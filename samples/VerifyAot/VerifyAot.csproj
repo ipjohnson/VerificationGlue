@@ -19,6 +19,11 @@
   </ItemGroup>
   <!-- end-snippet -->
 
+  <!-- Tier 3, so the [Verify] method in Program.cs runs as its rewritten copy under Native AOT. -->
+  <PropertyGroup>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
+  </PropertyGroup>
+
   <!-- Rooting the runtime makes the Native AOT publish analyze all of its code, not only what this sample calls. -->
   <ItemGroup>
     <TrimmerRootAssembly Include="VerificationGlue" />

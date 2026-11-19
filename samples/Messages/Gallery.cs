@@ -24,6 +24,7 @@ public static class Gallery
         ("tier3-skipped", Tier3Messages.Skipped),
         ("tier3-because", Tier3Messages.Because),
         ("tier3-pattern", Tier3Messages.Pattern),
+        ("tier3-tolerance", ToleranceMessages.Tolerance),
         ("lambda-values", LambdaMessages.Values),
         ("lambda-members", LambdaMessages.Members),
         ("lambda-fallback", LambdaMessages.Fallback),
