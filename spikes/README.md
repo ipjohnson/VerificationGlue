@@ -21,6 +21,19 @@ It proved:
 - `Verify.Throws<T>` cannot coexist with `using static` `Verify(...)` (`Name`).
 - About 2000 `[Verify]` methods with 6000 calls add about 4 s to a build, roughly 0.7 ms per call (`Perf`).
 
+## `closure/`
+
+The spike behind `Verify(() => ...)`, ipjohnson/VerificationGlue#118. `Gen/ClosureGenerator.cs` intercepts each `Verify(() => ...)` call and writes a copy of the lambda's body that reads the captured variables from the delegate's target. `Lib/Checks.cs` is the runtime. Build with `-p:ClosureGlueMode=rerun` for the first design, which runs the delegate and then the copy on failure. The default runs the copy once in place of the delegate.
+
+It proved:
+
+- Captured locals, parameters, `this`, loop scopes, async methods, primary constructor parameters and private members can be read back on SDK 10.0.403 (`App`, 27 cases).
+- A Native AOT publish keeps the closure fields when each copy carries `[DynamicDependency(All, typeof(ContainingType))]`, and its output matches the JIT run. Without it, every read fails and the call falls back (`App`).
+- It works in a TUnit test body under JIT and Native AOT (`TUnitApp`).
+- Running the copy once fixes the second run of a side effect, such as `queue.Dequeue()` (`App`).
+- With one captured `int`, a passing call cost 8 to 24 ns and 24 bytes, against 2 to 3 ns for the rerun design and about 1 ns for `Verify(bool)` (`App --perf`).
+- A cached `FieldInfo.GetValue` costs 14 to 27 ns. An `[UnsafeAccessor]` with `[UnsafeAccessorType]` costs 0.35 ns, but it needs the compiler's display class name, which the generator cannot know (`Bench`).
+
 ## `ide/`
 
 The Phase 0 IDE spike from `docs/research/ide-report.md`. One source set in `src/` builds against MTP 2.5.3 (`Mtp2`) and MTP 3.0.0-preview.26566.9 (`Mtp3`). `src/Generated` holds hand-written tier 3 copies with `#line` spans, test registration and a mock. `PdbCheck` prints the sequence points of the copies, and `tools/server_probe.py` drives the test host in server mode. Unlike the other spikes, its `global.json` sets `rollForward` to `disable`.

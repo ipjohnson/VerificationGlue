@@ -64,6 +64,11 @@ internal static class InterceptorEmitter
         type.Modifiers = ComponentModifier.File | ComponentModifier.Static;
         foreach (var call in file.Calls)
         {
+            if (LambdaEmitter.IsLambda(call))
+            {
+                continue;
+            }
+
             var path = Ex.Str(DisplayPath(call.MappedPath, file.ProjectDirectory));
             var line = Ex.Int(call.MappedLine);
             var message = call.Message is null ? Ex.Null : Ex.Str(call.Message);

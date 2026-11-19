@@ -108,6 +108,40 @@ public static class VerifyFailure
         }
     }
 
+    /// <summary>
+    /// A tier 2 <c>Verify</c> of a lambda, for a call whose closure the generated code cannot read.
+    /// The lambda runs once.
+    /// </summary>
+    /// <param name="condition">The lambda that returns the condition.</param>
+    /// <param name="expression">The source text of the lambda's body.</param>
+    /// <param name="message">The message for the shape of the body, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    public static void Verify(Func<bool> condition, string? expression, string? message, string? file, int line)
+    {
+        if (!condition())
+        {
+            throw Static(expression, message, file, line);
+        }
+    }
+
+    /// <summary>
+    /// A tier 2 <c>Check</c> of a lambda, for a call whose closure the generated code cannot read.
+    /// The lambda runs once.
+    /// </summary>
+    /// <param name="condition">The lambda that returns the condition.</param>
+    /// <param name="expression">The source text of the lambda's body.</param>
+    /// <param name="message">The message for the shape of the body, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    public static void Check(Func<bool> condition, string? expression, string? message, string? file, int line)
+    {
+        if (!condition())
+        {
+            CheckFailed(expression, message, file, line);
+        }
+    }
+
     /// <summary>Starts the tier 3 failure of a <c>Verify</c> call. Only the failure path calls it.</summary>
     /// <param name="expression">The source text of the condition.</param>
     /// <param name="file">The file of the call.</param>
@@ -372,6 +406,29 @@ public static class VerifyFailure
         new(Compose(kind, expression, message ?? Expected<T>(), $"it threw {thrown.GetType().FullName}: {thrown.Message}", null, file, line), thrown);
 
     private static string Expected<T>() => "expected " + typeof(T).Name;
+
+    /// <summary>The body of a parameterless lambda's source text, such as <c>x == 1</c> for <c>() =&gt; x == 1</c>.</summary>
+    internal static string? LambdaBody(string? expression)
+    {
+        if (expression is null)
+        {
+            return null;
+        }
+
+        var text = expression.TrimStart();
+        if (text.StartsWith("static ", StringComparison.Ordinal))
+        {
+            text = text.Substring("static ".Length).TrimStart();
+        }
+
+        if (!text.StartsWith("()", StringComparison.Ordinal))
+        {
+            return expression;
+        }
+
+        text = text.Substring(2).TrimStart();
+        return text.StartsWith("=>", StringComparison.Ordinal) ? text.Substring(2).Trim() : expression;
+    }
 
     internal static string Compose(string kind, string? expression, string? message, string? detail, string? userMessage, string? file, int line)
     {

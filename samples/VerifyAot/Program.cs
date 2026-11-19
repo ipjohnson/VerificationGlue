@@ -90,7 +90,7 @@ Verify(apart.Message == """
       box.X - 120.5           → 0.0625
       box.X                   → 120.5625
       box                     → Box { X = 120.5625, Y = 40 }
-      at Program.cs:124
+      at Program.cs:146
     """);
 
 // Tier 3: a failed == on two strings shows where they first differ.
@@ -105,12 +105,34 @@ Verify(differ.Message == """
       - 2   b\r
       + 2   b
         3   c
-      at Program.cs:133
+      at Program.cs:155
     """);
 
 Verify(Single(names, n => n.Length == 2) == "Bo");
 Verify(Is<List<int>>(shape).Count == 0);
 Verify(NotNull((int?)3) == 3);
+
+var expected = 60;
+var captured = Throws<VerifyException>(() => Verify(() => total + 10 == expected));
+Verify(captured.Message == """
+    Verify failed: total + 10 == expected
+      total + 10 → 50
+      total      → 40
+      expected   → 60
+      at Program.cs:116
+    """);
+
+var queue = new Queue<int>([1, 2, 3]);
+var once = Throws<VerifyException>(() => Verify(() => queue.Dequeue() == 7));
+Verify(queue.Count == 2);
+Verify(once.Message.Contains("queue.Dequeue() → 1"));
+
+var members = Throws<VerifyException>(new Counter().Check);
+Verify(members.Message == """
+    Verify failed: _count == 3
+      _count → 2
+      at Program.cs:163
+    """);
 
 Console.WriteLine("VerifyAot passed.");
 
@@ -132,4 +154,11 @@ public static partial class StringChecks
     {
         Verify(written == expected);
     }
+}
+
+sealed class Counter
+{
+    private readonly int _count = 2;
+
+    public void Check() => Verify(() => _count == 3);
 }

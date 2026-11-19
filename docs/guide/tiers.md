@@ -14,6 +14,27 @@ Each call gets the best message its call site allows. The [messages page](messag
 
 Tiers 1 and 2 need nothing beyond the package. Tier 3 is off until the project turns it on.
 
+## Get values in any method with a lambda
+
+Write the condition as a lambda to get the value of each part without tier 3:
+
+```cs
+Verify(() => order.Shipping.StartsWith("express") && order.Lines.Count < 3);
+Check(() => order.Total == 40);
+```
+
+The generator writes a check for each call. The check reads the variables the lambda captured from the delegate, then runs the lambda's body once with each part kept in a local, as a tier 3 copy does. The message lists the same values as tier 3. The [messages page](messages.md#a-lambda-values-in-any-method) shows it.
+
+This works in any method, including a test body in xunit, NUnit, MSTest and TUnit, which tier 3 cannot reach. It needs no `[Verify]`, no `partial` and no `VerificationGlueRewrite`. Under Native AOT the check keeps the captured fields itself, so the project needs no trimming settings.
+
+The lambda form has these limits:
+
+- The body must be one expression. A block body gives the tier 2 message.
+- When the body uses something the check cannot reach, the call gives the tier 2 message. This happens for a local function, a private nested type, a variable whose type is a type parameter or an anonymous type, a write to a captured variable, and `base`. Private fields, properties and methods of the type work.
+- `Verify(() => ...)` returns nothing, so `.Because(...)` does not apply. Use an interpolated message with `Verify(condition, $"...")` for a reason.
+- `Verify(() => order != null)` does not tell the compiler that `order` is not null afterwards. Use `NotNull(order)` for that.
+- The lambda itself runs only when the check cannot read its closure. Otherwise the check runs a copy of the body, which `#line` maps to the line of the call.
+
 ## Turn on tier 3
 
 Set `VerificationGlueRewrite` in the test project:
@@ -83,7 +104,7 @@ The copy runs only when something calls it.
 | An xunit or NUnit test method marked `[Verify]` | The original, because the framework calls it through reflection. Its checks give tier 2 messages. |
 | A `[VerifyTest]` method in `VerificationGlue.Tests` | The copy, because the runner calls it directly |
 
-In xunit, NUnit, MSTest and TUnit, put the checks that need values in a `[Verify]` helper and call it from the test. The test body itself gets tier 2.
+In xunit, NUnit, MSTest and TUnit, write the checks that need values in the test body as `Verify(() => ...)`, or put them in a `[Verify]` helper and call it from the test. A `Verify(condition)` in the test body itself gets tier 2.
 
 ## Values that are not captured
 
