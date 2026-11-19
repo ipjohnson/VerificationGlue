@@ -160,6 +160,7 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
     {
         var invocation = (InvocationExpressionSyntax)syntax.Node;
         if (syntax.SemanticModel.GetSymbolInfo(invocation, token).Symbol is not IMethodSymbol target ||
+            VerifyCalls.KindOf(target) is not null ||
             !VerifyRewriteRules.WillRewrite(target) ||
             syntax.SemanticModel.GetInterceptableLocation(invocation, token) is not { } location)
         {

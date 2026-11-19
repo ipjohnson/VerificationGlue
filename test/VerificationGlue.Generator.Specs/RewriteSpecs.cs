@@ -566,6 +566,48 @@ public class RewriteSpecs
     }
 
     [VerifyTest]
+    [Row("Checks", "FromOwnType")]
+    [Row("OtherTests", "FromOtherType")]
+    public void A_direct_call_to_a_Verify_method_named_like_a_VerifySyntax_method_is_sent_to_its_copy(string type, string method)
+    {
+        var assembly = GeneratorHarness.Load(rewrite: true, ("/repo/Project/Named.cs", NamedLikeVerifySyntax));
+
+        var thrown = Assert.Throws<TargetInvocationException>(() => assembly.GetType(type)!.GetMethod(method)!.Invoke(null, [4]));
+
+        Assert.StartsWith("Verify failed: width == 5\n  width → 4\n", thrown.InnerException!.Message);
+    }
+
+    [VerifyTest]
+    public void A_call_to_a_VerifySyntax_method_gets_no_redirect()
+    {
+        var result = GeneratorHarness.Generate(GeneratorHarness.Compilation(("/repo/Project/Named.cs", NamedLikeVerifySyntax)), new VerificationGlueGenerator(), out _, rewrite: true);
+
+        var redirects = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith(".Redirects.g.cs", StringComparison.Ordinal)).ToString();
+        Assert.Equal(2, redirects.Split("=> global::Checks.Check__Verified(").Length - 1);
+        Assert.Equal(2, redirects.Split("[global::System.Runtime.CompilerServices.InterceptsLocation(").Length - 1);
+    }
+
+    private const string NamedLikeVerifySyntax = """
+        using VerificationGlue;
+        using static VerificationGlue.VerifySyntax;
+
+        public static partial class Checks
+        {
+            [Verify]
+            public static void Check(int width) => Verify(width == 5);
+
+            public static void FromOwnType(int width) => Check(width);
+
+            public static void CallsVerifySyntax(int width) => VerifySyntax.Check(width == 5);
+        }
+
+        public static class OtherTests
+        {
+            public static void FromOtherType(int width) => Checks.Check(width);
+        }
+        """;
+
+    [VerifyTest]
     public void A_call_in_a_copy_to_a_Verify_method_calls_its_copy()
     {
         Assert.StartsWith("Verify failed: x == 1\n  x → 2\n", Fail("HelperFromCopy", 2).Message);
