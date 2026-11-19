@@ -5,20 +5,21 @@ using VerificationGlue;
 namespace Docs.Specs;
 
 /// <summary>
-/// <c>docs/guide/messages.md</c> shows the real output of <c>samples/Messages</c>. Each message on
-/// the page sits in a block marked with the name of its case in <see cref="Gallery"/>. Run with
-/// <c>VERIFICATIONGLUE_ACCEPT_MESSAGES=1</c> to write the fresh messages into the page.
+/// <c>docs/guide/messages.md</c> and <c>docs/guide/verify-equivalent.md</c> show the real output of
+/// <c>samples/Messages</c>. Each message on a page sits in a block marked with the name of its case
+/// in <see cref="Gallery"/>. Run with <c>VERIFICATIONGLUE_ACCEPT_MESSAGES=1</c> to write the fresh
+/// messages into the pages.
 /// </summary>
 public partial class MessagePageSpecs
 {
     private const string AcceptVariable = "VERIFICATIONGLUE_ACCEPT_MESSAGES";
 
-    private static readonly string Page = Path.Combine(RepositoryRoot.Path, "docs", "guide", "messages.md");
+    private static readonly string[] Pages = ["messages.md", "verify-equivalent.md"];
 
     [VerifyTest]
     public void Every_case_has_one_block_and_every_block_has_a_case()
     {
-        var blocks = Block().Matches(Read()).Select(match => match.Groups["name"].Value).ToList();
+        var blocks = Pages.SelectMany(page => Block().Matches(Read(page)).Select(match => match.Groups["name"].Value)).ToList();
 
         Assert.Equal(Gallery.Cases.Select(@case => @case.Name).Order(), blocks.Order());
     }
@@ -26,30 +27,40 @@ public partial class MessagePageSpecs
     [VerifyTest]
     public void Every_message_on_the_page_matches_a_fresh_run()
     {
-        var page = Read();
         var messages = Gallery.Cases.ToDictionary(@case => @case.Name, @case => Message(@case.Run));
-        var fresh = Block().Replace(page, match => messages.TryGetValue(match.Groups["name"].Value, out var message)
-            ? $"<!-- message: {match.Groups["name"].Value} -->\n```text\n{message}\n```\n<!-- endMessage -->"
-            : match.Value);
-
-        if (fresh == page)
+        var stale = new List<string>();
+        foreach (var name in Pages)
         {
-            return;
+            var page = Read(name);
+            var fresh = Block().Replace(page, match => messages.TryGetValue(match.Groups["name"].Value, out var message)
+                ? $"<!-- message: {match.Groups["name"].Value} -->\n```text\n{message}\n```\n<!-- endMessage -->"
+                : match.Value);
+
+            if (fresh == page)
+            {
+                continue;
+            }
+
+            if (Environment.GetEnvironmentVariable(AcceptVariable) == "1")
+            {
+                File.WriteAllText(PathOf(name), fresh);
+                continue;
+            }
+
+            stale.AddRange(Block().Matches(page)
+                .Where(match => messages.TryGetValue(match.Groups["name"].Value, out var message) && message != match.Groups["body"].Value)
+                .Select(match => $"docs/guide/{name}, '{match.Groups["name"].Value}' shows:\n{match.Groups["body"].Value}\nA fresh run gives:\n{messages[match.Groups["name"].Value]}"));
         }
 
-        if (Environment.GetEnvironmentVariable(AcceptVariable) == "1")
+        if (stale.Count > 0)
         {
-            File.WriteAllText(Page, fresh);
-            return;
+            Assert.Fail($"A message page differs from a fresh run. Rerun with {AcceptVariable}=1 to update it.\n\n{string.Join("\n\n", stale)}");
         }
-
-        var stale = Block().Matches(page)
-            .Where(match => messages.TryGetValue(match.Groups["name"].Value, out var message) && message != match.Groups["body"].Value)
-            .Select(match => $"'{match.Groups["name"].Value}' shows:\n{match.Groups["body"].Value}\nA fresh run gives:\n{messages[match.Groups["name"].Value]}");
-        Assert.Fail($"docs/guide/messages.md differs from a fresh run. Rerun with {AcceptVariable}=1 to update it.\n\n{string.Join("\n\n", stale)}");
     }
 
-    private static string Read() => File.ReadAllText(Page).Replace("\r\n", "\n");
+    private static string PathOf(string page) => Path.Combine(RepositoryRoot.Path, "docs", "guide", page);
+
+    private static string Read(string page) => File.ReadAllText(PathOf(page)).Replace("\r\n", "\n");
 
     private static string Message(Action run)
     {

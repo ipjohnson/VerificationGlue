@@ -239,7 +239,7 @@ NotNull failed: order
 
 `VerifyEquivalent(actual, expected)` compares two values member by member. The generator writes a comparer for the type at each call site, with no reflection. The message gives the path of each member that differs, with the expected and the found value. It lists up to 10 differences and counts the rest.
 
-The comparer walks the public fields and properties of classes, structs and records, including those of base types. Primitives, strings, enums, and types that implement `IEquatable<T>` and are not records compare with `Equals`. So do collections, interfaces, types in `System` and `Microsoft` namespaces, types with no public field or property, and types the generated code cannot name, such as a private nested type. Null on one side is a difference at that path. A pair of references compares once, so a graph with a cycle ends.
+The comparer walks the public fields and properties of classes, structs and records, including those of base types. An array or a list compares its items in order, and the path gives the index of each item that differs. Primitives, strings, enums, and types that implement `IEquatable<T>` and are not records compare with `Equals`. So do dictionaries, sets, other collections, interfaces, types in `System` and `Microsoft` namespaces, types with no public field or property, and types the generated code cannot name, such as a private nested type. Null on one side is a difference at that path. A pair of references compares once, so a graph with a cycle ends. [Compare two values with VerifyEquivalent](verify-equivalent.md) shows the messages for arrays, lists and dictionaries.
 
 <!-- snippet: message-tier2-equivalent -->
 <a id='snippet-message-tier2-equivalent'></a>

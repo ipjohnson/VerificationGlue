@@ -39,7 +39,7 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 | `Single(items, predicate)` | Returns the only item that matches `predicate`. Fails when none or more than one match. |
 | `Is<T>(value)` | Returns `value` as a `T`. Fails when `value` is null or not a `T`. |
 | `NotNull(value)` | Returns `value` when it is not null. Nullable analysis treats the result as non-null. |
-| `VerifyEquivalent(actual, expected)` | Compares the two values member by member. Fails with the path of each member that differs. |
+| `VerifyEquivalent(actual, expected)` | Compares the two values member by member, and arrays and lists item by item. Fails with the path of each member that differs. [Compare two values with VerifyEquivalent](verify-equivalent.md) has the details. |
 
 `Throws`, `Single`, `Is` and `NotNull` return a value, so they throw on failure also inside a `VerifyScope`. `VerifyEquivalent` throws there too, like `Verify`. The [messages page](messages.md#single) shows what each one reports.
 
