@@ -45,7 +45,13 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
                     new EquatableArray<CallModel>(group.OrderBy(call => call.Line).ThenBy(call => call.Column).ToArray()))));
 
         context.RegisterSourceOutput(files, static (output, file) =>
-            output.AddSource(InterceptorEmitter.HintName(file.FilePath), InterceptorEmitter.Emit(file)));
+        {
+            output.AddSource(InterceptorEmitter.HintName(file.FilePath), InterceptorEmitter.Emit(file));
+            if (file.Calls.Any(LambdaEmitter.IsLambda))
+            {
+                output.AddSource(LambdaEmitter.HintName(file.FilePath), LambdaEmitter.Emit(file));
+            }
+        });
 
         var verifyMethods = context.SyntaxProvider.ForAttributeWithMetadataName(
             "VerificationGlue.VerifyAttribute",
@@ -104,8 +110,21 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
             return null;
         }
 
+        var span = invocation.GetLocation().GetLineSpan();
         string? message = null;
-        if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check)
+        LambdaModel? lambda = null;
+        if (kind is CallKind.VerifyLambda or CallKind.CheckLambda)
+        {
+            if (VerifyCalls.LambdaBody(VerifyCalls.Argument(invocation, VerifyCalls.ConditionParameter)) is { } body)
+            {
+                message = Shapes.Condition(body, syntax.SemanticModel, token);
+            }
+
+            var site = (span.StartLinePosition.Line + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "_" +
+                       (span.StartLinePosition.Character + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            lambda = LambdaBuilder.Build(invocation, kind, syntax.SemanticModel, site, token);
+        }
+        else if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check)
         {
             if (VerifyCalls.Argument(invocation, VerifyCalls.ConditionParameter) is { } condition)
             {
@@ -123,7 +142,6 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
             VerifyRewriteRules.HasRewriteAttribute(enclosing, out var runnerCallsCopy) && runnerCallsCopy &&
             VerifyRewriteRules.WillRewrite(enclosing);
 
-        var span = invocation.GetLocation().GetLineSpan();
         var mapped = invocation.GetLocation().GetMappedLineSpan();
         return new CallModel(
             invocation.SyntaxTree.FilePath,
@@ -135,7 +153,8 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
             location.Data,
             kind,
             message,
-            inRunnerCopy);
+            inRunnerCopy,
+            lambda);
     }
 
     /// <summary>

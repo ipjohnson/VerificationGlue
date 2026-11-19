@@ -351,6 +351,82 @@ Verify failed: order is { Total: > 50, Shipping: "express" }
 ```
 <!-- endMessage -->
 
+## A lambda: values in any method
+
+`Verify(() => ...)` and `Check(() => ...)` take the condition as a lambda. The generator writes a check for each call that reads the variables the lambda captured and runs the lambda's body once, keeping the value of each part. It works in any method, including a test body in xunit, NUnit, MSTest or TUnit. The method needs no `[Verify]`, its type needs no `partial`, and the project does not need `VerificationGlueRewrite`.
+
+### Values
+
+<!-- snippet: message-lambda-values -->
+<a id='snippet-message-lambda-values'></a>
+```cs
+var order = new Order(7, 30, "standard");
+Verify(() => order.Shipping.StartsWith("express") && order.Lines.Count < 3);
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L17-L20' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-values' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-values -->
+```text
+Verify failed: order.Shipping.StartsWith("express") && order.Lines.Count < 3
+  order.Shipping.StartsWith("express") → false
+  order.Shipping                       → "standard"
+  order                                → order 7
+  order.Lines.Count < 3                → <not evaluated>
+  order.Lines.Count                    → <not evaluated>
+  order.Lines                          → <not evaluated>
+  at LambdaMessages.cs:19
+```
+<!-- endMessage -->
+
+### Members of the type
+
+The body can use the fields, properties and methods of the type it is in, including private ones.
+
+<!-- snippet: message-lambda-members -->
+<a id='snippet-message-lambda-members'></a>
+```cs
+private void VerifyTotal(int expected)
+{
+    Verify(() => _order.Total == expected);
+}
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L25-L30' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-members' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-members -->
+```text
+Verify failed: _order.Total == expected
+  _order.Total → 30
+  _order       → order 7
+  expected     → 40
+  at LambdaMessages.cs:28
+```
+<!-- endMessage -->
+
+### When values are not captured
+
+When the body uses something the generated check cannot reach, the call gives its tier 2 message. The body still runs once. This happens for a local function, a private nested type, a variable whose type is a type parameter or an anonymous type, a write to a captured variable, `base`, and a lambda with a block body.
+
+<!-- snippet: message-lambda-fallback -->
+<a id='snippet-message-lambda-fallback'></a>
+```cs
+var total = 30;
+Verify(() => IsEven(total + 1));
+
+static bool IsEven(int value) => value % 2 == 0;
+```
+<sup><a href='/samples/Messages/LambdaMessages.cs#L34-L39' title='Snippet source file'>snippet source</a> | <a href='#snippet-message-lambda-fallback' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+<!-- message: lambda-fallback -->
+```text
+Verify failed: IsEven(total + 1)
+  expected IsEven(total + 1) to return true
+  at LambdaMessages.cs:36
+```
+<!-- endMessage -->
+
 ## Check
 
 `Check` records each failure, and the scope lists them all when it ends. The [Check guide](check.md) shows how to open a scope.

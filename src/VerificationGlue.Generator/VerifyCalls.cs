@@ -32,7 +32,9 @@ internal static class VerifyCalls
 
         return method.Name switch
         {
+            "Verify" when IsLambda(method) => CallKind.VerifyLambda,
             "Verify" => method.Parameters.Length == 3 ? CallKind.VerifyWithMessage : CallKind.Verify,
+            "Check" when IsLambda(method) => CallKind.CheckLambda,
             "Check" => CallKind.Check,
             "Throws" => CallKind.Throws,
             "ThrowsAsync" => CallKind.ThrowsAsync,
@@ -44,6 +46,19 @@ internal static class VerifyCalls
             _ => null,
         };
     }
+
+    /// <summary>Whether the kind is a <c>Check</c>, which records its failure in the current scope.</summary>
+    public static bool IsCheck(CallKind kind) => kind is CallKind.Check or CallKind.CheckLambda;
+
+    /// <summary>
+    /// The body of a parameterless lambda with an expression body, as passed to
+    /// <c>Verify(() =&gt; ...)</c>, or null for a delegate passed in any other form.
+    /// </summary>
+    public static ExpressionSyntax? LambdaBody(ExpressionSyntax? argument) =>
+        argument is ParenthesizedLambdaExpressionSyntax { ParameterList.Parameters.Count: 0, AsyncKeyword.RawKind: 0, ExpressionBody: { } body } ? body : null;
+
+    private static bool IsLambda(IMethodSymbol method) =>
+        method.Parameters.Length > 0 && method.Parameters[0].Type is INamedTypeSymbol { Name: "Func", Arity: 1 };
 
     /// <summary>The argument passed to the parameter named <paramref name="parameter"/>, which is first.</summary>
     public static ExpressionSyntax? Argument(InvocationExpressionSyntax invocation, string parameter) =>
