@@ -99,4 +99,13 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         helpLinkUri: HelpLinkBase + "VG0010.md");
+
+    public static readonly DiagnosticDescriptor EquivalenceUnwalked = new(
+        id: "VG0011",
+        title: "VerifyEquivalent compares a type it cannot walk with Equals",
+        messageFormat: "VerifyEquivalent compares '{0}' {1}, because {2}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpLinkBase + "VG0011.md");
 }

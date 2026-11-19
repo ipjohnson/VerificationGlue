@@ -18,6 +18,8 @@ namespace VerificationGlue.Generator;
 /// generated code cannot name. An <c>Ignore</c> option leaves a member out, and an <c>Unordered</c>
 /// option compares the items of an array or a list without order. A type below an option gets its
 /// own comparer, keyed by the options that reach it, so calls without the option keep the shared one.
+/// <see cref="Unwalked"/> lists the types that fall back to an <c>Equals</c> they do not declare,
+/// and the types that contain a type parameter.
 /// </summary>
 internal sealed class EquivalenceBuilder
 {
@@ -26,6 +28,8 @@ internal sealed class EquivalenceBuilder
     private readonly Compilation _compilation;
     private readonly List<ComparedType?> _types = new();
     private readonly Dictionary<string, int> _indexes = new();
+    private readonly List<UnwalkedType> _unwalked = new();
+    private readonly HashSet<ITypeSymbol> _reported = new(SymbolEqualityComparer.Default);
 
     private EquivalenceBuilder(Compilation compilation) => _compilation = compilation;
 
@@ -58,6 +62,18 @@ internal sealed class EquivalenceBuilder
         var problems = new List<OptionProblem>();
         new EquivalenceBuilder(compilation).Applied(method.TypeArguments[0], options, model, problems);
         return problems;
+    }
+
+    /// <summary>
+    /// The types that the comparer of a <c>VerifyEquivalent</c> call reaches and cannot walk, where the
+    /// type declares no <c>Equals</c> or is open, each once, in the order it reaches them.
+    /// </summary>
+    public static List<UnwalkedType> Unwalked(IMethodSymbol method, Compilation compilation, ExpressionSyntax? options, SemanticModel model)
+    {
+        var builder = new EquivalenceBuilder(compilation);
+        var applied = builder.Applied(method.TypeArguments[0], options, model, new List<OptionProblem>());
+        builder.Visit(method.TypeArguments[0], applied.Select(option => new PathOption(option.Kind, option.Path)).ToList());
+        return builder._unwalked;
     }
 
     /// <summary>The options that name a member the comparer reads, with a problem added for each other one.</summary>
@@ -143,6 +159,15 @@ internal sealed class EquivalenceBuilder
 
         if (type is not INamedTypeSymbol named || !Walks(named))
         {
+            if (Open(type))
+            {
+                Unwalked(type, "with Equals", "it is an open generic type, which the generator cannot walk");
+            }
+            else if (type is INamedTypeSymbol other && !Nameable(other) && EqualsFallback(other) is { } fallback)
+            {
+                Unwalked(other, fallback, "the generated code cannot name it");
+            }
+
             return null;
         }
 
@@ -181,6 +206,11 @@ internal sealed class EquivalenceBuilder
         {
             _indexes.Remove(key);
             _types.RemoveAt(index);
+            if (EqualsFallback(named) is { } fallback)
+            {
+                Unwalked(named, fallback, $"it has no public field or property and does not implement IEquatable<{named.Name}>");
+            }
+
             return null;
         }
 
@@ -258,6 +288,9 @@ internal sealed class EquivalenceBuilder
 
     /// <summary>An option whose path starts at the type being visited.</summary>
     private sealed record PathOption(OptionKind Kind, string[] Path);
+
+    /// <summary>A type that the comparer compares with <c>Equals</c>, how <c>Equals</c> compares it, and why the comparer cannot walk it.</summary>
+    internal sealed record UnwalkedType(string Type, string Fallback, string Reason);
 
     /// <summary>
     /// The parameter type and the item type of the comparer for a one-dimensional array, or for a
@@ -383,9 +416,66 @@ internal sealed class EquivalenceBuilder
             return false;
         }
 
-        return type.IsRecord || !type.AllInterfaces.Any(face =>
+        return type.IsRecord || !Equatable(type);
+    }
+
+    private static bool Equatable(INamedTypeSymbol type) =>
+        type.AllInterfaces.Any(face =>
             face is { Name: "IEquatable", Arity: 1, ContainingNamespace: { Name: "System", ContainingNamespace.IsGlobalNamespace: true } } &&
             SymbolEqualityComparer.Default.Equals(face.TypeArguments[0], type));
+
+    private static bool OverridesEquals(INamedTypeSymbol type)
+    {
+        for (var current = type; current is not null && current.SpecialType is not (SpecialType.System_Object or SpecialType.System_ValueType); current = current.BaseType)
+        {
+            if (current.GetMembers("Equals").OfType<IMethodSymbol>().Any(method => method.IsOverride && method.Parameters.Length == 1 && method.Parameters[0].Type.SpecialType == SpecialType.System_Object))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// How <c>Equals</c> compares a class or struct that the comparer does not walk, when it has no
+    /// <c>Equals</c> of its own, or null when it has one or is not such a type.
+    /// </summary>
+    private static string? EqualsFallback(INamedTypeSymbol type) =>
+        type.TypeKind is not (TypeKind.Class or TypeKind.Struct) ||
+        type.SpecialType != SpecialType.None ||
+        type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T ||
+        type.IsRecord ||
+        type.IsTupleType ||
+        type.IsAnonymousType ||
+        type.IsRefLikeType ||
+        IsFramework(type) ||
+        type.AllInterfaces.Any(face => face.SpecialType == SpecialType.System_Collections_IEnumerable) ||
+        Equatable(type) ||
+        OverridesEquals(type)
+            ? null
+            : type.IsReferenceType ? "by reference" : "with ValueType.Equals";
+
+    /// <summary>Whether the type is or contains a type parameter.</summary>
+    private static bool Open(ITypeSymbol type) => type switch
+    {
+        ITypeParameterSymbol => true,
+        IArrayTypeSymbol array => Open(array.ElementType),
+        INamedTypeSymbol named => named.TypeArguments.Any(Open) || (named.ContainingType is { } outer && Open(outer)),
+        _ => false,
+    };
+
+    private void Unwalked(ITypeSymbol type, string fallback, string reason)
+    {
+        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
+        {
+            type = nullable.TypeArguments[0];
+        }
+
+        if (_reported.Add(type))
+        {
+            _unwalked.Add(new UnwalkedType(type.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat), fallback, reason));
+        }
     }
 
     private static bool IsFramework(INamedTypeSymbol type)
