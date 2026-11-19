@@ -187,6 +187,11 @@ internal sealed class LambdaBuilder
             .Append("        if (!(").Append(rewritten.Text).Append("))\n")
             .Append("#line hidden\n        {\n            ").Append(check ? "" : "throw ")
             .Append(Runtime).Append(check ? ".StartCheck(" : ".Start(").Append(CopyBuilder.Literal(_body.ToString())).Append(", __path, ").Append(line).Append(')');
+        foreach (var explanation in Explanations.For(_body, rewritten, _model, node => Render(node.Span), _token))
+        {
+            text.Append("\n                .").Append(explanation);
+        }
+
         foreach (var row in rewritten.Rows)
         {
             text.Append("\n                .").Append(row.Capture is null ? "NotCaptured(" : "Value(").Append(CopyBuilder.Literal(row.Label));

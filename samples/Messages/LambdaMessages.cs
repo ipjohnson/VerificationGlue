@@ -36,6 +36,15 @@ public sealed class LambdaMessages
         #endregion
     }
 
+    public static void Sequence()
+    {
+        #region message-lambda-sequence
+        string[] a = ["x", "y", "z"];
+        string[] b = ["x", "q", "z"];
+        Verify(() => a.SequenceEqual(b));
+        #endregion
+    }
+
     public static void Members() => new LambdaMessages().VerifyTotal(40);
 
     #region message-lambda-members
