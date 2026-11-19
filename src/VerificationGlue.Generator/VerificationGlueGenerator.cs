@@ -130,7 +130,7 @@ public sealed class VerificationGlueGenerator : IIncrementalGenerator
         EquivalenceModel? equivalence = null;
         if (kind is CallKind.VerifyEquivalent)
         {
-            equivalence = EquivalenceBuilder.Build(method, syntax.SemanticModel.Compilation);
+            equivalence = EquivalenceBuilder.Build(method, syntax.SemanticModel.Compilation, VerifyCalls.Options(invocation, method), syntax.SemanticModel);
         }
         else if (kind is CallKind.VerifyLambda or CallKind.CheckLambda)
         {

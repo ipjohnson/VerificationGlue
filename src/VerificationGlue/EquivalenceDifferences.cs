@@ -17,7 +17,15 @@ public sealed class EquivalenceDifferences
     public const int Limit = 10;
 
     private readonly List<string> _listed = new();
+    private readonly EquivalenceDifferences? _outer;
     private HashSet<Pair>? _seen;
+
+    /// <summary>Creates an empty list of differences.</summary>
+    public EquivalenceDifferences()
+    {
+    }
+
+    private EquivalenceDifferences(EquivalenceDifferences outer) => _outer = outer;
 
     /// <summary>The number of differences found.</summary>
     public int Count { get; private set; }
@@ -81,8 +89,56 @@ public sealed class EquivalenceDifferences
             return true;
         }
 
-        return !(_seen ??= new HashSet<Pair>()).Add(new Pair(actual, expected));
+        var pair = new Pair(actual, expected);
+        for (var outer = _outer; outer is not null; outer = outer._outer)
+        {
+            if (outer._seen?.Contains(pair) == true)
+            {
+                return true;
+            }
+        }
+
+        return !(_seen ??= new HashSet<Pair>()).Add(pair);
     }
+
+    /// <summary>Whether two items of an unordered array or list are equal by <see cref="EqualityComparer{T}.Default"/>.</summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="actual">An item of the actual value.</param>
+    /// <param name="expected">An item of the expected value.</param>
+    public bool Same<T>(T actual, T expected) => EqualityComparer<T>.Default.Equals(actual, expected);
+
+    /// <summary>Whether <paramref name="compare"/> finds no difference between two items of an unordered array or list.</summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="actual">An item of the actual value.</param>
+    /// <param name="expected">An item of the expected value.</param>
+    /// <param name="compare">The generated comparer of the item type.</param>
+    public bool Same<T>(T actual, T expected, Action<T, T, string, EquivalenceDifferences> compare)
+    {
+        var trial = new EquivalenceDifferences(this);
+        compare(actual, expected, "", trial);
+        return trial.Count == 0;
+    }
+
+    /// <summary>Whether two nullable items of an unordered array or list are both null, or <paramref name="compare"/> finds no difference between their values.</summary>
+    /// <typeparam name="T">The value type of the items.</typeparam>
+    /// <param name="actual">An item of the actual value.</param>
+    /// <param name="expected">An item of the expected value.</param>
+    /// <param name="compare">The generated comparer of <typeparamref name="T"/>.</param>
+    public bool SameNullable<T>(T? actual, T? expected, Action<T, T, string, EquivalenceDifferences> compare)
+        where T : struct =>
+        actual is { } actualValue && expected is { } expectedValue ? Same(actualValue, expectedValue, compare) : actual.HasValue == expected.HasValue;
+
+    /// <summary>Records an item of the expected unordered array or list that no item of the actual one matches.</summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="path">The path of the array or list.</param>
+    /// <param name="item">The expected item.</param>
+    public void Missing<T>(string path, T item) => Add(path, "missing " + VerifyFailureBuilder.Format(item));
+
+    /// <summary>Records an item of the actual unordered array or list that no item of the expected one matches.</summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="path">The path of the array or list.</param>
+    /// <param name="item">The actual item.</param>
+    public void Extra<T>(string path, T item) => Add(path, "extra " + VerifyFailureBuilder.Format(item));
 
     /// <summary>One line per listed difference, then a count of the rest, joined for a failure message.</summary>
     internal string Describe()

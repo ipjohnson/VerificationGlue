@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Reflection;
+using Microsoft.CodeAnalysis;
 
 namespace VerificationGlue.Generator.Specs;
 
@@ -107,6 +109,25 @@ public class EquivalenceSpecs
                 var tags = new HashSet<string> { "fragile" };
                 VerifyEquivalent(new Stock(levels, tags), new Stock(levels, tags));
             }
+
+            public static void UnorderedPass() => VerifyEquivalent(new Batch { Counts = [1, 2, 2, 3], Names = ["Ann", "Bo"] }, new Batch { Counts = [2, 3, 1, 2], Names = ["Bo", "Ann"] }, o => o.Unordered(x => x.Counts).Unordered(x => x.Names));
+            public static void UnorderedDuplicates() => VerifyEquivalent(new Batch { Counts = [1, 1, 2] }, new Batch { Counts = [1, 2, 2] }, o => o.Unordered(x => x.Counts));
+            public static void UnorderedRecords() => VerifyEquivalent(Stops(Paris, London, London), Stops(London, Paris, Paris), o => o.Unordered(x => x.Stops));
+            public static void UnorderedRecordsPass() => VerifyEquivalent(Stops(Paris, London, Paris), Stops(Paris, Paris, London), o => o.Unordered(x => x.Stops));
+            public static void UnorderedRoot() => VerifyEquivalent(new List<Address> { London, Paris }, new List<Address> { Paris, Paris }, o => o.Unordered(x => x));
+            public static void IgnoreNested() => VerifyEquivalent(Invoice("London"), Invoice("Paris", Status.Paid), o => o.Ignore(x => x.Customer!.Address.City));
+            public static void IgnoreConditional() => VerifyEquivalent(Invoice("London"), Invoice("Paris"), o => o.Ignore(x => x.Customer?.Address.City));
+            public static void IgnoreAll() => VerifyEquivalent(Invoice("London"), Invoice("Paris", Status.Paid), o => o.Ignore(x => x.Customer).Ignore(x => x.Status));
+            public static void PrimitiveWithOptions() => VerifyEquivalent(3, 4, o => o);
+            public static void UnappliedOption() => VerifyEquivalent(Invoice("London"), Invoice("Paris", Status.Paid), o => o.Ignore(x => x.Customer!.Name.Trim()).Ignore(x => x.Status));
+
+            private static readonly Address London = new("London", "High St");
+            private static readonly Address Paris = new("Paris", "Quai");
+
+            private static Route Stops(params Address[] stops) => new("R1", [.. stops]);
+
+            [Verify]
+            public static void InCopyWithOptions() => VerifyEquivalent(Invoice("London"), Invoice("Paris", Status.Paid), o => o.Ignore(x => x.Customer!.Address.City));
 
             private static Route Route(string street) => new("R1", [new Address("London", "High St"), new Address("Paris", street)]);
 
@@ -284,6 +305,90 @@ public class EquivalenceSpecs
     }
 
     [VerifyTest]
+    public void An_unordered_list_counts_duplicates_and_lists_missing_and_extra_items()
+    {
+        Run("UnorderedPass");
+        Run("UnorderedRecordsPass");
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: new Batch { Counts = [1, 1, 2] } is not equivalent to new Batch { Counts = [1, 2, 2] }",
+                "  Counts: missing 2",
+                "  Counts: extra 1",
+                $"  at Tests/Equivalence.cs:{LineOf("UnorderedDuplicates()")}"),
+            Fail("UnorderedDuplicates").Message);
+        Assert.Equal(
+            "  Stops: missing Address { City = Paris, Street = Quai }\n  Stops: extra Address { City = London, Street = High St }",
+            string.Join("\n", Fail("UnorderedRecords").Message.Split('\n')[1..3]));
+        Assert.Equal(
+            "  missing Address { City = Paris, Street = Quai }\n  extra Address { City = London, Street = High St }",
+            string.Join("\n", Fail("UnorderedRoot").Message.Split('\n')[1..3]));
+    }
+
+    [VerifyTest]
+    public void Ignore_skips_a_nested_member_and_only_that_member()
+    {
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\", Status.Paid)",
+                "  Status: expected Paid, found Open",
+                $"  at Tests/Equivalence.cs:{LineOf("IgnoreNested()")}"),
+            Fail("IgnoreNested").Message);
+        Run("IgnoreConditional");
+        Run("IgnoreAll");
+
+        // The same Invoice and Address types still compare City in a call without the option.
+        Assert.Contains("Customer.Address.City: expected \"Paris\", found \"London\"", Fail("NestedRecords").Message);
+    }
+
+    [VerifyTest]
+    public void An_option_that_VG0010_reports_is_left_out_and_the_others_apply()
+    {
+        Assert.Equal("  Customer.Address.City: expected \"Paris\", found \"London\"", string.Join("\n", Fail("UnappliedOption").Message.Split('\n')[1..^1]));
+        Assert.Equal(
+            Lines("VerifyEquivalent failed: 3 is not equivalent to 4", "  expected 4, found 3", $"  at Tests/Equivalence.cs:{LineOf("PrimitiveWithOptions()")}"),
+            Fail("PrimitiveWithOptions").Message);
+    }
+
+    [VerifyTest]
+    public void A_call_with_options_in_a_tier_3_copy_applies_them()
+    {
+        var thrown = Assert.Throws<TargetInvocationException>(() => Assembly.Value.GetType("Sample.Cases")!.GetMethod("InCopyWithOptions__Verified")!.Invoke(null, null));
+
+        Assert.Equal(
+            Lines(
+                "VerifyEquivalent failed: Invoice(\"London\") is not equivalent to Invoice(\"Paris\", Status.Paid)",
+                "  Status: expected Paid, found Open",
+                $"  at Tests/Equivalence.cs:{LineOf("InCopyWithOptions()")}"),
+            thrown.InnerException!.Message);
+    }
+
+    [VerifyTest]
+    public void VG0010_reports_an_option_lambda_that_is_not_a_member_access()
+    {
+        var diagnostics = Analyze(
+            "VerifyEquivalent(batch, batch, o => o.Unordered(x => x.Counts.Where(c => c > 0)).Ignore(x => x.Names[0]).Unordered(x => x.Names));",
+            "VerifyEquivalent(invoice, invoice, o => o.Ignore(x => x.Customer!.Name.Trim()).Ignore(x => x.Customer!.Name.Length).Ignore(x => x));",
+            "VerifyEquivalent(invoice, invoice, o => o.Unordered(x => x.Customer!.Name));",
+            "VerifyEquivalent(invoice, invoice, options);",
+            "VerifyEquivalent(batch, batch, o => o.Ignore(x => x.Hidden));");
+
+        Assert.Equal(
+            [
+                "VG0010: The VerifyEquivalent option 'x => x.Counts.Where(c => c > 0)' is not applied, because it is not a chain of member accesses on the lambda's parameter, such as 'x => x.Lines'",
+                "VG0010: The VerifyEquivalent option 'x => x.Names[0]' is not applied, because it is not a chain of member accesses on the lambda's parameter, such as 'x => x.Lines'",
+                "VG0010: The VerifyEquivalent option 'x => x.Customer!.Name.Trim()' is not applied, because it is not a chain of member accesses on the lambda's parameter, such as 'x => x.Lines'",
+                "VG0010: The VerifyEquivalent option 'x => x.Customer!.Name.Length' is not applied, because the comparer compares 'Customer.Name' with Equals, so it does not read 'Length'",
+                "VG0010: The VerifyEquivalent option 'x => x' is not applied, because Ignore needs a member, and the lambda names the value itself",
+                "VG0010: The VerifyEquivalent option 'x => x.Customer!.Name' is not applied, because 'Customer.Name' is not an array or a list that the comparer walks",
+                "VG0010: The VerifyEquivalent option 'options' is not applied, because it is not a lambda that calls Unordered and Ignore on its parameter",
+                "VG0010: The VerifyEquivalent option 'x => x.Hidden' is not applied, because 'Hidden' is not a public field or property that the comparer reads",
+            ],
+            diagnostics.Select(diagnostic => $"{diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}"));
+        Assert.All(diagnostics, diagnostic => Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity));
+        Assert.Equal("x => x.Counts.Where(c => c > 0)", diagnostics[0].Location.SourceTree!.GetText().ToString(diagnostics[0].Location.SourceSpan));
+    }
+
+    [VerifyTest]
     public void The_interceptor_calls_a_comparer_written_for_the_type()
     {
         var result = GeneratorHarness.Generate(GeneratorHarness.Compilation((Path, Source)), new VerificationGlueGenerator(), out _);
@@ -298,9 +403,42 @@ public class EquivalenceSpecs
         Assert.Contains("(global::System.Collections.Generic.IReadOnlyList<global::Sample.Address> actual, ", comparers);
         Assert.Contains("differences.ItemCount(path, actual.Length, expected.Length);", comparers);
         Assert.Contains("differences.Equal(path, \"Levels\", actual.Levels, expected.Levels);", comparers);
+        Assert.Contains(
+            "(global::Sample.Invoice actual, global::Sample.Invoice expected, global::System.Func<global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>, global::VerificationGlue.EquivalenceOptions<global::Sample.Invoice>> options, string? actualExpression = null",
+            interceptors);
+        Assert.Contains("<T>(T actual, T expected, global::System.Func<global::VerificationGlue.EquivalenceOptions<T>, global::VerificationGlue.EquivalenceOptions<T>> options, ", interceptors);
+        Assert.Contains("Verify_InvoiceOptions_", interceptors);
+        Assert.Contains("differences.Same(actual[other], expected[index], Compare_Address_", comparers);
+        Assert.Contains("differences.Same(actual[other], expected[index]))", comparers);
         Assert.DoesNotContain("Reflection", comparers);
         Assert.DoesNotContain("GetType", comparers);
     }
+
+    private static ImmutableArray<Diagnostic> Analyze(params string[] statements) =>
+        GeneratorHarness.Analyze($$"""
+            using System;
+            using System.Collections.Generic;
+            using System.Linq;
+            using VerificationGlue;
+            using static VerificationGlue.VerifySyntax;
+
+            public sealed record Customer(string Name);
+            public sealed record Invoice(int Id, Customer? Customer);
+            public sealed class Batch
+            {
+                public int[] Counts { get; set; } = [];
+                public IReadOnlyList<string> Names { get; set; } = [];
+                internal int Hidden { get; set; }
+            }
+
+            static class Tests
+            {
+                static void M(Batch batch, Invoice invoice, Func<EquivalenceOptions<Invoice>, EquivalenceOptions<Invoice>> options)
+                {
+                    {{string.Join("\n            ", statements)}}
+                }
+            }
+            """);
 
     private static void Run(string method) => Assembly.Value.GetType("Sample.Cases")!.GetMethod(method)!.Invoke(null, null);
 

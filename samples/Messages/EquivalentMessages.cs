@@ -40,6 +40,15 @@ public static class EquivalentMessages
         VerifyEquivalent(parsed, expected);
         #endregion
     }
+
+    public static void Options()
+    {
+        #region verify-equivalent-options
+        var parsed = new Invoice(8, [new InvoiceLine("B-2", 3), new InvoiceLine("A-1", 2)], ["gift", "gift"]);
+        var expected = new Invoice(7, [new InvoiceLine("A-1", 2), new InvoiceLine("B-2", 3)], ["fragile", "gift"]);
+        VerifyEquivalent(parsed, expected, options => options.Unordered(x => x.Lines).Unordered(x => x.Tags).Ignore(x => x.Id));
+        #endregion
+    }
 }
 
 #region verify-equivalent-types

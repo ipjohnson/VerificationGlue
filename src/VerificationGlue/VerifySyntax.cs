@@ -226,6 +226,28 @@ public static class VerifySyntax
         [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
         VerifyFailure.EquivalentWithoutGenerator(actual, expected, actualExpression, expectedExpression);
 
+    /// <summary>
+    /// Throws a <see cref="VerifyException"/> when <paramref name="actual"/> is not equivalent to
+    /// <paramref name="expected"/>, with the comparison changed by <paramref name="options"/>, such as
+    /// <c>options =&gt; options.Unordered(x =&gt; x.Lines).Ignore(x =&gt; x.Id)</c>. The generator reads
+    /// the options from the call and never runs the lambda. Without the generator, the options have
+    /// no effect and the two compare with <see cref="EqualityComparer{T}.Default"/>.
+    /// </summary>
+    /// <remarks>It throws inside a <see cref="VerifyScope"/> too, like <c>Verify</c>.</remarks>
+    /// <typeparam name="T">The type of the two values.</typeparam>
+    /// <param name="actual">The value the code produced.</param>
+    /// <param name="expected">The value it should equal member by member.</param>
+    /// <param name="options">A lambda that calls <see cref="EquivalenceOptions{T}.Unordered"/> and <see cref="EquivalenceOptions{T}.Ignore"/> on its parameter.</param>
+    /// <param name="actualExpression">The source text of <paramref name="actual"/>. The compiler fills it in.</param>
+    /// <param name="expectedExpression">The source text of <paramref name="expected"/>. The compiler fills it in.</param>
+    public static void VerifyEquivalent<T>(
+        T actual,
+        T expected,
+        Func<EquivalenceOptions<T>, EquivalenceOptions<T>> options,
+        [CallerArgumentExpression(nameof(actual))] string? actualExpression = null,
+        [CallerArgumentExpression(nameof(expected))] string? expectedExpression = null) =>
+        VerifyFailure.EquivalentWithoutGenerator(actual, expected, actualExpression, expectedExpression);
+
     /// <summary>Returns <paramref name="value"/> when it is not null, and throws a <see cref="VerifyException"/> when it is.</summary>
     /// <remarks>It throws inside a <see cref="VerifyScope"/> too, because a failure has no value to return.</remarks>
     /// <typeparam name="T">The reference type of the value.</typeparam>

@@ -24,6 +24,7 @@ public static class Gallery
         ("equivalent-items", EquivalentMessages.Items),
         ("equivalent-counts", EquivalentMessages.Counts),
         ("equivalent-dictionary", EquivalentMessages.Dictionary),
+        ("equivalent-options", EquivalentMessages.Options),
         ("tier3-values", Tier3Messages.Values),
         ("tier3-skipped", Tier3Messages.Skipped),
         ("tier3-because", Tier3Messages.Because),
