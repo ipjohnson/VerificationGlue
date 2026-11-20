@@ -40,6 +40,8 @@ internal sealed record RowModel(string Uid, EquatableArray<string> Arguments);
 /// <see cref="NameFormatter"/> is the global type name of its <c>ITestNameFormatter</c>. A method with
 /// <c>[RowSource]</c> or <c>ITestDataSource</c> attributes also registers one test that discovery expands
 /// into its rows; <see cref="Sources"/> holds the <c>[RowSource]</c> members that match it.
+/// <see cref="ExternAliases"/> are the extern aliases its type names use, including those of the
+/// constructor parameters.
 /// </summary>
 internal sealed record TestMethodModel(
     string Name,
@@ -59,7 +61,8 @@ internal sealed record TestMethodModel(
     bool HasRowSources,
     EquatableArray<RowSourceModel> Sources,
     bool HasDataSourceAttributes,
-    EquatableArray<TraitModel> Traits)
+    EquatableArray<TraitModel> Traits,
+    EquatableArray<string> ExternAliases)
 {
     /// <summary>True when the method registers a test that discovery expands into rows.</summary>
     public bool ExpandsAtDiscovery => Sources.Count > 0 || HasDataSourceAttributes;

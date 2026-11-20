@@ -196,14 +196,14 @@ internal static class AttributeMaterializer
     /// The default value of <paramref name="parameter"/> as a C# expression of type <c>object?</c>,
     /// or null when it has none or it cannot be written.
     /// </summary>
-    public static string? WriteDefault(IParameterSymbol parameter)
+    public static string? WriteDefault(IParameterSymbol parameter, TypeNames names)
     {
         if (!parameter.HasExplicitDefaultValue)
         {
             return null;
         }
 
-        var type = Name(parameter.Type);
+        var type = names.Write(parameter.Type);
         var underlying = parameter.Type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
             ? nullable.TypeArguments[0]
             : parameter.Type;
@@ -214,7 +214,7 @@ internal static class AttributeMaterializer
         }
 
         var literal = underlying.TypeKind == TypeKind.Enum
-            ? $"({Name(underlying)})({Convert.ToString(value, CultureInfo.InvariantCulture)})"
+            ? $"({names.Write(underlying)})({Convert.ToString(value, CultureInfo.InvariantCulture)})"
             : value is decimal number
                 ? number.ToString(CultureInfo.InvariantCulture) + "M"
                 : Primitive(value, underlying.SpecialType);

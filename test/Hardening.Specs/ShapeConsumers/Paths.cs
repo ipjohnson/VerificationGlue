@@ -1,4 +1,3 @@
-using System.Reflection;
 using VerificationGlue.Mocks;
 
 namespace Hardening.Specs.ShapeConsumers;
@@ -12,23 +11,6 @@ public static class Fakes
 {
     public static T Fresh<T>()
         where T : class => Mock.Of<T>();
-}
-
-/// <summary>
-/// The framework hook of docs/guide/getting-started-mocks.md#host-frameworks: it passes
-/// <c>MockRegistry.Create(Type)</c> for each parameter marked <c>[Mock]</c>. The specs use it where a
-/// VerificationGlue.Tests test method cannot take the parameter itself.
-/// </summary>
-internal static class Hook
-{
-    public static TResult Invoke<TResult>(Type type, string method)
-    {
-        var target = type.GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!;
-        var arguments = target.GetParameters()
-            .Select(parameter => parameter.IsDefined(typeof(MockAttribute)) ? MockRegistry.Create(parameter.ParameterType) : null)
-            .ToArray();
-        return (TResult)target.Invoke(null, arguments)!;
-    }
 }
 
 /// <summary>The public ways to create a mock, each giving a new, unconfigured mock.</summary>

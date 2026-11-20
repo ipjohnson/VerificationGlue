@@ -31,7 +31,7 @@ internal static class RowSourceReader
         attribute.AttributeClass is { } type && type.AllInterfaces.Any(candidate => candidate.ToDisplayString() == KnownTypes.ITestDataSource);
 
     /// <summary>Each <c>[RowSource]</c> of <paramref name="method"/>, in source order.</summary>
-    public static IReadOnlyList<RowSourceResult> Read(IMethodSymbol method, Compilation compilation)
+    public static IReadOnlyList<RowSourceResult> Read(IMethodSymbol method, Compilation compilation, TypeNames names)
     {
         var results = new List<RowSourceResult>();
         foreach (var attribute in method.GetAttributes())
@@ -43,14 +43,14 @@ internal static class RowSourceReader
 
             var name = attribute.ConstructorArguments.Length == 1 ? attribute.ConstructorArguments[0].Value as string : null;
             var deterministic = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "DeterministicReplay").Value.Value is true;
-            var error = Check(method, name, deterministic, compilation, out var source);
+            var error = Check(method, name, deterministic, compilation, names, out var source);
             results.Add(new RowSourceResult(attribute, source, error));
         }
 
         return results;
     }
 
-    private static string? Check(IMethodSymbol method, string? name, bool deterministic, Compilation compilation, out RowSourceModel? source)
+    private static string? Check(IMethodSymbol method, string? name, bool deterministic, Compilation compilation, TypeNames names, out RowSourceModel? source)
     {
         source = null;
         if (string.IsNullOrEmpty(name))
@@ -134,15 +134,14 @@ internal static class RowSourceReader
             }
 
             var item = values.Count == 1 && !ReferenceEquals(values[0], element) ? "row.Item1" : values.Count == 1 ? "row" : "row.Item" + (i + 1);
-            var parameterType = parameters[i].Type.TypeKind == TypeKind.Dynamic ? "object" : parameters[i].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            converted.Add("(object?)(" + parameterType + ")" + item);
+            converted.Add("(object?)(" + names.Write(parameters[i].Type) + ")" + item);
         }
 
-        var read = member.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + member.Name + (member is IMethodSymbol ? "()" : "");
+        var read = names.Write(member.ContainingType) + "." + member.Name + (member is IMethodSymbol ? "()" : "");
         source = new RowSourceModel(
             name!,
             read,
-            element.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            names.Write(element),
             "static row => new object?[] { " + string.Join(", ", converted) + " }",
             isAsync,
             deterministic);
