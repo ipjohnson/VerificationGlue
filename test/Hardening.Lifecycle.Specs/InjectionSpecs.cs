@@ -13,6 +13,7 @@ public class InjectionSpecs
     private const string AssemblyScoped = "name:Lifecycle.AssemblyScoped*";
     private const string Assembly = "Hardening.Lifecycle.Fixture";
     private const string AssemblyNode = Assembly + "/Disposing the assembly scope " + Assembly;
+    private const string CancelledCleanup = "cancellation then every cleanup step fails";
 
     private static readonly string[] SetupBoundaries = ["scope-creation", "container", "middleware-entry", "class-construction", "parameter"];
 
@@ -166,6 +167,43 @@ public class InjectionSpecs
             Assert.False(line.StartsWith("acquire ", StringComparison.Ordinal) || line.StartsWith("body ", StringComparison.Ordinal), $"'{line}' came after the run was cancelled.\n{run}"));
     }
 
+    /// <summary>
+    /// A cancellation in the body, then a failure at each cleanup step of the test, class and assembly
+    /// scopes. MTP drops the results published after the cancellation, so the console output must hold
+    /// every failure under the test or scope it belongs to, in the order they happened (CD-05). Only the
+    /// test's middleware fails at exit, because the fixture's middleware throws from a finally and an
+    /// outer one would replace the inner failure.
+    /// </summary>
+    [Fact]
+    public async Task Cleanup_failures_after_a_cancellation_are_in_the_console_output_in_order()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "The fixture cancels the run with SIGINT, which Windows does not have.");
+        var run = await Runs.Value[CancelledCleanup];
+        string[] fired =
+        [
+            "test body", "test disposal (instance)", "test middleware-exit", "test disposal (listener)", "test disposal (container)",
+            "class disposal (listener)", "assembly disposal (listener)",
+        ];
+
+        Assert.True(run.ExitCode == 3, run.ToString());
+        Assert.Equal(fired, Fired(run.Log));
+        AssertEachResourceReleasedOnce(run);
+
+        static string Failed(string name) => name + " failed after the run was cancelled.";
+        AssertInOrder(
+            run.Output,
+            [
+                Failed("Lifecycle.TestScoped.First(Lifecycle.Service,VerificationGlue.Tests.TestContext)"),
+                "OperationCanceledException: Cancelled at test body.",
+                .. fired[1..5].Select(place => $"InvalidOperationException: Injected at {place}."),
+                Failed("Disposing the class scope Lifecycle.TestScoped"),
+                "InvalidOperationException: Injected at class disposal (listener).",
+                Failed("Disposing the assembly scope " + Assembly),
+                "InvalidOperationException: Injected at assembly disposal (listener).",
+            ],
+            run);
+    }
+
     /// <summary>Starts every run at once, as many at a time as there are processors, so the cases share the wait.</summary>
     private static Dictionary<string, Task<FixtureRun>> StartRuns()
     {
@@ -182,6 +220,10 @@ public class InjectionSpecs
             {
                 runs.Add("cancellation " + @case.Name, Start(@case.Inject.Replace(";", ":cancellation;") + ":cancellation", @case.Filter));
             }
+
+            runs.Add(
+                CancelledCleanup,
+                Start("test:body:cancellation;test:middleware-exit:exception;test:disposal:exception;class:disposal:exception;assembly:disposal:exception", TestScoped));
         }
 
         return runs;
