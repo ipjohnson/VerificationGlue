@@ -76,6 +76,9 @@ public class AnalyzerSpecs
     [Row("public abstract class OrderTests { [VerifyTest] public void M() { } }", "is an instance method of an abstract class")]
     [Row("public class OrderTests<T> { [VerifyTest] public void M() { } }", "is in the generic type OrderTests")]
     [Row("public class Outer { private class OrderTests { [VerifyTest] public void M() { } } }", "is in OrderTests, which generated code cannot reach")]
+    [Row("public interface IOrderTests { [VerifyTest] void M(); }", "is not declared in a class or a struct")]
+    [Row("public interface IOrderTests { [VerifyTest] public void M() { } }", "is not declared in a class or a struct")]
+    [Row("public interface IOrderTests { [VerifyTest] public static void M() { } }", "is not declared in a class or a struct")]
     public async Task A_class_the_runner_cannot_use_reports_VGT0004(string type, string reason)
     {
         var diagnostics = await Analyze("using VerificationGlue.Tests;\n" + type);
@@ -95,6 +98,33 @@ public class AnalyzerSpecs
         var registration = result.GeneratedTrees.Single(tree => tree.FilePath.EndsWith("OrderTests.Tests.g.cs", StringComparison.Ordinal)).ToString();
         Assert.Contains("\"OrderTests.N()\"", registration);
         Assert.DoesNotContain("\"OrderTests.M()\"", registration);
+        await Task.CompletedTask;
+    }
+
+    [VerifyTest]
+    public async Task A_method_declared_in_an_interface_is_not_registered(CancellationToken cancellationToken)
+    {
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", """
+            using VerificationGlue.Tests;
+
+            public interface IOrderTests
+            {
+                [VerifyTest]
+                void M();
+
+                [VerifyTest]
+                public void N() { }
+            }
+
+            public partial class OrderTests : IOrderTests
+            {
+                public void M() { }
+            }
+            """)]);
+
+        var result = GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGenerators(input, cancellationToken).GetRunResult();
+
+        Assert.DoesNotContain(result.GeneratedTrees, tree => tree.ToString().Contains("TestRegistry.Add(", StringComparison.Ordinal));
         await Task.CompletedTask;
     }
 
@@ -119,6 +149,81 @@ public class AnalyzerSpecs
         var diagnostic = Assert.Single(diagnostics, diagnostic => diagnostic.Id == "VGT0006");
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Equal($"The attribute '{name}' is not passed to extension points, because {reason}", diagnostic.GetMessage());
+    }
+
+    // The test class is nested in the attribute class, so the usage compiles with a private constructor
+    // or type of the attribute, which the generated registration cannot reach.
+    [VerifyTest]
+    [Row("private TaggedAttribute(int weight) { }", "[Tagged(2)]", "the generated registration cannot access its constructor")]
+    [Row("private sealed class Secret { }", "[Tagged(Kind = typeof(Secret))]", "an argument cannot be written as C#")]
+    public async Task An_attribute_argument_the_registration_cannot_write_reports_VGT0006_and_the_test_runs_without_it(string member, string usage, string reason, CancellationToken cancellationToken)
+    {
+        var source = $$"""
+            using VerificationGlue.Tests;
+
+            public sealed class TaggedAttribute : Attribute
+            {
+                public TaggedAttribute() { }
+
+                public Type? Kind;
+
+                {{member}}
+
+                public partial class OrderTests
+                {
+                    [VerifyTest]
+                    {{usage}}
+                    public void M() { }
+                }
+            }
+            """;
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
+        Assert.Empty(input.GetDiagnostics(cancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+
+        var diagnostics = await Analyze(source);
+        var registration = GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGenerators(input, cancellationToken).GetRunResult()
+            .GeneratedTrees.Single(tree => tree.FilePath.EndsWith("OrderTests.Tests.g.cs", StringComparison.Ordinal)).ToString();
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("VGT0006", diagnostic.Id);
+        Assert.Equal($"The attribute 'TaggedAttribute' is not passed to extension points, because {reason}", diagnostic.GetMessage());
+        Assert.Contains("\"TaggedAttribute.OrderTests.M()\"", registration);
+        Assert.DoesNotContain("TaggedAttribute(", registration);
+    }
+
+    // C# accepts only a public field or a public read-write property as a named argument (CS0617), so the
+    // name binds to a member the registration can set. A private member that hides it does not change that.
+    [VerifyTest]
+    public async Task A_named_argument_hidden_by_a_private_member_is_passed_to_extension_points(CancellationToken cancellationToken)
+    {
+        var source = """
+            using VerificationGlue.Tests;
+
+            public class BaseTagAttribute : Attribute
+            {
+                public int Weight;
+            }
+
+            public sealed class TaggedAttribute : BaseTagAttribute
+            {
+                private new int Weight;
+            }
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                [Tagged(Weight = 2)]
+                public void M() { }
+            }
+            """;
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
+
+        GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGeneratorsAndUpdateCompilation(input, out var output, out _, cancellationToken);
+
+        Assert.Empty(await Analyze(source));
+        Assert.Empty(output.GetDiagnostics(cancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        var registration = output.SyntaxTrees.Single(tree => tree.FilePath.EndsWith("OrderTests.Tests.g.cs", StringComparison.Ordinal)).ToString();
+        Assert.Contains("new global::TaggedAttribute() { Weight = 2 }", registration);
     }
 
     [VerifyTest]

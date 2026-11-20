@@ -135,19 +135,28 @@ internal static class AttributeMaterializer
         }
     }
 
+    /// <summary>
+    /// True when the initializer <c>{ name = ... }</c> in the generated file binds to a settable member.
+    /// Like C# member lookup, it passes over members the file cannot access, such as a private member
+    /// that hides a public one of a base type.
+    /// </summary>
     private static bool CanSet(INamedTypeSymbol type, string name, Compilation compilation)
     {
         for (INamedTypeSymbol? current = type; current is not null; current = current.BaseType)
         {
             foreach (var member in current.GetMembers(name))
             {
-                switch (member)
+                if (!compilation.IsSymbolAccessibleWithin(member, compilation.Assembly))
                 {
-                    case IPropertySymbol { SetMethod: { } setter }:
-                        return compilation.IsSymbolAccessibleWithin(setter, compilation.Assembly);
-                    case IFieldSymbol { IsReadOnly: false, IsConst: false } field:
-                        return compilation.IsSymbolAccessibleWithin(field, compilation.Assembly);
+                    continue;
                 }
+
+                return member switch
+                {
+                    IPropertySymbol { SetMethod: { } setter } => compilation.IsSymbolAccessibleWithin(setter, compilation.Assembly),
+                    IFieldSymbol { IsReadOnly: false, IsConst: false } => true,
+                    _ => false,
+                };
             }
         }
 
