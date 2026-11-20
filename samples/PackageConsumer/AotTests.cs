@@ -59,6 +59,37 @@ public partial class AotTests
 }
 #endregion
 
+// The project sets VerificationGlueRewrite, so the runner calls each test's __Verified copy, and a
+// direct call to a [Verify] method runs its copy. The message lists the values the copy captured.
+public partial class AotTier3Tests
+{
+    [VerifyTest]
+    public void Reports_captured_values()
+    {
+        var failure = Throws<VerifyException>(() => VerifyDiscount(total: 40, code: null));
+
+        Verify(failure.Message.StartsWith(
+            """
+            Verify failed: total == 30 || code != null && code.Length == 6
+              total == 30                      → false
+              total                            → 40
+              code != null && code.Length == 6 → false
+              code != null                     → false
+              code                             → null
+              code.Length == 6                 → <not evaluated>
+              code.Length                      → <not evaluated>
+              at AotTests.cs:
+            """.ReplaceLineEndings("\n"),
+            StringComparison.Ordinal));
+    }
+
+    [Verify]
+    public static void VerifyDiscount(int total, string? code)
+    {
+        Verify(total == 30 || code != null && code.Length == 6);
+    }
+}
+
 public sealed class Stamp(IClock clock)
 {
     public IClock Clock { get; } = clock;

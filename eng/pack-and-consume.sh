@@ -4,8 +4,9 @@
 #      and exact dependencies from VerificationGlue.Tests and VerificationGlue.Tests.AspNetCore;
 #   2. samples/PackageConsumer, a test project that references VerificationGlue.Tests, builds, runs and
 #      publishes under Native AOT with warnings as errors without the global.json runner setting. dotnet test
-#      fails with VGT1001 without the setting and runs the tests with it. The Native AOT binary runs every
-#      test, lists them, runs one by UID and writes TRX, and the script records how long the runs take;
+#      fails with VGT1001 without the setting and runs the tests with it. The sample turns tier 3 rewriting
+#      on, and one test checks a message with captured values. The Native AOT binary runs every test, lists
+#      them, runs one by UID and writes TRX, and the script records how long the runs take;
 #   3. samples/VerifyAot, which references only VerificationGlue, publishes under Native AOT with
 #      warnings as errors and runs. It checks that each message has its shape, file and line, at tier 2
 #      and, for its [Verify] methods, at tier 3. The JIT build then runs the same checks;
@@ -159,12 +160,12 @@ echo "dotnet test without the runner setting failed with VGT1001"
 
 echo "== Run the tests under Native AOT"
 "$sample/publish/PackageConsumer" || fail "the tests failed under Native AOT"
-"$sample/publish/PackageConsumer" --list-tests | grep -q "found 6 test(s)" || fail "the Native AOT binary did not list 6 tests"
+"$sample/publish/PackageConsumer" --list-tests | grep -q "found 7 test(s)" || fail "the Native AOT binary did not list 7 tests"
 "$sample/publish/PackageConsumer" --filter-uid "PackageConsumer.AotTests.Runs_a_test()" | grep -q "total: 1" \
   || fail "--filter-uid did not select exactly one test under Native AOT"
 "$sample/publish/PackageConsumer" --report-trx --report-trx-filename aot.trx --results-directory "$sample/results" > /dev/null
-[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "6" ] \
-  || fail "the TRX report from the Native AOT binary does not show 6 passed tests"
+[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "7" ] \
+  || fail "the TRX report from the Native AOT binary does not show 7 passed tests"
 
 # Timed after the runs above, so the first launch of each binary is not part of the figure.
 "$sample/bin/Release/net10.0/PackageConsumer" > /dev/null || fail "the tests failed before the Native AOT publish"
@@ -175,7 +176,7 @@ aot_start="$(now_ms)"
 "$sample/publish/PackageConsumer" > /dev/null
 aot_ms=$(( $(now_ms) - aot_start ))
 
-summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 6 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
+summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 7 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
 echo "$summary"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
 

@@ -107,6 +107,7 @@ jobs:
       STEP2_BUDGET_SECONDS: 120
       STEP3_BUDGET_SECONDS: 120
       STEP4_BUDGET_SECONDS: 60
+      STEP5_BUDGET_SECONDS: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -128,7 +129,7 @@ jobs:
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "!trait:Step=3" || status=$?
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "!trait:Step=3&!trait:Step=5" || status=$?
           elapsed=$(( $(date +%s) - start ))
           if [ -f "$HARDENING_OUTPUT/report.md" ]; then
             cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -169,6 +170,20 @@ jobs:
           echo "The step 4 cases took $elapsed s of their $STEP4_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
           if [ "$elapsed" -gt "$STEP4_BUDGET_SECONDS" ]; then
             echo "::error::The step 4 cases took $elapsed s, over their $STEP4_BUDGET_SECONDS s budget. Every case ran."
+            status=1
+          fi
+          exit $status
+
+      - name: Run the step 5 cases
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          start=$(date +%s)
+          status=0
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=5" || status=$?
+          elapsed=$(( $(date +%s) - start ))
+          echo "The step 5 cases took $elapsed s of their $STEP5_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$elapsed" -gt "$STEP5_BUDGET_SECONDS" ]; then
+            echo "::error::The step 5 cases took $elapsed s, over their $STEP5_BUDGET_SECONDS s budget. Every case ran."
             status=1
           fi
           exit $status

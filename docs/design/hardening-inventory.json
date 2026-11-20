@@ -1833,16 +1833,28 @@
       "contract": "An awaited mock result inside a rewritten assertion with short-circuiting is called once, and skipped branches stay skipped.",
       "source": "docs/design/hardening.md#interaction-coverage",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "s", "step": 5, "missing": "No test combines the three factors." }
+      "dimensions": ["operator: &&, ||, ?:", "result: Task<int> and ValueTask<int>", "outcome: pass and failure"],
+      "evidence": [
+        "test/Hardening.Specs/Interactions/AwaitedMockResultSpecs.cs#AwaitedMockResultSpecs.A_passing_assertion_calls_the_awaited_member_once_and_skips_the_other_branch",
+        "test/Hardening.Specs/Interactions/AwaitedMockResultSpecs.cs#AwaitedMockResultSpecs.A_failing_assertion_reports_the_awaited_value_without_calling_the_member_again"
+      ]
     },
     {
       "id": "MIX-002",
       "contract": "A constructor mock, a container-created SUT and a test parameter of the same type share identity as the resolution contract says.",
       "source": "docs/design/hardening.md#interaction-coverage",
       "support": "supported",
-      "evidence": ["samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock"],
-      "gap": { "size": "xs", "step": 5, "missing": "The sample covers class scope only. No case at test or assembly scope." }
+      "dimensions": ["container scope: test, class, assembly"],
+      "evidence": [
+        "samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#TestScopedIdentitySpecs.The_first_test_shares_one_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#TestScopedIdentitySpecs.The_second_test_shares_another_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#ClassScopedIdentitySpecs.The_first_test_shares_one_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#ClassScopedIdentitySpecs.The_second_test_shares_another_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#AssemblyScopedIdentitySpecs.The_first_test_shares_one_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#AssemblyScopedIdentitySpecs.The_second_test_shares_another_mock",
+        "test/Hardening.Specs/Interactions/SharedIdentitySpecs.cs#SecondAssemblyScopedIdentitySpecs.A_test_of_another_class_shares_its_own_mock"
+      ]
     },
     {
       "id": "MIX-003",
@@ -1856,24 +1868,35 @@
       "contract": "A recursive generic async member set up in mixed styles keeps setup, returned identity and received calls consistent.",
       "source": "docs/design/hardening.md#interaction-coverage",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "s", "step": 5, "missing": "No test combines the factors." }
+      "dimensions": ["member: Task<T>, ValueTask<int> and a generic Task<TResult> method of a recursive mock of a generic interface", "setup style: NSubstitute-style and typed, overlapping"],
+      "evidence": [
+        "test/Hardening.Specs/Interactions/RecursiveGenericAsyncSpecs.cs#RecursiveGenericAsyncSpecs.Both_styles_set_up_the_async_members_of_a_generic_recursive_mock",
+        "test/Hardening.Specs/Interactions/RecursiveGenericAsyncSpecs.cs#RecursiveGenericAsyncSpecs.An_async_member_that_returns_the_generic_type_gives_the_instance_each_style_sets_up"
+      ]
     },
     {
       "id": "MIX-005",
       "contract": "A child task, a pending verification and a background invocation follow the context isolation and recording rules together.",
       "source": "docs/design/hardening.md#interaction-coverage",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "m", "step": 5, "missing": "Needs the controlled scheduling from step 3." }
+      "dimensions": ["pending statement: Received, Received(n), DidNotReceive, a setup", "child: one task, a nested task, a task with calls and an await", "other flow: a call, a setup or a check, on the same mock or the other one"],
+      "evidence": [
+        "test/Hardening.Specs/Interactions/ChildTaskSchedulingSpecs.cs#ChildTaskSchedulingSpecs.A_check_pending_in_a_child_task_counts_a_call_another_flow_makes_before_it",
+        "test/Hardening.Specs/Interactions/ChildTaskSchedulingSpecs.cs#ChildTaskSchedulingSpecs.A_call_another_flow_makes_during_a_setup_in_a_child_task_is_recorded_and_not_answered_by_it",
+        "test/Hardening.Specs/Interactions/ChildTaskSchedulingSpecs.cs#ChildTaskSchedulingSpecs.Every_legal_interleaving_inside_a_child_task_matches_the_reference_model"
+      ]
     },
     {
       "id": "MIX-006",
       "contract": "A packed consumer with rewriting and Native AOT generates and runs in the supported configuration.",
       "source": "docs/design/hardening.md#interaction-coverage",
       "support": "supported",
-      "evidence": ["eng/pack-and-consume.sh", "samples/PackageConsumer/AotTests.cs#AotTests.Reports_a_message"],
-      "gap": { "size": "xs", "step": 5, "missing": "PackageConsumer does not turn tier 3 rewriting on, so the AOT run does not check a captured-value message." }
+      "constraints": "linux-x64 only, as for PKG-002.",
+      "evidence": [
+        "eng/pack-and-consume.sh",
+        "samples/PackageConsumer/AotTests.cs#AotTests.Reports_a_message",
+        "samples/PackageConsumer/AotTests.cs#AotTier3Tests.Reports_captured_values"
+      ]
     }
   ]
 }
