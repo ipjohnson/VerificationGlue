@@ -4,19 +4,33 @@ Status: Phase 0 of [mocks.md](mocks.md), done. The interface class emitter gener
 
 ## What runs
 
-The `mock-sweep` job in `.github/workflows/ci.yml` runs on each pull request and each push to main. It fails when any generated mock does not compile.
+The `mock-sweep` job in `.github/workflows/ci.yml` runs on each pull request and each push to main. It fails when any generated mock does not compile, and when an interface's outcome differs from its [pinned classification](#pinned-classifications).
 
 1. `test/MockSweep.Packages` pins the top 100 packages on the [nuget.org statistics page](https://www.nuget.org/stats/packages) of 2026-11-17 at their latest stable versions that day. Building it restores them and writes every compile reference, with the package or framework it came from, to `obj/sweep-references.txt`.
 2. `test/MockSweep` reads that file and finds every public interface, nested ones included, in the `Microsoft.NETCore.App` reference assemblies and in each listed package's own assemblies. Generic interfaces are mocked as open definitions, so the mock class repeats their type parameters and constraints.
 3. For each source it builds the model with `MockModelBuilder`, writes the class with `MockEmitter`, compiles all the mocks in one compilation, and assigns each error to the mock whose file holds it.
-4. It writes `report.md` and `report.json`, and the source of each mock that failed under `failed/`. The job uploads them as the `mock-sweep` artifact.
+4. It compares each interface's outcome with [`test/MockSweep/classifications.tsv`](../../test/MockSweep/classifications.tsv).
+5. It writes `report.md` and `report.json`, and the source of each mock that failed under `failed/`. The job uploads them as the `mock-sweep` artifact.
 
 Run it locally from the repository root:
 
 ```sh
 dotnet build test/MockSweep.Packages
-dotnet run --project test/MockSweep -- --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep
+dotnet run --project test/MockSweep -- --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep --classifications test/MockSweep/classifications.tsv
 ```
+
+### Pinned classifications
+
+`classifications.tsv` holds one line per swept interface: its status, its source and its name. The status is `compiled`, `compiled with VGM0003`, `refused` or `failed`. A run lists each difference in the report under four headings, and any difference fails the job:
+
+| Heading | Change |
+|---|---|
+| Regressions | The status moved toward `failed`, such as an interface that compiled and is now refused |
+| Other outcome changes | The status moved toward `compiled` |
+| Input changes: interfaces not in the pinned set | A new package version or SDK added the interface |
+| Input changes: pinned interfaces no longer swept | The interface is gone from its source |
+
+The input changes are listed apart, so a package update that adds interfaces cannot hide a regression among them. After reviewing each change, rewrite the file by adding `--write-classifications` to the command above, and commit the input changes apart from the outcome changes. [`SweepClassificationSpecs`](../../test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs) checks that an interface that compiled and is now refused fails the run.
 
 The hand-written shape files in `test/VerificationGlue.Mocks.Generator.Specs/Shapes` run with the other specs. Each one declares its expected outcome in a header, as the conformance suite in `mocks.md` describes. `ShapeSpecs` compiles every interface the file declares and the type of every field of its `MockTargets` class, and checks the diagnostic IDs.
 
@@ -55,6 +69,9 @@ Each problem the sweep or the shape files found is fixed, reported by a named di
 |---|---|---|
 | A getter-only property got a setter, because `PropertyDefinition` starts with one | Sweep, every mock | Fixed |
 | An interface marked `[Obsolete(error: true)]`, or one whose signatures use such a type, does not compile, because a `#pragma` cannot hide an error | Sweep, 4 interfaces | Fixed. The mock class is marked `[Obsolete]`, and C# reports no obsolete use inside an obsolete type. `Obsolete.cs` |
+| The registry named a type marked `[Obsolete(error: true)]` outside obsolete code, so `Mock.Of<T>()` of it did not compile | The step 3 shape consumers. The sweep and `ShapeSpecs` write no registry | Fixed. The registry registers such mocks from a method marked `[Obsolete]` |
+| A VerificationGlue.Tests project with `[assembly: GenerateMock]` of an extern-aliased type did not compile, because the test registration copies assembly attributes and writes types with `global::` | The step 3 shape consumers | Fixed. The registration leaves the attribute out and reports VGT0006. The mock generator still reads it |
+| A VerificationGlue.Tests test method cannot take a parameter whose type comes from an extern-aliased assembly | The step 3 shape consumers | Open. The consumers pass such `[Mock]` parameters through a framework hook instead |
 | `T? M<T>() where T : Exception` became `Nullable<T>` in the explicit implementation | `Constraints.cs` | Fixed. A type parameter that is a reference type gets `where T : class` |
 | `T?` in `IGeneric<T>` closed over `int` was written `int?` | `Nullable.cs` | Fixed. A value type other than `Nullable<T>` loses its annotation |
 | `ValueTuple<int>` was written `(int, int)` by CSharpAuthor | `Nullable.cs` | Fixed. A one-element tuple is written `global::System.ValueTuple<T>` |
@@ -67,7 +84,7 @@ Each problem the sweep or the shape files found is fixed, reported by a named di
 | `ref struct` and pointer parameters, return values and properties | Sweep, 11 interfaces | VGM0003. The member throws `NotSupportedException` |
 | An event whose delegate takes a `ref struct` | `RefStruct.cs` | Unsupported. Adding and removing handlers works, and raising the event throws `NotSupportedException` |
 | An open generic interface whose type parameter has `allows ref struct` | `Constraints.cs` | Unsupported for `ref struct` type arguments. The mock class drops the anti-constraint so it can box its arguments. A mock of the interface closed over a `ref struct` reports VGM0003 on each member that uses it |
-| A type nested in a generic type, whose type arguments come from an extern-aliased assembly | Review of `TypeConversion` | Unsupported. The type is written with `global::`, and the mock fails to compile. No case in the sweep or the shape files has this shape |
+| A type nested in a generic type, whose type arguments come from an extern-aliased assembly | Review of `TypeConversion` | VGM0001 with its own reason, as `CD-10` of [hardening.md](hardening.md#contract-decisions) decides. The mocked type and any type its members name are checked. `ExternAliasNested.cs` |
 
 ## Recursion depth
 

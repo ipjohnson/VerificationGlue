@@ -3,9 +3,13 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using MockSweep;
 
-// Usage: MockSweep --references <file> [--output <directory>]
-// The references file is the one test/MockSweep.Packages writes when it builds.
+// Usage: MockSweep --references <file> [--output <directory>] [--classifications <file> [--write-classifications]]
+// The references file is the one test/MockSweep.Packages writes when it builds. With --classifications
+// the run fails when an interface's outcome differs from the pinned one, unless --write-classifications
+// rewrites the file with this run's outcomes.
 string? referencesFile = null;
+string? classificationsFile = null;
+var writeClassifications = false;
 var output = Path.Combine("artifacts", "mock-sweep");
 for (var i = 0; i < args.Length; i++)
 {
@@ -17,6 +21,12 @@ for (var i = 0; i < args.Length; i++)
         case "--output" when i + 1 < args.Length:
             output = args[++i];
             break;
+        case "--classifications" when i + 1 < args.Length:
+            classificationsFile = args[++i];
+            break;
+        case "--write-classifications":
+            writeClassifications = true;
+            break;
         default:
             Console.Error.WriteLine($"mock-sweep: unknown argument {args[i]}");
             return 2;
@@ -26,6 +36,18 @@ for (var i = 0; i < args.Length; i++)
 if (referencesFile is null || !File.Exists(referencesFile))
 {
     Console.Error.WriteLine("mock-sweep: pass --references with the file test/MockSweep.Packages writes. Build that project first.");
+    return 2;
+}
+
+if (writeClassifications && classificationsFile is null)
+{
+    Console.Error.WriteLine("mock-sweep: --write-classifications needs --classifications with the file to write.");
+    return 2;
+}
+
+if (classificationsFile is not null && !writeClassifications && !File.Exists(classificationsFile))
+{
+    Console.Error.WriteLine($"mock-sweep: the classifications file {classificationsFile} does not exist. Pass --write-classifications to create it.");
     return 2;
 }
 
@@ -57,7 +79,19 @@ foreach (var source in input.SweptSources)
     Console.WriteLine($"{source}: {interfaces.Count} interfaces, {outcomes.Count(o => o.Failed)} failed, {watch.Elapsed.TotalSeconds:F1}s");
 }
 
-var report = new SweepReport(groups, input.PackagesWithoutAssemblies);
+var classifications = SweepClassifications.Of(groups);
+ClassificationChanges? changes = null;
+if (classificationsFile is not null && writeClassifications)
+{
+    File.WriteAllText(classificationsFile, SweepClassifications.Write(classifications));
+    Console.WriteLine($"Wrote {classifications.Count} classifications to {classificationsFile}.");
+}
+else if (classificationsFile is not null)
+{
+    changes = SweepClassifications.Compare(SweepClassifications.Read(File.ReadAllText(classificationsFile)), classifications);
+}
+
+var report = new SweepReport(groups, input.PackagesWithoutAssemblies, changes);
 Directory.CreateDirectory(output);
 var failedDirectory = Path.Combine(output, "failed");
 if (Directory.Exists(failedDirectory))
@@ -93,6 +127,19 @@ foreach (var failure in groups.SelectMany(g => g.Outcomes.Where(o => o.Failed).S
 foreach (var error in groups.SelectMany(g => g.OtherErrors))
 {
     Console.WriteLine("ERROR outside a mock: " + error);
+}
+
+if (changes is { None: false })
+{
+    Console.WriteLine();
+    Console.WriteLine($"The outcomes differ from {classificationsFile}. Review each change, then rerun with --write-classifications.");
+    foreach (var (kind, list) in new[] { ("REGRESSED", changes.Regressions), ("CHANGED", changes.Improvements), ("ADDED", changes.Added), ("REMOVED", changes.Removed) })
+    {
+        foreach (var change in list)
+        {
+            Console.WriteLine($"{kind} {change}");
+        }
+    }
 }
 
 return report.Passed ? 0 : 1;

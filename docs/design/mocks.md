@@ -203,6 +203,7 @@ A class mock calls the base member for every virtual member that has not been se
 | Static abstract members, sealed types, structs | No. Error VGM0001. |
 | `ref struct` parameters | No in the first release. Warning VGM0003 and the member throws. See the open question. |
 | Pointer members | No. Warning VGM0003 and the member throws. A project without `AllowUnsafeBlocks` gets error VGM0001 for the type. |
+| A type nested in a generic type whose type arguments come from an extern-aliased assembly | No. Error VGM0001 for the mocked type, whether it is that type or names it in a member. This settles `CD-10` of the [hardening exercise](hardening.md#contract-decisions). |
 | `ReturnsForAnyArgs`, `Received.InOrder`, strict mode, delegates | Later |
 
 ## Use from other frameworks
@@ -326,7 +327,7 @@ Each case file starts with a header:
 
 | ID | Severity | Reports |
 |---|---|---|
-| VGM0001 | Error | A type that cannot be mocked: sealed, struct, with static abstract members, with an abstract member the project cannot see, or with pointer members in a project without `AllowUnsafeBlocks` |
+| VGM0001 | Error | A type that cannot be mocked: sealed, struct, with static abstract members, with an abstract member the project cannot see, with pointer members in a project without `AllowUnsafeBlocks`, or naming a type nested in a generic type whose type arguments come from an extern-aliased assembly |
 | VGM0002 | Warning or Error | As a warning, an `Arg` matcher outside a mock call, or stored in a local. As an error, an NSubstitute-style `Arg` call passed to a `Setup()` or `Calls()` parameter |
 | VGM0003 | Warning | A member that cannot be mocked, such as one with a `ref struct` or pointer parameter |
 | VGM0004 | Warning | `Mock.Of<T>()` for a `T` that is not discovered anywhere |

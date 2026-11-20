@@ -70,6 +70,11 @@ internal sealed class MockModelBuilder
             }
         }
 
+        if (refusal == null && _types.Unwritable is { } unwritable)
+        {
+            refusal = $"'{unwritable.ToDisplayString(MessageFormat)}' is nested in a generic type whose type arguments come from an extern-aliased assembly, and the generator cannot write its name";
+        }
+
         if (refusal == null && _needsUnsafe && _compilation.Options is CSharpCompilationOptions { AllowUnsafe: false })
         {
             refusal = "it has members with pointer types, which need AllowUnsafeBlocks in the project";

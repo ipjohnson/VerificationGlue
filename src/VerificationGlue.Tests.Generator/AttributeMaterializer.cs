@@ -136,6 +136,35 @@ internal static class AttributeMaterializer
     }
 
     /// <summary>
+    /// True when the generated file can name <paramref name="type"/>: it is accessible, and no part of it
+    /// comes from an assembly referenced only through an extern alias, which <see cref="Name"/> would
+    /// write with <c>global::</c>.
+    /// </summary>
+    private static bool CanName(ITypeSymbol type, Compilation compilation) =>
+        IsAccessible(type, compilation) && !NamesAliasedType(type, compilation);
+
+    private static bool NamesAliasedType(ITypeSymbol type, Compilation compilation)
+    {
+        switch (type)
+        {
+            case IArrayTypeSymbol array:
+                return NamesAliasedType(array.ElementType, compilation);
+            case INamedTypeSymbol named:
+                if (named.ContainingAssembly is { } assembly &&
+                    compilation.GetMetadataReference(assembly) is { Properties.Aliases: { IsDefaultOrEmpty: false } aliases } &&
+                    !aliases.Contains("global"))
+                {
+                    return true;
+                }
+
+                return (named.ContainingType is { } outer && NamesAliasedType(outer, compilation)) ||
+                    (!named.IsUnboundGenericType && named.TypeArguments.Any(argument => NamesAliasedType(argument, compilation)));
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
     /// True when the initializer <c>{ name = ... }</c> in the generated file binds to a settable member.
     /// Like C# member lookup, it passes over members the file cannot access, such as a private member
     /// that hides a public one of a base type.
@@ -202,14 +231,14 @@ internal static class AttributeMaterializer
 
         if (constant.IsNull)
         {
-            return IsAccessible(type, compilation) || type.SpecialType != SpecialType.None ? $"({Name(type)})null" : null;
+            return CanName(type, compilation) || type.SpecialType != SpecialType.None ? $"({Name(type)})null" : null;
         }
 
         switch (constant.Kind)
         {
             case TypedConstantKind.Array:
                 var element = ((IArrayTypeSymbol)type).ElementType;
-                if (element.SpecialType == SpecialType.None && !IsAccessible(element, compilation))
+                if (element.SpecialType == SpecialType.None && !CanName(element, compilation))
                 {
                     return null;
                 }
@@ -228,10 +257,10 @@ internal static class AttributeMaterializer
                 return $"new {Name(element)}[] {{ {string.Join(", ", items)} }}";
 
             case TypedConstantKind.Type:
-                return constant.Value is ITypeSymbol target && IsAccessible(target, compilation) ? $"typeof({TypeOfName(target)})" : null;
+                return constant.Value is ITypeSymbol target && CanName(target, compilation) ? $"typeof({TypeOfName(target)})" : null;
 
             case TypedConstantKind.Enum:
-                return IsAccessible(type, compilation) && constant.Value is { } value
+                return CanName(type, compilation) && constant.Value is { } value
                     ? $"({Name(type)})({Convert.ToString(value, CultureInfo.InvariantCulture)})"
                     : null;
 

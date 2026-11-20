@@ -159,6 +159,12 @@ Exercise direct `Mock.Of<T>()` creation, attributed parameters, registry creatio
 
 Maintain expected classifications for the pinned package sweep. Detect a previously supported interface becoming refused, as well as generated compilation errors. Review corpus changes separately so changes in the input set do not hide regressions.
 
+#### The shape consumers as built
+
+[`test/Hardening.Specs/ShapeConsumers`](../../test/Hardening.Specs/ShapeConsumers) holds a step 3 class for each supported shape file. The project compiles the shape files themselves, so the public generator, the module initializer registry and the `Arg` interceptors build their mocks. The extern-aliased and `InternalsVisibleTo` libraries are projects under [`test/Hardening.Shapes`](../../test/Hardening.Shapes). Each case runs one scenario on a mock from each path: `Mock.Of<T>()`, a `[Mock]` parameter, `MockRegistry.Create(Type)` and the generic helper with `[assembly: GenerateMock]`. The scenario sets up, calls and checks the shape's members, and raises its events. A type marked `[Obsolete(error: true)]` has no `[Mock]` parameter or `GenerateMock`, because only obsolete code can name it. A VerificationGlue.Tests test method cannot take an extern-aliased type yet, so those `[Mock]` parameters go through the framework hook that [getting started](../guide/getting-started-mocks.md#host-frameworks) shows.
+
+The consumers found three defects that the sweep and the shape specs cannot see, because neither runs the registry or a test framework. Two are fixed: the mock registry named a type obsolete as an error, and the test registration wrote an extern-aliased `GenerateMock` argument with `global::`. The third, test parameters of extern-aliased types, is a step of its own. The sweep's [pinned classifications](mocks-shape-sweep.md#pinned-classifications) fail the `mock-sweep` job on any change of outcome or of the swept set.
+
 ### Operations and sequences
 
 Use a small independent model of matching, setup precedence, response sequences, and recorded calls. Generate legal operation sequences and compare their observable results with VerificationGlue.
@@ -475,11 +481,6 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | `MOCK-045` | No case uses arguments that are equal but not identical, or reconfigures the parent after access. | s | 3 |
 | `MOCK-047` | No test covers either rule. | xs | 3 |
 | `MOCK-048` | No test sets the depth to 0. | xs | 3 |
-| `SHAPE-001` | Shape files check compilation only. No consumer case creates, configures, invokes and verifies each shape through the public generator. | l | 3 |
-| `SHAPE-002` | CI fails on a compile error but not when a previously compiled interface becomes refused. The expected classifications are not checked in. | m | 3 |
-| `SHAPE-007` | No test calls such a member and checks for NotSupportedException, or checks that the other members still work. | xs | 3 |
-| `SHAPE-008` | No test raises the event at run time. | xs | 3 |
-| `SHAPE-010` | No shape case exists, and the failure has no diagnostic. | s | 3 |
 | `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
 | `MIX-001` | No test combines the three factors. | s | 5 |
 | `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |

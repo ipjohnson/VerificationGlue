@@ -20,12 +20,13 @@ public sealed record SourceResult(
 }
 
 /// <summary>Writes the sweep results as Markdown for people and JSON for tools.</summary>
-public sealed class SweepReport(IReadOnlyList<SourceResult> sources, IReadOnlyList<string> packagesWithoutAssemblies)
+/// <param name="changes">The differences from the pinned classifications, or null when the run compares with none.</param>
+public sealed class SweepReport(IReadOnlyList<SourceResult> sources, IReadOnlyList<string> packagesWithoutAssemblies, ClassificationChanges? changes = null)
 {
     private const string Vgm0001 = "VGM0001";
     private const string Vgm0003 = "VGM0003";
 
-    public bool Passed => sources.All(s => s.Failed == 0 && s.OtherErrors.Count == 0);
+    public bool Passed => sources.All(s => s.Failed == 0 && s.OtherErrors.Count == 0) && changes is null or { None: true };
 
     public string Summary()
     {
@@ -72,6 +73,25 @@ public sealed class SweepReport(IReadOnlyList<SourceResult> sources, IReadOnlyLi
             text.AppendLine($"- Outside a mock: {error}");
         }
 
+        if (changes is not null)
+        {
+            text.AppendLine();
+            text.AppendLine("## Changes from the pinned classifications");
+            text.AppendLine();
+            if (changes.None)
+            {
+                text.AppendLine("None. Every interface has its pinned outcome.");
+            }
+            else
+            {
+                text.AppendLine("Update `test/MockSweep/classifications.tsv` with `--write-classifications` once each change is reviewed. Review the input changes apart from the outcome changes.");
+                AppendChanges(text, "Regressions", changes.Regressions);
+                AppendChanges(text, "Other outcome changes", changes.Improvements);
+                AppendChanges(text, "Input changes: interfaces not in the pinned set", changes.Added);
+                AppendChanges(text, "Input changes: pinned interfaces no longer swept", changes.Removed);
+            }
+        }
+
         text.AppendLine();
         text.AppendLine("## Refused with VGM0001, by reason");
         text.AppendLine();
@@ -112,14 +132,31 @@ public sealed class SweepReport(IReadOnlyList<SourceResult> sources, IReadOnlyLi
                 outcomes = s.Outcomes.Select(o => new
                 {
                     type = o.TypeName,
-                    status = o.Failed ? "failed" : o.Refused ? "refused" : o.Diagnostics.Count > 0 ? "compiled with VGM0003" : "compiled",
+                    status = SweepClassifications.Of(o),
                     diagnostics = o.Diagnostics,
                     errors = o.Errors,
                 }),
             }),
             packagesWithoutAssemblies,
+            changes,
         },
         new JsonSerializerOptions { WriteIndented = true });
+
+    private static void AppendChanges(StringBuilder text, string heading, IReadOnlyList<ClassificationChange> list)
+    {
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        text.AppendLine();
+        text.AppendLine($"### {heading}");
+        text.AppendLine();
+        foreach (var change in list)
+        {
+            text.AppendLine($"- {change.Source}: `{change.Type}`, {change.Expected ?? "not swept"} to {change.Actual ?? "not swept"}");
+        }
+    }
 
     /// <summary>
     /// Groups diagnostics by the reason after "cannot be mocked:", with type parameter and member

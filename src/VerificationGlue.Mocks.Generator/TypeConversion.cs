@@ -43,7 +43,68 @@ internal sealed class TypeConversion
     /// <summary>The aliases used by the types converted so far, in the order first used.</summary>
     public List<string> UsedAliases { get; } = new();
 
-    public ITypeDefinition Convert(ITypeSymbol symbol) => ConvertNormalized(Normalize(symbol));
+    /// <summary>
+    /// The first type converted so far that this class cannot write: a nested type whose own type
+    /// arguments, or those of a type that contains it, come from an extern-aliased assembly.
+    /// CSharpAuthor writes those arguments with <c>global::</c>.
+    /// </summary>
+    public ITypeSymbol? Unwritable { get; private set; }
+
+    public ITypeDefinition Convert(ITypeSymbol symbol)
+    {
+        Unwritable ??= NestedWithAliasedArguments(symbol);
+        return ConvertNormalized(Normalize(symbol));
+    }
+
+    private ITypeSymbol? NestedWithAliasedArguments(ITypeSymbol symbol)
+    {
+        switch (symbol)
+        {
+            case IArrayTypeSymbol array:
+                return NestedWithAliasedArguments(array.ElementType);
+            case IPointerTypeSymbol pointer:
+                return NestedWithAliasedArguments(pointer.PointedAtType);
+            case INamedTypeSymbol named:
+                if (named.ContainingType != null && ArgumentsUseAlias(named))
+                {
+                    return named;
+                }
+
+                foreach (var argument in named.TypeArguments)
+                {
+                    if (NestedWithAliasedArguments(argument) is { } found)
+                    {
+                        return found;
+                    }
+                }
+
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>Whether a type argument of <paramref name="type"/> or of a type that contains it names an aliased assembly's type.</summary>
+    private bool ArgumentsUseAlias(INamedTypeSymbol type)
+    {
+        for (var container = type; container != null; container = container.ContainingType)
+        {
+            if (container.TypeArguments.Any(UsesAlias))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool UsesAlias(ITypeSymbol symbol) => symbol switch
+    {
+        IArrayTypeSymbol array => UsesAlias(array.ElementType),
+        IPointerTypeSymbol pointer => UsesAlias(pointer.PointedAtType),
+        INamedTypeSymbol named => (named.ContainingAssembly is { } assembly && _aliases.ContainsKey(assembly)) || ArgumentsUseAlias(named),
+        _ => false,
+    };
 
     private ITypeDefinition ConvertNormalized(ITypeSymbol symbol)
     {

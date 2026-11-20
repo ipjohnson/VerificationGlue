@@ -8,7 +8,7 @@ namespace Shapes.InternalsVisibleTo;
 
 public class MockTargets
 {
-    internal Friend.IFriendOnly? FriendOnly;
+    internal Friend.IFriendOnly? FriendOnly = null;
     public Friend.IPartlyInternal? PartlyInternal;
     public Friend.IInternalDefault? InternalDefault;
 }

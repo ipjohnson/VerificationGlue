@@ -1264,10 +1264,11 @@
     },
     {
       "id": "SHAPE-001",
-      "contract": "A mock compiles for inherited interfaces, overlapping names, overloads, generic constraints, nullability, properties, indexers, events, supported parameter modifiers, obsolete types, extern aliases and InternalsVisibleTo.",
+      "contract": "A mock compiles for inherited interfaces, overlapping names, overloads, generic constraints, nullability, properties, indexers, events, supported parameter modifiers, obsolete types, extern aliases and InternalsVisibleTo. Created through Mock.Of<T>(), a [Mock] parameter, MockRegistry.Create(Type) and a generic helper, it can be set up, called and checked.",
       "source": "docs/design/mocks-shape-sweep.md#triage",
       "support": "supported",
-      "dimensions": ["member shape: each shape file"],
+      "dimensions": ["member shape: each shape file", "creation: Mock.Of<T>(), [Mock] parameter, MockRegistry.Create(Type), generic helper with GenerateMock"],
+      "constraints": "A type marked [Obsolete(error: true)] has no [Mock] parameter or GenerateMock, because C# lets only obsolete code name it. A VerificationGlue.Tests test method cannot take an extern-aliased type, so those [Mock] parameters go through a framework hook that calls MockRegistry.Create(Type).",
       "evidence": [
         "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics",
         "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Every_case_mocks_at_least_one_type",
@@ -1278,18 +1279,34 @@
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Names.cs",
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Obsolete.cs",
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/ExternAlias.cs",
-        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/InternalsVisibleTo.cs"
-      ],
-      "gap": { "size": "l", "step": 3, "missing": "Shape files check compilation only. No consumer case creates, configures, invokes and verifies each shape through the public generator." }
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/InternalsVisibleTo.cs",
+        "test/Hardening.Specs/ShapeConsumers/CollisionConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/ConstraintConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/MemberConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/NameConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/NullableConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/ObsoleteConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/ParameterConsumerSpecs.cs",
+        "test/Hardening.Specs/ShapeConsumers/ReferencedAssemblyConsumerSpecs.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/MockGeneratorSpecs.cs#MockGeneratorSpecs.The_registry_of_a_mock_of_a_type_obsolete_as_an_error_compiles",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_argument_from_an_extern_aliased_assembly_reports_VGT0006_and_the_registration_compiles"
+      ]
     },
     {
       "id": "SHAPE-002",
-      "contract": "Every interface in the pinned sweep of the BCL and the top 100 packages either compiles or is refused with VGM0001.",
-      "source": "docs/design/mocks-shape-sweep.md#results",
+      "contract": "Every interface in the pinned sweep of the BCL and the top 100 packages either compiles or is refused with VGM0001, and keeps the outcome pinned for it. A change of outcome or of the swept set fails the sweep.",
+      "source": "docs/design/mocks-shape-sweep.md#pinned-classifications",
       "support": "supported",
       "constraints": "The sweep calls MockModelBuilder and MockEmitter directly, not the public generator.",
-      "evidence": ["test/MockSweep", "test/MockSweep.Packages"],
-      "gap": { "size": "m", "step": 3, "missing": "CI fails on a compile error but not when a previously compiled interface becomes refused. The expected classifications are not checked in." }
+      "evidence": [
+        "test/MockSweep",
+        "test/MockSweep.Packages",
+        "test/MockSweep/classifications.tsv",
+        "test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs#SweepClassificationSpecs.An_interface_that_was_compiled_and_is_now_refused_fails_the_sweep",
+        "test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs#SweepClassificationSpecs.An_interface_whose_members_start_to_throw_is_a_regression",
+        "test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs#SweepClassificationSpecs.The_same_outcomes_pass_and_other_changes_are_listed_apart_from_regressions",
+        "test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs#SweepClassificationSpecs.The_checked_in_classifications_are_in_the_written_form"
+      ]
     },
     {
       "id": "SHAPE-003",
@@ -1347,9 +1364,12 @@
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs",
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Pointers.cs",
         "test/VerificationGlue.Mocks.Generator.Specs/Shapes/Parameters.cs",
-        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named"
-      ],
-      "gap": { "size": "xs", "step": 3, "missing": "No test calls such a member and checks for NotSupportedException, or checks that the other members still work." }
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_member_that_cannot_be_mocked_reports_VGM0003_where_the_mock_is_named",
+        "test/Hardening.Specs/ShapeConsumers/UnsupportedMemberConsumerSpecs.cs#UnsupportedMemberConsumerSpecs.Ref_struct_members_throw_and_the_event_accepts_handlers_but_cannot_be_raised",
+        "test/Hardening.Specs/ShapeConsumers/UnsupportedMemberConsumerSpecs.cs#UnsupportedMemberConsumerSpecs.Pointer_members_throw_and_the_other_member_is_set_up_and_checked",
+        "test/Hardening.Specs/ShapeConsumers/ParameterConsumerSpecs.cs#ParameterConsumerSpecs.Each_supported_parameter_modifier_passes_its_value_and_writes_back_out_and_ref",
+        "test/Hardening.Specs/ShapeConsumers/ConstraintConsumerSpecs.cs#ConstraintConsumerSpecs.Generic_methods_with_each_method_constraint_are_mocked"
+      ]
     },
     {
       "id": "SHAPE-008",
@@ -1357,8 +1377,11 @@
       "source": "docs/design/mocks-shape-sweep.md#triage",
       "support": "unsupported",
       "outcome": { "kind": "throws", "detail": "Adding and removing handlers works. Raising the event throws NotSupportedException." },
-      "evidence": ["test/VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs"],
-      "gap": { "size": "xs", "step": 3, "missing": "No test raises the event at run time." }
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs",
+        "test/Hardening.Specs/ShapeConsumers/UnsupportedMemberConsumerSpecs.cs#UnsupportedMemberConsumerSpecs.Ref_struct_members_throw_and_the_event_accepts_handlers_but_cannot_be_raised",
+        "test/Hardening.Specs/ShapeConsumers/MemberConsumerSpecs.cs#MemberConsumerSpecs.Each_event_shape_is_raised_with_its_arguments"
+      ]
     },
     {
       "id": "SHAPE-009",
@@ -1370,14 +1393,17 @@
     },
     {
       "id": "SHAPE-010",
-      "contract": "A type nested in a generic type whose type arguments come from an extern-aliased assembly is written with global::.",
-      "source": "docs/design/mocks-shape-sweep.md#triage",
+      "contract": "A type nested in a generic type whose type arguments come from an extern-aliased assembly cannot be mocked, and neither can an interface whose members name such a type.",
+      "source": "docs/diagnostics/VGM0001.md",
       "support": "unsupported",
       "decision": "CD-10",
-      "outcome": { "kind": "failure", "detail": "The generated mock fails to compile with a C# error and no VerificationGlue diagnostic." },
-      "evidence": [],
-      "gap": { "size": "s", "step": 3, "missing": "No shape case exists, and the failure has no diagnostic." },
-      "followUp": "CD-10 decides between a VGM0001 refusal and support."
+      "outcome": { "kind": "refusal", "detail": "VGM0001 error with its own reason, naming the nested type. A nested type whose outer type is aliased and whose type arguments are not is mocked." },
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/Shapes/ExternAliasNested.cs",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics",
+        "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.A_type_nested_in_a_generic_type_with_extern_aliased_type_arguments_is_refused_with_its_own_reason",
+        "test/Hardening.Specs/ShapeConsumers/ReferencedAssemblyConsumerSpecs.cs#ReferencedAssemblyConsumerSpecs.A_type_nested_in_an_aliased_generic_type_over_a_local_type_is_mocked"
+      ]
     },
     {
       "id": "PARAM-001",
