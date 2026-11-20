@@ -37,6 +37,20 @@ public static class Sequences
         observe.Record("call 2", calc.Add(1, 2));
     }
 
+    [Case("A check takes no value from a sequence, and a repeated check gives the same result")]
+    public static void Checks_leave_a_sequence(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Add(1, 2).Returns(10, 20, 30);
+
+        observe.Record("call 1", calc.Add(1, 2));
+        observe.Try("Received(1).Add(1, 2)", () => calc.Received(1).Add(1, 2));
+        observe.Try("Received(1).Add(1, 2) again", () => calc.Received(1).Add(1, 2));
+        observe.Try("DidNotReceive().Add(1, 2)", () => calc.DidNotReceive().Add(1, 2));
+        observe.Try("DidNotReceive().Add(1, 2) again", () => calc.DidNotReceive().Add(1, 2));
+        observe.Record("call 2", calc.Add(1, 2));
+    }
+
     [Case("A factory reads the arguments")]
     public static void Factory_reads_arguments(Observations observe)
     {

@@ -14,6 +14,8 @@ public interface ICalculator
 
     bool TryParse(string text, out int value);
 
+    int Scale(ref int value);
+
     void Reset();
 
     int Mode { get; set; }

@@ -63,6 +63,30 @@ public class Verification
     }
 
     [VerifyTest]
+    public void Checks_take_no_value_from_a_response_sequence_and_give_the_same_result_when_repeated()
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Add(1, 2).Returns(10, 20, 30);
+
+        var first = calc.Add(1, 2);
+        calc.Received(1).Add(1, 2);
+        calc.Received(1).Add(1, 2);
+        var counts = new[] { calc.Calls().Add(1, 2) == 1, calc.Calls().Add(1, 2) == 1 };
+        var failures = new[]
+        {
+            Assert.Throws<ReceivedCallsException>(() => calc.DidNotReceive().Add(1, 2)).Message,
+            Assert.Throws<ReceivedCallsException>(() => calc.DidNotReceive().Add(1, 2)).Message,
+        };
+        var second = calc.Add(1, 2);
+
+        Assert.Equal(10, first);
+        Assert.Equal([true, true], counts);
+        Assert.Equal(failures[0], failures[1]);
+        Assert.Equal(20, second);
+        calc.Received(2).Add(1, 2);
+    }
+
+    [VerifyTest]
     public void Received_checks_property_reads_and_writes()
     {
         var calc = Mock.Of<ICalculator>();

@@ -169,9 +169,10 @@ public sealed class MockAdapter
     /// <summary>The adapter of a generated mock.</summary>
     /// <exception cref="ArgumentException"><paramref name="mock"/> is not a generated mock.</exception>
     public static MockAdapter Of(object mock) =>
-        mock is IMock generated
-            ? generated.Adapter
-            : throw new ArgumentException($"{mock?.GetType().ToString() ?? "null"} is not a generated mock. Create one with Mock.Of<T>().", nameof(mock));
+        mock is IMock generated ? generated.Adapter : throw NotAMock(mock);
+
+    internal static ArgumentException NotAMock(object? mock) =>
+        new($"{mock?.GetType().ToString() ?? "null"} is not a generated mock. Create one with Mock.Of<T>().", nameof(mock));
 
     /// <summary>The target of a generated <c>Setup()</c> member that returns a value. Each argument is an <see cref="Arg{T}"/>.</summary>
     public MockSetup<TResult> SetupCall<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments) =>
@@ -249,7 +250,16 @@ public sealed class MockAdapter
 
         var queued = MockContext.TakeMatchers();
         var pending = MockContext.TakePending(this);
-        var spec = CallSpec.Create(memberId, name, typeArguments, arguments, queued);
+        CallSpec spec;
+        try
+        {
+            spec = CallSpec.Create(memberId, name, typeArguments, arguments, queued);
+        }
+        catch (AmbiguousArgumentsException)
+        {
+            MockContext.Clear();
+            throw;
+        }
 
         if (pending is { Kind: MockContext.PendingKind.Capture })
         {

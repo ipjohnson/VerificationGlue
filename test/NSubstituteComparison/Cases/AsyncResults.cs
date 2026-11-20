@@ -73,6 +73,24 @@ public static class AsyncResults
         }
     }
 
+    [Case("Returns with a cancelled task")]
+    public static async Task Returns_a_cancelled_task(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.ComputeAsync(0).Returns(Task.FromCanceled<int>(new CancellationToken(canceled: true)));
+
+        var task = calc.ComputeAsync(0);
+        observe.Record("IsCanceled", task.IsCanceled);
+        try
+        {
+            await task;
+        }
+        catch (Exception exception)
+        {
+            observe.Record("await", exception.GetType().Name);
+        }
+    }
+
     [Case("Throws on a Task<int> member throws when the member is called")]
     public static void Throws_on_an_async_member(Observations observe)
     {

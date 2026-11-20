@@ -27,16 +27,34 @@ internal sealed class EqualsMatcher(object? expected) : IArgMatcher
     public override string ToString() => expected?.ToString() ?? "null";
 }
 
+/// <summary>A matcher for a value of <typeparamref name="T"/>. A predicate that throws does not match, as in NSubstitute.</summary>
 internal sealed class PredicateMatcher<T>(Func<T, bool>? predicate, string text, int position) : IArgMatcher
 {
     public int Position => position;
 
     public bool Matches(object? value) => value switch
     {
-        T typed => predicate is null || predicate(typed),
-        null => default(T) is null && (predicate is null || predicate(default!)),
+        T typed => Holds(typed),
+        null => default(T) is null && Holds(default!),
         _ => false,
     };
+
+    private bool Holds(T value)
+    {
+        if (predicate is null)
+        {
+            return true;
+        }
+
+        try
+        {
+            return predicate(value);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     public bool IsDefaultOfMatchedType(object? value) =>
         value is null ? default(T) is null : value is T typed && EqualityComparer<T>.Default.Equals(typed, default!);

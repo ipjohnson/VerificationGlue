@@ -18,6 +18,8 @@ public interface ICalculator
 
     bool TryParse(string text, out int value);
 
+    int Scale(ref int value);
+
     void Reset();
 
     Task<int> ComputeAsync(int value);
@@ -45,6 +47,10 @@ public interface IHistory
     int Last { get; }
 
     IEntry Find(int index);
+
+    IEntry Search(string text);
+
+    IEntry Range(int[] indexes);
 }
 
 /// <summary>Two steps from <see cref="ICalculator"/>, at the default depth, so its own members return null.</summary>

@@ -26,6 +26,66 @@ public class MockMisuseSpecs
         Assert.Equal(["Get(1, 2)"], Calls(service));
     }
 
+    // CD-09: a misuse failure clears the flow's queued matchers and pending check.
+    [VerifyTest]
+    public void Returns_with_no_mock_call_clears_a_queued_matcher_and_a_pending_check()
+    {
+        var service = Mock.Of<IService>();
+
+        Arg.Any<int>();
+        service.Received();
+        Assert.Throws<MockSetupException>(() => 5.Returns(6));
+        service.Get(0, 5).Returns(7);
+
+        Assert.Equal(7, service.Get(0, 5));
+        Assert.Equal(0, service.Get(9, 5));
+        Assert.Equal(["Get(0, 5)", "Get(9, 5)"], Calls(service));
+    }
+
+    // CD-09: without the clear, the next Returns binds to Get(1, 2) and removes it from the recorded calls.
+    [VerifyTest]
+    public void A_matcher_that_fits_no_argument_also_clears_the_last_call()
+    {
+        var service = Mock.Of<IService>();
+
+        service.Get(1, 2);
+        Arg.Any<string>();
+        Assert.Throws<AmbiguousArgumentsException>(() => service.Get(3, 4));
+        Assert.Throws<MockSetupException>(() => 0.Returns(9));
+
+        Assert.Equal(0, service.Get(1, 2));
+        Assert.Equal(["Get(1, 2)", "Get(1, 2)"], Calls(service));
+    }
+
+    [VerifyTest]
+    public void When_with_no_mock_call_clears_a_queued_matcher_and_a_pending_raise()
+    {
+        var service = Mock.Of<IService>();
+        var seen = new List<int>();
+
+        Arg.Any<int>();
+        Raise.Event<EventHandler<int>>(service, 5);
+        Assert.Throws<MockSetupException>(() => service.When(_ => { }));
+        service.Changed += (_, value) => seen.Add(value);
+        service.Get(0, 5).Returns(7);
+
+        Assert.Empty(seen);
+        Assert.Equal(0, service.Get(9, 5));
+        Assert.Equal(["add_Changed(System.EventHandler`1[System.Int32])", "Get(9, 5)"], Calls(service));
+    }
+
+    [VerifyTest]
+    public void Received_on_a_value_that_is_not_a_mock_fails_and_clears_a_queued_matcher()
+    {
+        var service = Mock.Of<IService>();
+
+        Arg.Any<int>();
+        Assert.Throws<ArgumentException>(() => "text".Received());
+        service.Get(0, 5).Returns(7);
+
+        Assert.Equal(0, service.Get(9, 5));
+    }
+
     [VerifyTest]
     public void A_second_Returns_for_one_call_fails_and_the_first_stays()
     {
@@ -92,13 +152,15 @@ public class MockMisuseSpecs
     }
 
     [VerifyTest]
-    public void Received_with_a_negative_count_fails_and_leaves_no_pending_check()
+    public void Received_with_a_negative_count_fails_and_leaves_no_pending_check_or_matcher()
     {
         var service = Mock.Of<IService>();
 
+        Arg.Any<int>();
         Assert.Throws<ArgumentOutOfRangeException>(() => service.Received(-1));
-        service.Get(1, 2);
+        service.Get(0, 2).Returns(4);
 
+        Assert.Equal(0, service.Get(1, 2));
         Assert.Equal(["Get(1, 2)"], Calls(service));
     }
 

@@ -26,6 +26,38 @@ public class RecursiveMocks
         Assert.NotSame(history.Find(1), history.Find(2));
     }
 
+    [VerifyTest]
+    public void Arguments_that_are_equal_return_the_same_mock_whether_or_not_they_are_the_same_object()
+    {
+        var history = Mock.Of<ICalculator>().History;
+        var text = new string('a', 3);
+
+        Assert.NotSame("aaa", text);
+        Assert.Same(history.Search("aaa"), history.Search(text));
+        Assert.NotSame(history.Search("aaa"), history.Search("aab"));
+        Assert.Same(history.Range([1, 2]), history.Range([1, 2]));
+        Assert.NotSame(history.Range([1, 2]), history.Range([2, 1]));
+    }
+
+    [VerifyTest]
+    public void A_new_setup_on_the_parent_replaces_the_recursive_mock()
+    {
+        var calc = Mock.Of<ICalculator>();
+        var recursive = calc.History;
+        recursive.Last.Returns(5);
+        var replacement = Mock.Of<ICalculator>().History;
+        var typedReplacement = Mock.Of<ICalculator>().History;
+
+        calc.History.Returns(replacement);
+        var afterNSubstituteStyle = calc.History;
+        calc.Setup().History.Returns(typedReplacement);
+
+        Assert.Same(replacement, afterNSubstituteStyle);
+        Assert.Equal(0, afterNSubstituteStyle.Last);
+        Assert.Same(typedReplacement, calc.History);
+        Assert.Equal(5, recursive.Last);
+    }
+
     // Found by the step 3 sequences of docs/design/hardening.md.
     [VerifyTest]
     public void A_callback_that_writes_an_argument_does_not_change_which_mock_the_arguments_get()

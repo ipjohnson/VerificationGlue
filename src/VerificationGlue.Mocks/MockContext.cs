@@ -84,6 +84,9 @@ internal static class MockContext
         return captured;
     }
 
+    /// <summary>Drops the queued matchers, the last call, the pending check or capture and the pending raise of this flow, after a misuse failure.</summary>
+    public static void Clear() => s_state.Value = null;
+
     public static void SetPendingRaise(object?[] arguments) => s_state.Value = Current with { Raise = arguments };
 
     public static object?[]? TakePendingRaise()
