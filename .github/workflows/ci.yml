@@ -97,13 +97,14 @@ jobs:
           if-no-files-found: ignore
 
   # Runs the pull request cases of docs/design/hardening.md beside cold-build. The step 2 cases in
-  # test/Hardening.Specs have a 2-minute budget. A run over it still runs every case, then fails and
-  # reports the overrun.
+  # test/Hardening.Specs have a 2-minute budget, and the step 4 cases in test/Hardening.Lifecycle.Specs
+  # have a 1-minute budget. A run over its budget still runs every case, then fails and reports the overrun.
   hardening:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       STEP2_BUDGET_SECONDS: 120
+      STEP4_BUDGET_SECONDS: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -111,8 +112,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      # The step 4 specs build the fixture again when they start. Building it here leaves them nothing to do.
       - name: Build the hardening specs
-        run: dotnet build test/Hardening.Specs -c Release
+        id: build
+        run: |
+          dotnet build test/Hardening.Specs -c Release
+          dotnet build test/Hardening.Lifecycle.Specs -c Release
+          dotnet build test/Hardening.Lifecycle.Fixture -c Release
 
       - name: Run the step 2 cases
         env:
@@ -128,6 +134,20 @@ jobs:
           echo "The step 2 cases took $elapsed s of their $STEP2_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
           if [ "$elapsed" -gt "$STEP2_BUDGET_SECONDS" ]; then
             echo "::error::The step 2 cases took $elapsed s, over their $STEP2_BUDGET_SECONDS s budget. Every case ran."
+            status=1
+          fi
+          exit $status
+
+      - name: Run the step 4 cases
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          start=$(date +%s)
+          status=0
+          dotnet test --project test/Hardening.Lifecycle.Specs -c Release --no-build || status=$?
+          elapsed=$(( $(date +%s) - start ))
+          echo "The step 4 cases took $elapsed s of their $STEP4_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$elapsed" -gt "$STEP4_BUDGET_SECONDS" ]; then
+            echo "::error::The step 4 cases took $elapsed s, over their $STEP4_BUDGET_SECONDS s budget. Every case ran."
             status=1
           fi
           exit $status
