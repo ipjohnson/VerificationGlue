@@ -7,7 +7,8 @@ namespace Contract.Specs;
 
 /// <summary>
 /// Adds <c>Calls()</c> to <c>ICalculator</c> the way the typed mock surface of issue #16 will: as
-/// a generated extension method, which no other generator can see.
+/// a generated extension method, which no other generator can see. Its <c>Count()</c> returns a
+/// struct, as a <c>CallCount</c> is, so the name also matches <c>Enumerable.Count</c>.
 /// </summary>
 public sealed class TypedCallsGenerator : IIncrementalGenerator
 {
@@ -34,6 +35,23 @@ public sealed class TypedCallsGenerator : IIncrementalGenerator
 
                         return count;
                     }
+
+                    public CallTally Count() => new(_mock.Adapter.ReceivedCalls().Count);
+                }
+
+                public readonly struct CallTally(int count)
+                {
+                    public int Value { get; } = count;
+
+                    public static bool operator ==(CallTally left, int right) => left.Value == right;
+
+                    public static bool operator !=(CallTally left, int right) => left.Value != right;
+
+                    public override bool Equals(object? obj) => obj is CallTally other && other.Value == Value;
+
+                    public override int GetHashCode() => Value;
+
+                    public override string ToString() => Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
                 }
 
                 public static class ICalculator_CallsExtensions
