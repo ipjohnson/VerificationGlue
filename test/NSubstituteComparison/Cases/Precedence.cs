@@ -35,6 +35,18 @@ public static class Precedence
         observe.Record("Add(5, 5)", calc.Add(5, 5));
     }
 
+    [Case("The last of overlapping Arg.Is setups wins for the values it matches")]
+    public static void Overlapping_predicates(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Add(Arg.Is<int>(x => x > 5), 1).Returns(1);
+        calc.Add(Arg.Is<int>(x => x > 10), 1).Returns(2);
+
+        observe.Record("Add(7, 1)", calc.Add(7, 1));
+        observe.Record("Add(11, 1)", calc.Add(11, 1));
+        observe.Record("Add(3, 1)", calc.Add(3, 1));
+    }
+
     [Case("The call inside a setup is not a received call")]
     public static void Setup_call_is_not_received(Observations observe)
     {

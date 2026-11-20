@@ -136,7 +136,7 @@ These orderings are unsupported, and a test must not rely on what they give:
 - A child task started while the parent's matchers or pending check wait. The child starts with a copy of them, so a call in each flow can consume them.
 - A check or a `Calls()` count in one flow that matches the call of a setup statement in another flow between its mock call and `Returns`. The setup call counts as received until `Returns` removes it.
 - Setups in parallel flows that match the same call. The one that runs last wins, and that depends on timing.
-- Matchers, a pending check or a last call that one flow leaves behind. The step 3 misuse set states what the next operation in that flow does.
+- Matchers, a pending check or a last call that one flow leaves behind. The step 3 misuse set states what the next operation in that flow does, and a [misuse failure](#throwing-predicates-and-misuse-failures) clears them.
 
 ### Matcher positions
 
@@ -169,6 +169,29 @@ How it works:
 
 The typed surface is the recommended style for new code and for libraries. The NSubstitute style stays for teams moving from NSubstitute.
 
+### Setup precedence
+
+This section settles contract decision `CD-02` of the [hardening exercise](hardening.md#contract-decisions).
+
+`Returns` and `Throws` in both styles add a setup to one list on the adapter. A call gets the response of the last setup in that list whose matchers all match it. The style does not matter, and neither does whether a matcher is an exact value, `Any` or a predicate. A later setup with a narrower matcher wins only for the values it matches, and the earlier setup still answers the others. A callback from `When(...).Do(...)` or `Does(...)` is not a setup. Every matching callback runs, in the order the test added them.
+
+`Setup.The_last_matching_setup_wins_whatever_its_style` and `Setup.The_last_of_overlapping_matchers_wins_for_the_values_it_matches` in `test/VerificationGlue.Mocks.Specs/Behaviour` check it, and `Precedence.Overlapping_predicates` shows that NSubstitute agrees.
+
+### Throwing predicates and misuse failures
+
+This section settles contract decision `CD-09` of the [hardening exercise](hardening.md#contract-decisions).
+
+An `Arg.Is` or `Arg<T>.Is` predicate that throws does not match. Its exception does not leave the mock call. The call is recorded, the other setups answer it, and the flow's last call is set as usual. A `Received`, `DidNotReceive` or `Calls()` check does not count the call for that matcher. NSubstitute also treats a throwing predicate as no match, and `Matching.Predicate_that_throws` in the comparison checks that.
+
+A misuse failure clears the flow's queued matchers, last call, pending check or capture, and pending `Raise.Event` arguments. The next operation in that flow starts with none of them. These are the misuse failures:
+
+- `MockSetupException` from `Returns`, `Throws` or `When` with no mock call.
+- `AmbiguousArgumentsException` from queued matchers that fit no argument of the next call.
+- `ArgumentOutOfRangeException` from `Received` with a negative count.
+- `ArgumentException` from `Received`, `DidNotReceive` or `When` on a value that is not a mock.
+
+`test/Hardening.Specs/Mocks/MockMisuseSpecs.cs` checks the next operation after each one. A failed check, `ReceivedCallsException`, is not misuse. A setup whose mock call throws because of an earlier `Throws` is not misuse either. Its call stays recorded and stays the flow's last call.
+
 ### Recursive mocks
 
 An unconfigured member whose return type can be mocked returns a mock, created on the first call and returned again for the same arguments. `calc.History.Last.Returns(5)` then works without setting up `History`.
@@ -183,6 +206,12 @@ How it works:
 - After discovery, one pipeline step combines the discovered models with the depth property and the compilation. It walks breadth first from every discovered type at level 0, resolves each recorded return type by its reference ID and builds its model. A mock class has one level, the lowest any walk reaches it at, so a type also named in `Mock.Of<T>()` starts a walk of its own.
 - A member of a class below the depth calls `MockAdapter.CallMock<T>`. When no setup matches, the adapter creates the mock through `MockFactory<T>` and keeps it for those arguments. A call that `Received()` checks returns `null` and creates nothing.
 - `MockAnalyzer` runs the same walk at the end of the compilation and reports VGM0007 for each member of a class at the depth, at the places that name the type whose walk reached it. Generator and analyzer share `RecursiveMocks`, so they agree on every member.
+
+These rules settle contract decision `CD-03` of the [hardening exercise](hardening.md#contract-decisions):
+
+- The arguments decide which mock a call gets, with the equality that exact matching uses. `CallMock<T>` compares the arguments the caller passed through `StructuralComparisons.StructuralEqualityComparer`. Equal strings, and arrays with equal elements, get the same mock even when they are different objects.
+- A setup on the member, in either style, replaces the recursive mock, as any setup replaces an auto-value. That holds after the test has read the recursive mock too. The mock returned before keeps its own setups.
+- A member at the depth limit returns `default`, null for an interface. With the depth set to 0, every such member returns null. A `Task<T>` or `ValueTask<T>` member returns a completed task holding `default`, and a member that returns an interface in a `System` namespace returns null. Tests may rely on these values.
 
 ### Class mocks
 

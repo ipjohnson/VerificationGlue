@@ -37,6 +37,7 @@ public static class MockSyntax
     {
         if (count < 0)
         {
+            MockContext.Clear();
             throw new ArgumentOutOfRangeException(nameof(count), count, "The count cannot be negative.");
         }
 
@@ -64,16 +65,23 @@ public static class MockSyntax
         }
 
         return spec is null
-            ? throw new MockSetupException("When(...) did not call a member of the mock it was given.")
+            ? throw Misuse(new MockSetupException("When(...) did not call a member of the mock it was given."))
             : new WhenCall(adapter, spec);
     }
 
     private static void Bind(Func<CallInfo, object?> response)
     {
-        var last = MockContext.TakeLastCall() ?? throw new MockSetupException(
+        var last = MockContext.TakeLastCall() ?? throw Misuse(new MockSetupException(
             "Returns or Throws was called, but no mock call came before it in this async flow. " +
-            "Call it directly on a mock call, such as calc.Add(1, 2).Returns(3).");
+            "Call it directly on a mock call, such as calc.Add(1, 2).Returns(3)."));
         last.Adapter.BindResponse(last.Record, last.Spec, response);
+    }
+
+    /// <summary>Clears the flow's pending state, so the next mock operation starts from nothing, and returns <paramref name="exception"/> to throw.</summary>
+    private static Exception Misuse(Exception exception)
+    {
+        MockContext.Clear();
+        return exception;
     }
 
     private static T CheckNext<T>(T mock, int min, int max)
@@ -83,7 +91,8 @@ public static class MockSyntax
         return mock;
     }
 
-    private static MockAdapter AdapterOf(object mock) => MockAdapter.Of(mock);
+    private static MockAdapter AdapterOf(object mock) =>
+        mock is IMock generated ? generated.Adapter : throw Misuse(MockAdapter.NotAMock(mock));
 }
 
 /// <summary>A call selected with <see cref="MockSyntax.When{T}"/>.</summary>

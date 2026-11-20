@@ -62,4 +62,21 @@ public class Matching
         Assert.Equal(-1, calc[-3]);
         Assert.Equal(0, calc[3]);
     }
+
+    [VerifyTest]
+    public void A_predicate_that_throws_does_not_match_and_leaves_the_call_unchanged()
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Add(Arg.Any<int>(), 1).Returns(1);
+        calc.Add(Arg.Is<int>(x => 10 / x > 1), 1).Returns(2);
+
+        var answers = new[] { calc.Add(2, 1), calc.Add(0, 1) };
+        calc.Add(0, 1).Returns(3);
+
+        Assert.Equal([2, 1], answers);
+        Assert.Equal(3, calc.Add(0, 1));
+        Assert.Equal(["Add(2, 1)", "Add(0, 1)", "Add(0, 1)"], ((IMock)calc).Adapter.ReceivedCalls().Select(call => call.ToString()));
+        calc.Received(1).Add(Arg.Is<int>(x => 10 / x > 1), 1);
+        Assert.True(calc.Calls().Add(Arg<int>.Is(x => 10 / x > 1), 1) == 1);
+    }
 }

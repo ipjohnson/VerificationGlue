@@ -30,7 +30,7 @@ Verify(await calc.ComputeAsync(5) == 25);
 <sup><a href='/samples/MocksGuide/AsyncMembers.cs#L28-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-async-typed' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-`Returns` also takes a task, such as `Task.FromResult(25)`, when the test needs to control it.
+`Returns` also takes a task, such as `Task.FromResult(25)`, when the test needs to control it. A cancelled task, such as `Task.FromCanceled<int>(token)`, makes the await throw `TaskCanceledException`.
 
 ## Unconfigured members
 

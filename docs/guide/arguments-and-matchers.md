@@ -21,6 +21,8 @@ Verify(calc.Add(7, 7) == 49);
 
 An array argument matches an array with equal elements.
 
+A predicate that throws does not match, and its exception does not reach the caller. For example, `Arg.Is<string>(s => s.Length > 3)` does not match a null argument, and another setup answers the call. NSubstitute does the same.
+
 ## A matcher belongs to the argument it is written at
 
 The generator reads the position of each `Arg` call from the source, so the matcher below applies to the second argument:

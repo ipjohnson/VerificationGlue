@@ -137,4 +137,35 @@ public static class Matching
         observe.Record("TryParse(\"8\", out other)", calc.TryParse("8", out var other));
         observe.Record("other", other);
     }
+
+    [Case("A factory sets a ref argument")]
+    public static void Ref_argument(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        var four = 4;
+        calc.Scale(ref four).Returns(x =>
+        {
+            x[0] = (int)x[0]! * 2;
+            return 1;
+        });
+
+        var value = 4;
+        observe.Record("Scale(ref 4)", calc.Scale(ref value));
+        observe.Record("value", value);
+        var other = 5;
+        observe.Record("Scale(ref 5)", calc.Scale(ref other));
+        observe.Record("other", other);
+    }
+
+    [Case("An Arg.Is predicate that throws does not match")]
+    public static void Predicate_that_throws(Observations observe)
+    {
+        var calc = Mock.Of<ICalculator>();
+        calc.Add(Arg.Any<int>(), 1).Returns(1);
+        calc.Add(Arg.Is<int>(x => 10 / x > 1), 1).Returns(2);
+
+        observe.TryValue("Add(2, 1)", () => calc.Add(2, 1));
+        observe.TryValue("Add(0, 1)", () => calc.Add(0, 1));
+        observe.Try("Received(1).Add(Arg.Is<int>(x => 10 / x > 1), 1)", () => calc.Received(1).Add(Arg.Is<int>(x => 10 / x > 1), 1));
+    }
 }
