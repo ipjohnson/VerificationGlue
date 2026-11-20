@@ -26,6 +26,18 @@ public class RecursiveMocks
         Assert.NotSame(history.Find(1), history.Find(2));
     }
 
+    // Found by the step 3 sequences of docs/design/hardening.md.
+    [VerifyTest]
+    public void A_callback_that_writes_an_argument_does_not_change_which_mock_the_arguments_get()
+    {
+        var history = Mock.Of<ICalculator>().History;
+        var entry = history.Find(2);
+
+        history.Setup().Find(2).Does(info => info[0] = 104);
+
+        Assert.Same(entry, history.Find(2));
+    }
+
     [VerifyTest]
     public void A_configured_member_returns_its_value_and_not_a_mock()
     {

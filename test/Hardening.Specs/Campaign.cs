@@ -7,9 +7,10 @@ namespace Hardening.Specs;
 /// <summary>
 /// The seed and case budget of a run. <c>HARDENING_SEED</c>, <c>HARDENING_CASES</c> and
 /// <c>HARDENING_CASE</c> override them, so a replay command can run one case of a seed again.
-/// <c>HARDENING_OUTPUT</c> names a folder for the report and the files of each mismatch.
+/// <c>HARDENING_OUTPUT</c> names a folder for the report and the files of each mismatch. Step 2 and
+/// step 3 read the same variables, and <see cref="Spec"/> names the spec a replay runs.
 /// </summary>
-public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, string? Output = null)
+public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, string? Output = null, string Spec = CampaignSettings.SpecName)
 {
     public const int DefaultSeed = 20261119;
 
@@ -17,16 +18,17 @@ public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, str
 
     public const string SpecName = "A_fixed_seed_run_keeps_plain_CSharp_behavior";
 
-    public static CampaignSettings FromEnvironment() => new(
+    public static CampaignSettings FromEnvironment(int defaultCases = DefaultCases, string spec = SpecName) => new(
         Number("HARDENING_SEED") ?? DefaultSeed,
-        Number("HARDENING_CASES") ?? DefaultCases,
+        Number("HARDENING_CASES") ?? defaultCases,
         Number("HARDENING_CASE"),
-        Environment.GetEnvironmentVariable("HARDENING_OUTPUT") is { Length: > 0 } output ? output : null);
+        Environment.GetEnvironmentVariable("HARDENING_OUTPUT") is { Length: > 0 } output ? output : null,
+        spec);
 
     public IEnumerable<int> Indices => Case is { } index ? [index] : Enumerable.Range(0, Cases);
 
     public string ReplayCommand(int index) =>
-        $"HARDENING_SEED={Seed} HARDENING_CASES={Cases} HARDENING_CASE={index} dotnet test --project test/Hardening.Specs -c Release --vg-filter \"name:{SpecName}\"";
+        $"HARDENING_SEED={Seed} HARDENING_CASES={Cases} HARDENING_CASE={index} dotnet test --project test/Hardening.Specs -c Release --vg-filter \"name:{Spec}\"";
 
     private static int? Number(string name) =>
         Environment.GetEnvironmentVariable(name) is { Length: > 0 } text ? int.Parse(text, CultureInfo.InvariantCulture) : null;
@@ -59,34 +61,15 @@ public static class Campaign
 
     /// <summary>
     /// Replaces parts of the expression with smaller ones while the same form still gives the same
-    /// kind of mismatch. Each round compiles every one-step reduction in one batch and keeps the smallest
-    /// that fails, until no reduction fails.
+    /// kind of mismatch. Each round compiles every one-step reduction in one batch.
     /// </summary>
-    public static async Task<FormResult> ShrinkAsync(FormResult mismatch, GeneratorMode mode, Func<string, string>? assertedText)
-    {
-        var current = mismatch;
-        while (current.Case.Tree is { } tree)
-        {
-            var candidates = Grammar.Reductions(tree).Select((node, i) => new ExpressionCase($"Shrink_{i}", node)).ToList();
-            if (candidates.Count == 0)
-            {
-                break;
-            }
-
-            var results = await CaseRunner.RunAsync(candidates, mode, assertedText);
-            var smaller = results
-                .Where(result => result.Form == mismatch.Form && result.MismatchKind == mismatch.MismatchKind)
-                .MinBy(result => (result.Case.Tree!.Size, result.Case.Text.Length));
-            if (smaller is null)
-            {
-                break;
-            }
-
-            current = smaller;
-        }
-
-        return current;
-    }
+    public static Task<FormResult> ShrinkAsync(FormResult mismatch, GeneratorMode mode, Func<string, string>? assertedText) =>
+        Shrinker.ShrinkAsync(
+            mismatch,
+            result => result.Case.Tree is { } tree ? Grammar.Reductions(tree).Select((node, i) => new ExpressionCase($"Shrink_{i}", node)) : [],
+            candidates => CaseRunner.RunAsync(candidates, mode, assertedText),
+            result => result.Form == mismatch.Form && result.MismatchKind == mismatch.MismatchKind,
+            result => (result.Case.Tree!.Size, result.Case.Text.Length));
 }
 
 public sealed record CampaignReport(CampaignSettings Settings, GeneratorMode Mode, IReadOnlyList<FormResult> Results, IReadOnlyList<Shrunk> Shrunk, TimeSpan Elapsed)

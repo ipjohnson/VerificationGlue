@@ -1093,12 +1093,17 @@
     {
       "id": "MOCK-041",
       "contract": "Every legal interleaving of setups, matchers and checks across awaits, child tasks and parallel operations gives the observations the async context rules declare.",
-      "source": "docs/design/hardening.md#operations-and-sequences",
-      "support": "unclassified",
+      "source": "docs/design/mocks.md#legal-orderings-across-awaits-child-tasks-and-parallel-calls",
+      "support": "supported",
       "decision": "CD-04",
       "dimensions": ["context: sequential, awaits, child tasks, parallel, abandoned setup state"],
-      "evidence": [],
-      "gap": { "size": "l", "step": 3, "missing": "Existing cases use fixed timing. No controlled scheduling, and the legal orderings are not written down." }
+      "evidence": [
+        "test/Hardening.Specs/Mocks/MockSchedulingSpecs.cs#MockSchedulingSpecs.Every_legal_interleaving_of_a_statement_pair_matches_the_reference_model",
+        "test/Hardening.Specs/Mocks/MockSchedulingSpecs.cs#MockSchedulingSpecs.A_call_from_another_flow_before_the_checked_call_is_recorded_and_counted",
+        "test/Hardening.Specs/Mocks/MockSchedulingSpecs.cs#MockSchedulingSpecs.A_call_from_another_flow_between_a_setup_call_and_Returns_is_not_answered_by_that_setup",
+        "test/Hardening.Specs/Mocks/MockSequenceSpecs.cs#MockSequenceSpecs.A_fixed_seed_run_of_mock_sequences_matches_the_reference_model",
+        "test/Hardening.Specs/Mocks/MockInvariantSpecs.cs#MockInvariantSpecs.Each_mock_invariant_holds_on_a_fixed_seed_run"
+      ]
     },
     {
       "id": "MOCK-042",
