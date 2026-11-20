@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The shape library VendorV2.cs as an assembly, which test/Hardening.Specs references through the extern alias V2. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../VerificationGlue.Mocks.Generator.Specs/Shapes/Libraries/VendorV2.cs" />
+  </ItemGroup>
+</Project>

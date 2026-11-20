@@ -19,4 +19,19 @@
     <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!--
+    The step 3 shape consumers in ShapeConsumers/ use the hand-written shape files of the generator specs
+    through the public generator. The files with a library need it as an assembly, the extern-aliased
+    ones under the alias the file names. Pointers.cs needs unsafe code.
+  -->
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../VerificationGlue.Mocks.Generator.Specs/Shapes/Collisions.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Constraints.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/ExternAlias.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/ExternAliasNested.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/InternalsVisibleTo.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Members.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Names.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Nullable.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Obsolete.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Parameters.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/Pointers.cs;../VerificationGlue.Mocks.Generator.Specs/Shapes/RefStruct.cs" LinkBase="ShapeConsumers/Corpus" />
+    <ProjectReference Include="../Hardening.Shapes/VendorV1/Hardening.Shapes.VendorV1.csproj" Aliases="V1" />
+    <ProjectReference Include="../Hardening.Shapes/VendorV2/Hardening.Shapes.VendorV2.csproj" Aliases="V2" />
+    <ProjectReference Include="../Hardening.Shapes/Friend/Hardening.Shapes.Friend.csproj" />
+  </ItemGroup>
 </Project>

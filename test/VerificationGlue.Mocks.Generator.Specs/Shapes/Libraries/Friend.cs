@@ -1,4 +1,5 @@
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ShapeCase")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hardening.Specs")]
 
 namespace Friend;
 

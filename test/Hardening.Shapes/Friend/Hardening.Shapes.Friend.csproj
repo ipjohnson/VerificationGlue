@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The shape library Friend.cs as an assembly. It grants InternalsVisibleTo to test/Hardening.Specs. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../VerificationGlue.Mocks.Generator.Specs/Shapes/Libraries/Friend.cs" />
+  </ItemGroup>
+</Project>
