@@ -51,7 +51,7 @@ public static class TestRuntime
             if (attribute is ITestParameterProvider provider)
             {
                 tried.Add(provider.GetType().Name + " on the parameter");
-                if (provider.TryProvide(context, parameter, out var value))
+                if (TryProvide(provider, context, parameter, tried[^1], out var value))
                 {
                     return value;
                 }
@@ -64,7 +64,7 @@ public static class TestRuntime
             if (attributes[i] is ITestParameterProvider provider)
             {
                 tried.Add(provider.GetType().Name);
-                if (provider.TryProvide(context, parameter, out var value))
+                if (TryProvide(provider, context, parameter, tried[^1], out var value))
                 {
                     return value;
                 }
@@ -74,7 +74,18 @@ public static class TestRuntime
         if (context.Container is { } container)
         {
             tried.Add("the container (" + container.GetType().Name + ")");
-            if (container.TryResolve(parameter, out var value))
+            bool resolved;
+            object? value;
+            try
+            {
+                resolved = container.TryResolve(parameter, out value);
+            }
+            catch (Exception failure)
+            {
+                throw SourceThrew(parameter, tried[^1], failure);
+            }
+
+            if (resolved)
             {
                 return value;
             }
@@ -109,8 +120,26 @@ public static class TestRuntime
     }
 
     internal static InvalidOperationException NoValue(TestParameter parameter, IReadOnlyList<string> tried) =>
-        new($"{(parameter.IsConstructorParameter ? "Constructor" : "Test")} parameter '{parameter.Name}' of type {parameter.TypeName} has no value. " +
+        new($"{Describe(parameter)} has no value. " +
             $"The providers tried were: {string.Join(", ", tried)}. It has no default value.");
+
+    private static bool TryProvide(ITestParameterProvider provider, TestContext context, TestParameter parameter, string source, out object? value)
+    {
+        try
+        {
+            return provider.TryProvide(context, parameter, out value);
+        }
+        catch (Exception failure)
+        {
+            throw SourceThrew(parameter, source, failure);
+        }
+    }
+
+    private static InvalidOperationException SourceThrew(TestParameter parameter, string source, Exception failure) =>
+        new($"{Describe(parameter)} has no value, because {source} threw {failure.GetType().Name}: {failure.Message}", failure);
+
+    private static string Describe(TestParameter parameter) =>
+        $"{(parameter.IsConstructorParameter ? "Constructor" : "Test")} parameter '{parameter.Name}' of type {parameter.TypeName}";
 
     /// <summary>Disposes an instance that the runner created.</summary>
     internal static ValueTask DisposeAsync(object instance)

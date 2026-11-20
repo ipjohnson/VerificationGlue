@@ -234,6 +234,8 @@ Each test parameter, and each constructor parameter of the test class, is resolv
 
 Anything else fails the test, and the message names the parameter and the providers that were tried.
 
+A provider or the container that throws while it resolves a parameter fails the test. The message names the parameter and the source that threw, and the `InnerException` is the exception it threw. The test body does not run, and cleanup runs as it does after any other failure. Other tests are not affected. This is the answer to contract decision `CD-08` in `docs/design/hardening.md`.
+
 ## Naming and identity
 
 - The method identity uses the fully qualified containing type and parameter types, including generic and overload distinctions. It never depends on the display name.

@@ -61,7 +61,7 @@ An attribute that implements `ITestParameterProvider` supplies parameters. It re
 <a id='snippet-tests-parameter-provider'></a>
 ```cs
 /// <summary>Supplies the string parameters of the tests, or of the parameter, it is placed on.</summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Parameter)]
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Parameter)]
 public sealed class SettingAttribute(string value) : Attribute, ITestParameterProvider
 {
     public bool TryProvide(TestContext context, TestParameter parameter, out object? provided)
@@ -118,6 +118,16 @@ Test parameter 'clock' of type Shop.IClock has no value. The providers tried wer
 ```
 
 `test/VerificationGlue.Tests.Specs/ContainerSpecs.cs` checks this message and the order above.
+
+## When a source throws
+
+When a provider or the container throws while it supplies a parameter, the test fails. The message names the parameter and the source that threw, and the exception it threw is the `InnerException`:
+
+```text
+Test parameter 'sut' of type Shop.OrderService has no value, because the container (ServiceProviderContainer) threw InvalidOperationException: The container failed to create OrderService.
+```
+
+The test body does not run. Cleanup still runs: the middleware leaves, the scope listeners are told, and the container is disposed. `test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs` checks this.
 
 ## Next
 

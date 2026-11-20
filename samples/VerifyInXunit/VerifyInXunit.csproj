@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />

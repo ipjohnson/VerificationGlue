@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <EnableNUnitRunner>true</EnableNUnitRunner>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NUnit" />
