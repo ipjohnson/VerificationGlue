@@ -31,7 +31,7 @@ internal static class GeneratorHarness
             "SpecsInput",
             sources.Select(source => CSharpSyntaxTree.ParseText(source.Text, ParseOptions, source.Path)),
             References,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable, allowUnsafe: true));
 
     public static GeneratorDriverRunResult Generate(CSharpCompilation compilation, IIncrementalGenerator generator, out Compilation output, bool rewrite = false)
     {

@@ -333,6 +333,14 @@ public sealed class VerifyFailureBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds the interpolated message of the call. A hole whose formatting throws shows a placeholder
+    /// that names the exception's type.
+    /// </summary>
+    /// <param name="message">The interpolated message.</param>
+    /// <returns>This builder.</returns>
+    public VerifyFailureBuilder Message(ref VerifyMessageHandler message) => Message(message.ToStringAndClear());
+
     /// <summary>Adds the reason from <c>.Because(...)</c>.</summary>
     /// <param name="reason">The reason.</param>
     /// <returns>This builder.</returns>
@@ -543,9 +551,12 @@ public sealed class VerifyFailureBuilder
         }
         catch (Exception exception)
         {
-            return $"<ToString threw {exception.GetType().Name}>";
+            return FormatThrew(exception);
         }
     }
+
+    /// <summary>The placeholder for a value whose formatting threw <paramref name="exception"/>.</summary>
+    internal static string FormatThrew(Exception exception) => $"<ToString threw {exception.GetType().Name}>";
 
     /// <summary>
     /// The count and the first items of a collection, or null when the value is not a collection.

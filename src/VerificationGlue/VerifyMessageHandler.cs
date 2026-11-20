@@ -6,7 +6,8 @@ namespace VerificationGlue;
 
 /// <summary>
 /// Builds the message of <c>Verify(condition, $"...")</c>. The holes run only when the condition is
-/// false. Values are formatted with the invariant culture.
+/// false. Values are formatted with the invariant culture. A value whose formatting throws shows
+/// <c>&lt;ToString threw</c> and the exception's type name instead, so the failure still surfaces.
 /// </summary>
 [InterpolatedStringHandler]
 public ref struct VerifyMessageHandler
@@ -26,6 +27,18 @@ public ref struct VerifyMessageHandler
         _builder = _enabled ? new DefaultInterpolatedStringHandler(literalLength, formattedCount, CultureInfo.InvariantCulture) : default;
     }
 
+    /// <summary>
+    /// Starts a message that is always built. A tier 3 copy calls it on the failure path, where the
+    /// condition is already known to be false.
+    /// </summary>
+    /// <param name="literalLength">The number of literal characters in the message.</param>
+    /// <param name="formattedCount">The number of holes in the message.</param>
+    public VerifyMessageHandler(int literalLength, int formattedCount)
+    {
+        _enabled = true;
+        _builder = new DefaultInterpolatedStringHandler(literalLength, formattedCount, CultureInfo.InvariantCulture);
+    }
+
     /// <summary>Appends literal text.</summary>
     /// <param name="value">The text.</param>
     public void AppendLiteral(string value) => _builder.AppendLiteral(value);
@@ -33,26 +46,66 @@ public ref struct VerifyMessageHandler
     /// <summary>Appends a value.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    public void AppendFormatted<T>(T value) => _builder.AppendFormatted(value);
+    public void AppendFormatted<T>(T value)
+    {
+        try
+        {
+            _builder.AppendFormatted(value);
+        }
+        catch (Exception exception)
+        {
+            _builder.AppendLiteral(VerifyFailureBuilder.FormatThrew(exception));
+        }
+    }
 
     /// <summary>Appends a value with a format string.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="format">The format string.</param>
-    public void AppendFormatted<T>(T value, string? format) => _builder.AppendFormatted(value, format);
+    public void AppendFormatted<T>(T value, string? format)
+    {
+        try
+        {
+            _builder.AppendFormatted(value, format);
+        }
+        catch (Exception exception)
+        {
+            _builder.AppendLiteral(VerifyFailureBuilder.FormatThrew(exception));
+        }
+    }
 
     /// <summary>Appends a value with an alignment.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="alignment">The minimum width. A negative width aligns to the left.</param>
-    public void AppendFormatted<T>(T value, int alignment) => _builder.AppendFormatted(value, alignment);
+    public void AppendFormatted<T>(T value, int alignment)
+    {
+        try
+        {
+            _builder.AppendFormatted(value, alignment);
+        }
+        catch (Exception exception)
+        {
+            _builder.AppendLiteral(VerifyFailureBuilder.FormatThrew(exception));
+        }
+    }
 
     /// <summary>Appends a value with an alignment and a format string.</summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="alignment">The minimum width. A negative width aligns to the left.</param>
     /// <param name="format">The format string.</param>
-    public void AppendFormatted<T>(T value, int alignment, string? format) => _builder.AppendFormatted(value, alignment, format);
+    public void AppendFormatted<T>(T value, int alignment, string? format)
+    {
+        try
+        {
+            _builder.AppendFormatted(value, alignment, format);
+        }
+        catch (Exception exception)
+        {
+            _builder.AppendLiteral(VerifyFailureBuilder.FormatThrew(exception));
+        }
+    }
 
     /// <summary>Appends characters.</summary>
     /// <param name="value">The characters.</param>

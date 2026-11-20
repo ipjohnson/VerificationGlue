@@ -54,13 +54,13 @@ Verify(await repo.CountAsync() == 3);                    // await works inside V
 | Member | Behaviour |
 |---|---|
 | `Verify(bool, [CallerArgumentExpression] string? = null, ...)` | Marked `[DoesNotReturnIf(false)]`, so nullable flow analysis knows the condition after the call. Throws `VerifyException` on failure. |
-| `Verify(bool, ref VerifyMessageHandler)` | Interpolated message. `[InterpolatedStringHandlerArgument]` makes the holes run only on failure. Verified in the spike. |
+| `Verify(bool, ref VerifyMessageHandler)` | Interpolated message. `[InterpolatedStringHandlerArgument]` makes the holes run only on failure. Verified in the spike. A hole whose value throws while it is formatted shows `<ToString threw FormatException>`, naming the exception's type, and the `VerifyException` still surfaces (`CD-01`). A hole expression that throws, such as `{Load()}`, runs at the call site as C# evaluates it, so its own exception surfaces in every tier. |
 | `.Because(string)`, `.WithMessage(string)` on a `Verify` call | Add text to the failure message. They work only in methods that tier 3 rewrites, because in tiers 1 and 2 `Verify` throws before the chained call runs. VG0001 reports them anywhere else. |
 | `Check(bool, ...)` | Adds a failure to the current `VerifyScope`. With no scope it throws like `Verify`, so a failure is never lost. |
-| `Throws<T>(Action)`, `ThrowsAsync<T>(Func<Task>)` | Return the exception. A different exception type fails with that exception's type and message. |
+| `Throws<T>(Action)`, `ThrowsAsync<T>(Func<Task>)` | Return the exception. A different exception type fails with that exception's type and message. `ThrowsAsync` treats an exception the action throws before it returns a task like one the task throws. A cancelled task throws `TaskCanceledException`, which passes for `T` of `OperationCanceledException` and fails otherwise. |
 | `Approx(double expected, double tolerance)` | A value whose `==` uses the tolerance. The explanation reports the difference. |
 | `Eventually(Func<bool>, TimeSpan)` | Polls until true or timeout. On timeout it fails with the condition's source text. Neither tier captures values inside the lambda, so it reports no values. |
-| `VerifyScope.Begin()` | Opens a scope for `Check` outside `VerificationGlue.Tests`, which opens one per test. Disposing the scope throws one `VerifyException` listing every failure. |
+| `VerifyScope.Begin()` | Opens a scope for `Check` outside `VerificationGlue.Tests`, which opens one per test. Disposing the scope throws one `VerifyException` listing every failure. The scope keeps every failure from child tasks and threads that run in parallel in its async context. Their order is not part of the contract (`CD-07`). When the scope ends because code in it threw, that exception is the `InnerException` of the scope's exception (`CD-06`). The scope records the newest exception thrown in its async context, and `Dispose` uses it only when `Marshal.GetExceptionPointers` shows an exception is passing through. Native AOT does not support that call, so there the scope's exception has no `InnerException`. |
 
 `Verify.Throws<T>` is not offered. A type named `Verify` cannot coexist with a `using static` method named `Verify` (CS0119, seen in the spike).
 
@@ -172,6 +172,7 @@ The generator knows the static types at each call site, so it picks an explanati
 - Strings are quoted and escaped. Long strings are cut at 200 characters with a marker.
 - Collections that implement `ICollection` or `IReadOnlyCollection<T>` show up to 10 items. A lazy `IEnumerable` is not enumerated a second time. It shows its type name.
 - Records and types that override `ToString` use it. Other types show their type name, or a member dump the generator emits when the type is in the compilation.
+- Values are formatted on the failure path only, once per row, after the condition has run. A `ToString` that throws gives `<ToString threw FormatException>`, naming the exception's type, and the `VerifyException` still surfaces with the original condition (`CD-01`). A `ToString` that changes state runs only on that path, so the condition's captured values are the ones it ran with.
 - A static method marked `[VerifyFormatter]` with signature `static string Format(T value)` replaces the default for `T`. The generator binds it by static type at each capture site, so there is no registry.
 
 ### Custom verifiers

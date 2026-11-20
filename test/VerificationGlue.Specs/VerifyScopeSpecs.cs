@@ -146,9 +146,98 @@ public class VerifyScopeSpecs
         Assert.Empty(scope.Failures);
     }
 
+    [VerifyTest]
+    public Task A_test_that_throws_in_a_scope_keeps_its_exception_as_the_InnerException() => OutsideTheRunnersScope(() =>
+    {
+        var thrown = new InvalidOperationException("the order service is down");
+
+        var failure = Assert.Throws<VerifyException>(Body);
+
+        Assert.Equal("1 check failed\n\nCheck failed: 1 > 2", failure.Message);
+        Assert.Same(thrown, failure.InnerException);
+
+        void Body()
+        {
+            using (VerifyScope.Begin())
+            {
+                Check(1 > 2);
+                throw thrown;
+            }
+        }
+    });
+
+    [VerifyTest]
+    public Task An_async_test_that_throws_in_a_scope_keeps_its_exception_as_the_InnerException() => OutsideTheRunnersScope(async () =>
+    {
+        var failure = await Assert.ThrowsAsync<VerifyException>(async () =>
+        {
+            using (VerifyScope.Begin())
+            {
+                await CheckLater(0);
+                await ThrowLater();
+            }
+        });
+
+        Assert.Equal("the order service is down", Assert.IsType<InvalidOperationException>(failure.InnerException).Message);
+    });
+
+    [VerifyTest]
+    public Task An_exception_caught_in_the_scope_is_not_the_InnerException() => OutsideTheRunnersScope(() =>
+    {
+        var scope = VerifyScope.Begin();
+        Throws<InvalidOperationException>(() => throw new InvalidOperationException());
+        Check(1 > 2);
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.Null(failure.InnerException);
+    });
+
+    [VerifyTest]
+    public void Check_failures_from_parallel_children_are_all_kept()
+    {
+        const int Children = 16;
+        const int Rounds = 100;
+        using var start = new Barrier(Children);
+
+        var scope = VerifyScope.Begin();
+        var children = Enumerable.Range(0, Children).Select(index => new Thread(() =>
+        {
+            start.SignalAndWait();
+            for (var round = 0; round < Rounds; round++)
+            {
+                Check(index < 0);
+            }
+        })).ToList();
+        children.ForEach(child => child.Start());
+        children.ForEach(child => child.Join());
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.Equal(Children * Rounds, scope.Failures.Count);
+        Assert.StartsWith($"{Children * Rounds} checks failed\n", failure.Message);
+    }
+
+    [VerifyTest]
+    public async Task Check_failures_from_child_tasks_awaited_together_are_all_kept()
+    {
+        var scope = VerifyScope.Begin();
+        await Task.WhenAll(Enumerable.Range(0, 200).Select(_ => Task.Run(() => CheckLater(0))));
+
+        Assert.Equal(200, scope.Failures.Count);
+        Assert.Throws<VerifyException>(scope.Dispose);
+    }
+
     // VerificationGlue.Tests runs each test inside a VerifyScope. The body runs without the
     // execution context, so it starts with no scope.
     private static Task OutsideTheRunnersScope(Action body)
+    {
+        using (ExecutionContext.SuppressFlow())
+        {
+            return Task.Run(body);
+        }
+    }
+
+    private static Task OutsideTheRunnersScope(Func<Task> body)
     {
         using (ExecutionContext.SuppressFlow())
         {
@@ -160,6 +249,12 @@ public class VerifyScopeSpecs
     {
         await Task.Yield();
         Check(value > 0);
+    }
+
+    private static async Task ThrowLater()
+    {
+        await Task.Yield();
+        throw new InvalidOperationException("the order service is down");
     }
 
     private sealed record Point(int X, int Y);
