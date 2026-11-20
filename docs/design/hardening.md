@@ -406,21 +406,11 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | `SHAPE-007` | No test calls such a member and checks for NotSupportedException, or checks that the other members still work. | xs | 3 |
 | `SHAPE-008` | No test raises the event at run time. | xs | 3 |
 | `SHAPE-010` | No shape case exists, and the failure has no diagnostic. | s | 3 |
-| `CHECK-007` | Only xunit runs a Check sample. NUnit, MSTest and TUnit have none. | s | 4 |
-| `REWRITE-016` | No framework project checks the tier of a reflection-invoked test and of a direct helper call. | s | 4 |
-| `PARAM-001` | No case puts competing providers on the method, the class and the assembly at once. | s | 4 |
-| `PARAM-004` | No guide states the outcome, and no test exercises it. | s | 4 |
-| `PARAM-005` | No case has more than one accessible constructor. | xs | 4 |
-| `PARAM-007` | No test checks that the token is cancelled when the run is cancelled. | xs | 4 |
-| `LIFE-002` | The filter spec checks which tests run, not that the filtered-out class creates no scope or container. | s | 4 |
-| `LIFE-006` | No test checks that a disposable override is not disposed by the container. | xs | 4 |
 | `LIFE-007` | Only the documented test-level combination is covered. Listener and middleware entry failures, and their order, are not. | m | 4 |
 | `LIFE-009` | No case covers the assembly scope. | xs | 4 |
 | `LIFE-011` | No fixture has a container that fails to build. | s | 4 |
 | `LIFE-013` | No failure-injection fixture. Existing specs cover single hand-picked boundaries. | l | 4 |
 | `LIFE-015` | Only failed checks are covered. No test leaves a pending matcher or setup and checks the next test. | s | 4 |
-| `RUN-005` | No case for a method declared in an interface. | xs | 4 |
-| `RUN-007` | No case for an inaccessible constructor, an inaccessible named argument or an argument that cannot be written as C#. | xs | 4 |
 | `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
 | `MIX-001` | No test combines the three factors. | s | 5 |
 | `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |

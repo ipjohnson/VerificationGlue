@@ -298,8 +298,13 @@
       "source": "docs/guide/check.md#open-a-scope",
       "support": "supported",
       "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
-      "evidence": ["samples/MigrateFromXunitAssert/After/OrderTests.cs#OrderTests.Several_checks"],
-      "gap": { "size": "s", "step": 4, "missing": "Only xunit runs a Check sample. NUnit, MSTest and TUnit have none." }
+      "evidence": [
+        "samples/MigrateFromXunitAssert/After/OrderTests.cs#OrderTests.Several_checks",
+        "samples/VerifyInXunit/CheckAndTierTests.cs#CheckAndTierTests.Failed_checks_are_reported_when_the_scope_ends",
+        "samples/VerifyInNUnit/CheckAndTierTests.cs#CheckAndTierTests.Failed_checks_are_reported_when_the_scope_ends",
+        "samples/VerifyInMSTest/CheckAndTierTests.cs#CheckAndTierTests.Failed_checks_are_reported_when_the_scope_ends",
+        "samples/VerifyInTUnit/CheckAndTierTests.cs#CheckAndTierTests.Failed_checks_are_reported_when_the_scope_ends"
+      ]
     },
     {
       "id": "SCOPE-001",
@@ -580,8 +585,17 @@
       "source": "docs/guide/tiers.md#when-the-copy-runs",
       "support": "supported",
       "dimensions": ["framework: xunit, NUnit, MSTest, TUnit"],
-      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.The_original_method_still_gives_tier_2_messages"],
-      "gap": { "size": "s", "step": 4, "missing": "No framework project checks the tier of a reflection-invoked test and of a direct helper call." }
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.The_original_method_still_gives_tier_2_messages",
+        "samples/VerifyInXunit/CheckAndTierTests.cs#CheckAndTierTests.A_test_xunit_calls_runs_the_original",
+        "samples/VerifyInXunit/CheckAndTierTests.cs#CheckAndTierTests.A_direct_call_to_a_Verify_helper_runs_the_copy",
+        "samples/VerifyInNUnit/CheckAndTierTests.cs#CheckAndTierTests.A_test_NUnit_calls_runs_the_original",
+        "samples/VerifyInNUnit/CheckAndTierTests.cs#CheckAndTierTests.A_direct_call_to_a_Verify_helper_runs_the_copy",
+        "samples/VerifyInMSTest/CheckAndTierTests.cs#CheckAndTierTests.A_test_MSTest_calls_runs_the_original",
+        "samples/VerifyInMSTest/CheckAndTierTests.cs#CheckAndTierTests.A_direct_call_to_a_Verify_helper_runs_the_copy",
+        "samples/VerifyInTUnit/CheckAndTierTests.cs#CheckAndTierTests.A_test_TUnit_calls_runs_the_original",
+        "samples/VerifyInTUnit/CheckAndTierTests.cs#CheckAndTierTests.A_direct_call_to_a_Verify_helper_runs_the_copy"
+      ]
     },
     {
       "id": "REWRITE-017",
@@ -1340,9 +1354,12 @@
       "support": "supported",
       "evidence": [
         "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Parameters_come_from_the_narrowest_provider_then_the_container_then_the_default",
-        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source"
-      ],
-      "gap": { "size": "s", "step": 4, "missing": "No case puts competing providers on the method, the class and the assembly at once." }
+        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source",
+        "samples/TestsContainers/ProviderOrderTests.cs#ProviderOrderTests.The_parameter_provider_comes_first",
+        "samples/TestsContainers/ProviderOrderTests.cs#ProviderOrderTests.The_method_provider_comes_before_the_class_and_the_assembly",
+        "samples/TestsContainers/ProviderOrderTests.cs#ProviderOrderTests.The_class_provider_comes_before_the_assembly",
+        "samples/TestsContainers/ProviderOrderTests.cs#AssemblyProviderTests.The_assembly_provider_supplies_what_nothing_narrower_does"
+      ]
     },
     {
       "id": "PARAM-002",
@@ -1360,20 +1377,25 @@
     },
     {
       "id": "PARAM-004",
-      "contract": "A parameter provider or container that throws while resolving a parameter fails only that test, and the test body does not run.",
-      "source": "docs/design/hardening.md#parameter-resolution",
-      "support": "unclassified",
+      "contract": "A parameter provider or container that throws while resolving a parameter fails only that test with a message that names the parameter and the source, the test body does not run, and cleanup runs.",
+      "source": "docs/guide/test-parameters.md#when-a-source-throws",
+      "support": "supported",
       "decision": "CD-08",
-      "evidence": [],
-      "gap": { "size": "s", "step": 4, "missing": "No guide states the outcome, and no test exercises it." }
+      "dimensions": ["source: provider on the parameter, provider on the class for a constructor parameter, the container"],
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.A_source_that_throws_fails_the_test_and_names_the_parameter_and_the_source",
+        "test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.A_source_that_throws_skips_the_body_and_cleanup_still_runs"
+      ]
     },
     {
       "id": "PARAM-005",
       "contract": "The runner uses the accessible constructor with the most parameters and resolves them in the same order as test parameters.",
       "source": "docs/guide/test-parameters.md#constructor-parameters",
       "support": "supported",
-      "evidence": ["samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock"],
-      "gap": { "size": "xs", "step": 4, "missing": "No case has more than one accessible constructor." }
+      "evidence": [
+        "samples/TestsContainers/ParameterTests.cs#CheckoutTests.Constructor_and_method_share_one_mock",
+        "test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.The_runner_uses_the_accessible_constructor_with_the_most_parameters"
+      ]
     },
     {
       "id": "PARAM-006",
@@ -1394,9 +1416,9 @@
       "evidence": [
         "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Reports_each_outcome_in_the_trx_file",
         "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Output_written_while_the_container_builds_goes_to_the_test",
-        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source"
-      ],
-      "gap": { "size": "xs", "step": 4, "missing": "No test checks that the token is cancelled when the run is cancelled." }
+        "samples/TestsContainers/ParameterTests.cs#ParameterSourceTests.Takes_a_value_from_each_source",
+        "test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.The_test_token_is_cancelled_when_the_run_is_cancelled"
+      ]
     },
     {
       "id": "PARAM-008",
@@ -1454,8 +1476,11 @@
       "contract": "A scope is created when its first selected test starts, so a test that a filter leaves out creates nothing.",
       "source": "docs/guide/test-lifecycle.md#scopes",
       "support": "supported",
-      "evidence": ["test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Runs_only_the_tests_the_uid_filter_selects"],
-      "gap": { "size": "s", "step": 4, "missing": "The filter spec checks which tests run, not that the filtered-out class creates no scope or container." }
+      "dimensions": ["filter: --filter-uid, --vg-filter"],
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/RunnerSpecs.cs#RunnerSpecs.Runs_only_the_tests_the_uid_filter_selects",
+        "test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.A_filtered_out_class_creates_no_scope_and_no_container"
+      ]
     },
     {
       "id": "LIFE-003",
@@ -1487,8 +1512,7 @@
       "contract": "An override, such as a [Mock] parameter's mock, belongs to whoever added it, and the container does not dispose it.",
       "source": "docs/guide/test-lifecycle.md#who-disposes-what",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "xs", "step": 4, "missing": "No test checks that a disposable override is not disposed by the container." }
+      "evidence": ["test/VerificationGlue.Tests.Specs/ResolutionSpecs.cs#ResolutionSpecs.A_disposable_override_is_disposed_by_its_owner_and_not_by_the_container"]
     },
     {
       "id": "LIFE-007",
@@ -1609,14 +1633,14 @@
       "contract": "A [VerifyTest] method the runner cannot call is not registered and does not run.",
       "source": "docs/diagnostics/VGT0004.md",
       "support": "unsupported",
-      "outcome": { "kind": "refusal", "detail": "VGT0004 error naming the reason." },
-      "dimensions": ["reason: each row of the VGT0004 table"],
+      "outcome": { "kind": "refusal", "detail": "VGT0004 warning naming the reason, and no registration." },
+      "dimensions": ["reason: each row of the VGT0004 table", "interface method: abstract, default body, static"],
       "evidence": [
         "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_the_runner_cannot_call_reports_VGT0004",
         "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_class_the_runner_cannot_use_reports_VGT0004",
-        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_that_reports_VGT0004_is_not_registered"
-      ],
-      "gap": { "size": "xs", "step": 4, "missing": "No case for a method declared in an interface." }
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_that_reports_VGT0004_is_not_registered",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_method_declared_in_an_interface_is_not_registered"
+      ]
     },
     {
       "id": "RUN-006",
@@ -1635,9 +1659,11 @@
       "dimensions": ["reason: each row of the VGT0006 table"],
       "evidence": [
         "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_attribute_the_registration_cannot_create_reports_VGT0006",
-        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_file_local_attribute_reports_VGT0006"
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_file_local_attribute_reports_VGT0006",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_attribute_argument_the_registration_cannot_write_reports_VGT0006_and_the_test_runs_without_it",
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.A_named_argument_hidden_by_a_private_member_is_passed_to_extension_points"
       ],
-      "gap": { "size": "xs", "step": 4, "missing": "No case for an inaccessible constructor, an inaccessible named argument or an argument that cannot be written as C#." }
+      "constraints": "A named argument cannot be the reason. C# accepts only a public field or a public read-write property as a named argument (CS0617), and the registration can set any such member."
     },
     {
       "id": "RUN-008",
