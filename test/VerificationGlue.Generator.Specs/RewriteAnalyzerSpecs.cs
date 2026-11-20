@@ -52,6 +52,7 @@ public class RewriteAnalyzerSpecs
     [VerifyTest]
     [Row("public static void M(int[] values) => Verify(values.AsSpan().Length == 0);", "values.AsSpan()", "its type is a ref struct")]
     [Row("public static Counter Shared; public static void M() => Verify(Shared.Next() == 1);", "Shared", "it is a mutable struct, and a copy would take the change")]
+    [Row("public static void M(int value) { unsafe { int* p = &value; Verify(p == null); } }", "p", "its type is a pointer")]
     public void VG0006_reports_a_part_that_cannot_be_captured(string members, string part, string reason)
     {
         var source = "public struct Counter { public int Value; public int Next() => ++Value; } public static partial class Tests { " +

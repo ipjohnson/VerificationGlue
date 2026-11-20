@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -20,8 +21,11 @@ public sealed class VerifyScope : IDisposable
 {
     private static readonly AsyncLocal<VerifyScope?> CurrentScope = new();
 
+    private static int _watching;
+
     private readonly VerifyScope? _parent;
     private readonly List<VerifyException> _failures = new();
+    private Exception? _thrown;
     private bool _ended;
 
     private VerifyScope(VerifyScope? parent)
@@ -48,6 +52,17 @@ public sealed class VerifyScope : IDisposable
     /// <returns>The scope. Dispose it to report its failures.</returns>
     public static VerifyScope Begin()
     {
+        if (Interlocked.Exchange(ref _watching, 1) == 0)
+        {
+            AppDomain.CurrentDomain.FirstChanceException += (_, thrown) =>
+            {
+                if (CurrentScope.Value is { _ended: false } current)
+                {
+                    Volatile.Write(ref current._thrown, thrown.Exception);
+                }
+            };
+        }
+
         var scope = new VerifyScope(CurrentScope.Value);
         CurrentScope.Value = scope;
         return scope;
@@ -55,7 +70,8 @@ public sealed class VerifyScope : IDisposable
 
     /// <summary>
     /// Ends the scope. Throws a <see cref="VerifyException"/> that lists every recorded failure when
-    /// there is one. A second call does nothing.
+    /// there is one. When the scope ends because code in it threw, that exception is the
+    /// <see cref="Exception.InnerException"/>. A second call does nothing.
     /// </summary>
     public void Dispose()
     {
@@ -73,7 +89,23 @@ public sealed class VerifyScope : IDisposable
         var failures = Failures;
         if (failures.Count > 0)
         {
-            throw new VerifyException(Compose(failures));
+            throw new VerifyException(Compose(failures), Unwinding() ? Volatile.Read(ref _thrown) : null);
+        }
+    }
+
+    /// <summary>
+    /// Whether an exception is passing through the caller, as when <see cref="Dispose"/> runs in the
+    /// <c>finally</c> of a <c>using</c> whose body threw. Native AOT cannot tell, so it answers false.
+    /// </summary>
+    private static bool Unwinding()
+    {
+        try
+        {
+            return Marshal.GetExceptionPointers() != IntPtr.Zero;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return false;
         }
     }
 

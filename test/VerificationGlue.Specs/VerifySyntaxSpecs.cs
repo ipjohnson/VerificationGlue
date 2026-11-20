@@ -76,6 +76,30 @@ public class VerifySyntaxSpecs
     }
 
     [VerifyTest]
+    public void A_message_hole_whose_formatting_throws_shows_a_placeholder()
+    {
+        var noisy = new Noisy();
+
+        Verify(true, $"{noisy}");
+        var failure = Assert.Throws<VerifyException>(() => Verify(noisy.Ready, $"a {noisy} b {noisy,4} c {noisy:X} d {noisy,4:X} e"));
+
+        Assert.Equal(
+            "Verify failed: noisy.Ready\n  a <ToString threw FormatException> b <ToString threw FormatException> c <ToString threw FormatException> d <ToString threw FormatException> e",
+            failure.Message);
+        Assert.Equal(4, noisy.Formats);
+    }
+
+    [VerifyTest]
+    public void A_message_hole_whose_expression_throws_surfaces_its_own_exception()
+    {
+        static string Explode() => throw new InvalidOperationException("the hole ran");
+
+        var thrown = Assert.Throws<InvalidOperationException>(() => Verify(false, $"{Explode()}"));
+
+        Assert.Equal("the hole ran", thrown.Message);
+    }
+
+    [VerifyTest]
     public void Throws_returns_the_exception()
     {
         var thrown = Throws<InvalidOperationException>(() => throw new InvalidOperationException("closed"));
@@ -126,6 +150,47 @@ public class VerifySyntaxSpecs
         var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsAsync<TimeoutException>(() => Task.CompletedTask));
 
         Assert.Equal("ThrowsAsync failed: () => Task.CompletedTask\n  expected TimeoutException\n  no exception was thrown", failure.Message);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsAsync_reports_a_different_exception()
+    {
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsAsync<TimeoutException>(async () =>
+        {
+            await Task.Yield();
+            throw new FormatException("bad digit");
+        }));
+
+        Assert.EndsWith("\n  expected TimeoutException\n  it threw System.FormatException: bad digit", failure.Message);
+        Assert.IsType<FormatException>(failure.InnerException);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsAsync_handles_a_throw_before_the_action_returns_a_task()
+    {
+        var thrown = await ThrowsAsync<TimeoutException>(() => throw new TimeoutException("slow"));
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsAsync<TimeoutException>(() => throw new FormatException("bad digit")));
+
+        Assert.Equal("slow", thrown.Message);
+        Assert.Equal(
+            "ThrowsAsync failed: () => throw new FormatException(\"bad digit\")\n  expected TimeoutException\n  it threw System.FormatException: bad digit",
+            failure.Message);
+        Assert.IsType<FormatException>(failure.InnerException);
+    }
+
+    [VerifyTest]
+    public async Task ThrowsAsync_treats_a_cancelled_task_as_a_TaskCanceledException()
+    {
+        var cancelled = new CancellationToken(canceled: true);
+
+        var thrown = await ThrowsAsync<OperationCanceledException>(() => Task.FromCanceled(cancelled));
+        var failure = await Assert.ThrowsAsync<VerifyException>(() => ThrowsAsync<TimeoutException>(() => Task.FromCanceled(cancelled)));
+
+        Assert.IsType<TaskCanceledException>(thrown);
+        Assert.Equal(
+            "ThrowsAsync failed: () => Task.FromCanceled(cancelled)\n  expected TimeoutException\n  it threw System.Threading.Tasks.TaskCanceledException: A task was canceled.",
+            failure.Message);
+        Assert.IsType<TaskCanceledException>(failure.InnerException);
     }
 
     [VerifyTest]
@@ -402,4 +467,19 @@ public class VerifySyntaxSpecs
     }
 
     private sealed record Point(int X, int Y);
+
+    private sealed class Noisy : IFormattable
+    {
+        public int Formats;
+
+        public bool Ready => false;
+
+        public override string ToString() => ToString(null, null);
+
+        public string ToString(string? format, IFormatProvider? formatProvider)
+        {
+            Formats++;
+            throw new FormatException("noisy");
+        }
+    }
 }

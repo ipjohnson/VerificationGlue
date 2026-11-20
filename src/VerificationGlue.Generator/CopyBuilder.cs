@@ -325,8 +325,7 @@ internal sealed class CopyBuilder
 
         if (kind == CallKind.VerifyWithMessage && VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) is { } message)
         {
-            failure.Append(next).Append("Message(global::System.String.Create(global::System.Globalization.CultureInfo.InvariantCulture, ")
-                .Append(Render(message.Span)).Append("))");
+            failure.Append(next).Append("Message(").Append(Render(message.Span)).Append(')');
         }
 
         if (VerifyCalls.ChainedName(call) is { } chained && call.Parent!.Parent is InvocationExpressionSyntax chain)

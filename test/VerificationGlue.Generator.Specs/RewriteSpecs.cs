@@ -61,6 +61,19 @@ public class RewriteSpecs
             public override string ToString() => "order";
         }
 
+        public sealed class Noisy
+        {
+            public int Formats;
+
+            public bool Ready => false;
+
+            public override string ToString()
+            {
+                Formats++;
+                throw new FormatException("noisy");
+            }
+        }
+
         public struct MutableCounter
         {
             public int Value;
@@ -160,6 +173,13 @@ public class RewriteSpecs
             public static void RefStruct(int[] values) => Verify(values.AsSpan().Length == 0);
 
             [Verify]
+            public static unsafe void Pointer(int value)
+            {
+                int* p = &value;
+                Verify(p == null);
+            }
+
+            [Verify]
             public static void MutableReceiver() => Verify(Shared.Next() == 5);
 
             [Verify]
@@ -208,10 +228,26 @@ public class RewriteSpecs
             public static void WithMessage(int x) => Verify(x == 1, $"x is {x}");
 
             [Verify]
+            public static void MessageHoles(int x, Counter counter) => Verify(x == 1, $"call {counter.Next()}");
+
+            [Verify]
+            public static void NoisyValue(Noisy noisy) => Verify(noisy.Ready);
+
+            [Verify]
+            public static void NoisyHole(int x, Noisy noisy) => Verify(x == 1, $"noisy is {noisy}");
+
+            [Verify]
             public static void InLambda(int x)
             {
                 Action check = () => Verify(x == 1);
                 check();
+            }
+
+            [Verify]
+            public static void InLocalFunction(int x)
+            {
+                void Run() => Verify(x == 1);
+                Run();
             }
 
             [Verify]
@@ -422,6 +458,14 @@ public class RewriteSpecs
     }
 
     [VerifyTest]
+    public void Rule_9_a_pointer_is_not_captured()
+    {
+        var failure = Fail("Pointer", 1);
+
+        Assert.Equal(["  p → <unavailable>"], failure.Message.Split('\n')[1..^1]);
+    }
+
+    [VerifyTest]
     public void Rule_10_a_mutable_struct_receiver_is_not_copied()
     {
         var shared = Cases.Value.GetField("Shared")!;
@@ -524,11 +568,57 @@ public class RewriteSpecs
     }
 
     [VerifyTest]
+    public void Message_holes_run_only_on_failure()
+    {
+        var counter = Activator.CreateInstance(Cases.Value.Assembly.GetType("Sample.Counter")!)!;
+        var calls = counter.GetType().GetField("Calls")!;
+
+        Invoke("MessageHoles", 1, counter);
+        Assert.Equal(0, calls.GetValue(counter));
+
+        var failure = Fail("MessageHoles", 2, counter);
+
+        Assert.Equal(1, calls.GetValue(counter));
+        Assert.Equal(["  x → 2", "  call 1"], failure.Message.Split('\n')[1..^1]);
+    }
+
+    [VerifyTest]
+    public void A_captured_value_whose_ToString_throws_shows_a_placeholder()
+    {
+        var noisy = Activator.CreateInstance(Cases.Value.Assembly.GetType("Sample.Noisy")!)!;
+
+        var failure = Fail("NoisyValue", noisy);
+
+        Assert.Equal(["  noisy → <ToString threw FormatException>"], failure.Message.Split('\n')[1..^1]);
+        Assert.Equal(1, noisy.GetType().GetField("Formats")!.GetValue(noisy));
+    }
+
+    [VerifyTest]
+    public void A_message_hole_whose_ToString_throws_shows_a_placeholder()
+    {
+        var noisy = Activator.CreateInstance(Cases.Value.Assembly.GetType("Sample.Noisy")!)!;
+
+        Invoke("NoisyHole", 1, noisy);
+        var failure = Fail("NoisyHole", 2, noisy);
+
+        Assert.Equal(["  x → 2", "  noisy is <ToString threw FormatException>"], failure.Message.Split('\n')[1..^1]);
+        Assert.Equal(1, noisy.GetType().GetField("Formats")!.GetValue(noisy));
+    }
+
+    [VerifyTest]
     public void A_call_in_a_lambda_keeps_its_tier_2_message()
     {
         Assert.Equal(
             Lines("Verify failed: x == 1", "  expected x to equal 1", $"  at Tests/Rewrite.cs:{LineOf("() => Verify(x == 1)")}"),
             Fail("InLambda", 2).Message);
+    }
+
+    [VerifyTest]
+    public void A_call_in_a_local_function_keeps_its_tier_2_message()
+    {
+        Assert.Equal(
+            Lines("Verify failed: x == 1", "  expected x to equal 1", $"  at Tests/Rewrite.cs:{LineOf("void Run() => Verify(x == 1)")}"),
+            Fail("InLocalFunction", 2).Message);
     }
 
     [VerifyTest]
@@ -662,6 +752,39 @@ public class RewriteSpecs
         var type = GeneratorHarness.Load(rewrite: true, ("/repo/Project/Local.cs", source)).GetType("Local")!;
 
         Assert.Null(type.GetMethod("M__Verified"));
+    }
+
+    [VerifyTest]
+    [Row("generic", "public static partial class T { [Verify] public static void M<TItem>(int x) => Verify(x == 1); }")]
+    [Row("virtual", "public partial class T { [Verify] public virtual void M(int x) => Verify(x == 1); }")]
+    [Row("abstract", "public abstract partial class T { [Verify] public abstract void M(int x); }")]
+    [Row("override", "public class Base { public virtual void M(int x) { } } public partial class T : Base { [Verify] public override void M(int x) => Verify(x == 1); }")]
+    [Row("extern", "public static partial class T { [Verify] public static extern void M(int x); }")]
+    [Row("returns by reference", "public static partial class T { private static int _value; [Verify] public static ref int M(int x) { Verify(x == 1); return ref _value; } }")]
+    [Row("instance method of a struct", "public partial struct T { [Verify] public void M(int x) => Verify(x == 1); }")]
+    [Row("#if directive", "public static partial class T { [Verify] public static void M(int x)\n{\nVerify(x == 1);\n#if DEBUG\n#endif\n}\n}")]
+    [Row("in a generic type", "public static partial class T<TItem> { [Verify] public static void M(int x) => Verify(x == 1); }")]
+    [Row("in a private type", "public static partial class Outer { private static partial class T { [Verify] public static void M(int x) => Verify(x == 1); } }")]
+    [Row("in a protected type", "public partial class Outer { protected static partial class T { [Verify] public static void M(int x) => Verify(x == 1); } }")]
+    [Row("private nested type in the signature", "public static partial class T { private sealed class Hidden { } [Verify] private static void M(int x, Hidden hidden) => Verify(x == 1); }")]
+    [Row("pointer type in the signature", "public static unsafe partial class T { [Verify] public static void M(int x, int* p) => Verify(x == 1); }")]
+    [Row("dynamic type in the signature", "public static partial class T { [Verify] public static void M(int x, dynamic d) => Verify(x == 1); }")]
+    public void A_method_that_breaks_an_eligibility_rule_is_not_rewritten_and_keeps_tier_2(string rule, string declaration)
+    {
+        const string Control = "public static partial class Control { [Verify] public static void M(int x) => Verify(x == 1); }";
+        var source = "using VerificationGlue;\nusing static VerificationGlue.VerifySyntax;\n\n" + declaration + "\n" + Control;
+        var calls = declaration.Split("Verify(x == 1)").Length;
+
+        var result = GeneratorHarness.Generate(GeneratorHarness.Compilation(("/repo/Project/Rule.cs", source)), new VerificationGlueGenerator(), out _, rewrite: true);
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Empty(GeneratorHarness.Analyze(source, rewrite: true));
+        var copy = Assert.Single(result.GeneratedTrees, tree => tree.FilePath.EndsWith(".Verified.g.cs", StringComparison.Ordinal));
+        Assert.Contains("Control", copy.FilePath, StringComparison.Ordinal);
+        Assert.Equal(
+            calls,
+            result.GeneratedTrees.Where(tree => tree.FilePath.EndsWith(".Interceptors.g.cs", StringComparison.Ordinal))
+                .Sum(tree => tree.ToString().Split("[global::System.Runtime.CompilerServices.InterceptsLocation(").Length - 1));
     }
 
     [VerifyTest]

@@ -55,6 +55,8 @@ Check(order.Shipping == "express");
 
 The scope flows with `async` and `await`. A `Check` in a method that the test awaits reports to the test's scope. A scope begun inside another reports its own failures when it ends, and the outer scope becomes current again.
 
+Tasks and threads that the test starts inside the scope report to it too. When they run in parallel, the scope keeps every failure, but their order in the message can change from run to run.
+
 ## Check with no scope
 
 With no open scope, `Check` throws at once, as `Verify` does, so a failure is never lost. Analyzer [VG0007](../diagnostics/VG0007.md) warns about a `Check` in a static constructor, a finalizer or a module initializer, where no scope can be open.
@@ -84,4 +86,4 @@ The [tiers guide](tiers.md) explains how to turn tier 3 on.
 
 ## When the test throws
 
-The scope ends when the `using` block exits, also when the test throws. If checks have failed by then, the scope's exception replaces the one the test threw. Put the checks after the code that can throw, or use `Verify` for a condition the rest of the test depends on.
+The scope ends when the `using` block exits, also when the test throws. If checks have failed by then, the scope throws its `VerifyException`, and the exception the test threw is its `InnerException`. Under Native AOT the scope cannot see the test's exception, so its `VerifyException` has no `InnerException` there. `VerificationGlue.Tests` reports both exceptions on every runtime.

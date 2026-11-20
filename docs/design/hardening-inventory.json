@@ -138,12 +138,12 @@
       "contract": "A passing call neither throws nor formats its message, and the holes of an interpolated message run only when the condition is false.",
       "source": "docs/guide/getting-started-verify.md#write-checks",
       "support": "supported",
-      "dimensions": ["outcome: pass, failure", "execution path: generator absent, interceptor"],
+      "dimensions": ["outcome: pass, failure", "execution path: generator absent, interceptor, tier 3 copy"],
       "evidence": [
         "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.Message_holes_run_only_on_failure",
-        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Passing_calls_do_not_throw_or_format_the_message"
-      ],
-      "gap": { "size": "s", "step": 2, "missing": "No case runs a hole with side effects under tier 3, where the rewritten statement builds the message." }
+        "test/VerificationGlue.Generator.Specs/InterceptorSpecs.cs#InterceptorSpecs.Passing_calls_do_not_throw_or_format_the_message",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Message_holes_run_only_on_failure"
+      ]
     },
     {
       "id": "VERIFY-006",
@@ -217,21 +217,26 @@
     },
     {
       "id": "VERIFY-013",
-      "contract": "A captured value whose ToString throws or changes state still gives a failure that reports the original condition.",
-      "source": "docs/design/hardening.md#generated-expression-harness",
-      "support": "unclassified",
+      "contract": "A captured value whose ToString throws or changes state still gives a failure that reports the original condition. The value shows a placeholder that names the formatting exception's type, and ToString runs once, on the failure path.",
+      "source": "docs/design/verification-glue.md#formatting-values",
+      "support": "supported",
       "decision": "CD-01",
-      "evidence": [],
-      "gap": { "size": "s", "step": 2, "missing": "No design or guide says what the message shows, and no test exercises it." }
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_captured_value_whose_ToString_throws_shows_a_placeholder"
+      ]
     },
     {
       "id": "VERIFY-014",
-      "contract": "An interpolated message hole that throws on failure does not hide the assertion failure.",
-      "source": "docs/design/hardening.md#generated-expression-harness",
-      "support": "unclassified",
+      "contract": "An interpolated message hole whose value throws while it is formatted does not hide the assertion failure. The hole shows a placeholder that names the formatting exception's type. A hole expression that throws surfaces its own exception, because C# evaluates it at the call site.",
+      "source": "docs/design/verification-glue.md#surface",
+      "support": "supported",
       "decision": "CD-01",
-      "evidence": [],
-      "gap": { "size": "s", "step": 2, "missing": "No design or guide says which exception surfaces, and no test exercises it." }
+      "dimensions": ["execution path: generator absent, tier 3 copy", "hole: plain, alignment, format, alignment and format"],
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.A_message_hole_whose_formatting_throws_shows_a_placeholder",
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.A_message_hole_whose_expression_throws_surfaces_its_own_exception",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_message_hole_whose_ToString_throws_shows_a_placeholder"
+      ]
     },
     {
       "id": "VERIFY-015",
@@ -342,21 +347,29 @@
     },
     {
       "id": "SCOPE-006",
-      "contract": "When a test outside VerificationGlue.Tests throws after failed checks, the scope's exception replaces the exception the test threw.",
+      "contract": "When a test outside VerificationGlue.Tests throws after failed checks, the scope's exception keeps the exception the test threw as its InnerException. An exception the test caught before the scope ended is not kept.",
       "source": "docs/guide/check.md#when-the-test-throws",
-      "support": "unclassified",
+      "support": "supported",
       "decision": "CD-06",
-      "evidence": [],
-      "gap": { "size": "xs", "step": 2, "missing": "No test exercises it. The documented behavior loses the test's exception, which the completion criteria treat as a blocking defect unless approved." }
+      "dimensions": ["test body: synchronous, async"],
+      "constraints": "Not under Native AOT, where Marshal.GetExceptionPointers is not supported and the scope's exception has no InnerException.",
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.A_test_that_throws_in_a_scope_keeps_its_exception_as_the_InnerException",
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.An_async_test_that_throws_in_a_scope_keeps_its_exception_as_the_InnerException",
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.An_exception_caught_in_the_scope_is_not_the_InnerException"
+      ]
     },
     {
       "id": "SCOPE-007",
-      "contract": "Check failures from child tasks that run in parallel inside one scope are all reported.",
+      "contract": "Check failures from child tasks that run in parallel inside one scope are all reported. Their order is not part of the contract.",
       "source": "docs/guide/check.md#open-a-scope",
-      "support": "unclassified",
+      "support": "supported",
       "decision": "CD-07",
-      "evidence": [],
-      "gap": { "size": "s", "step": 2, "missing": "No test runs Check from parallel child tasks, and no guide states the order of their failures." }
+      "dimensions": ["children: threads started at once, tasks awaited together"],
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Check_failures_from_parallel_children_are_all_kept",
+        "test/VerificationGlue.Specs/VerifyScopeSpecs.cs#VerifyScopeSpecs.Check_failures_from_child_tasks_awaited_together_are_all_kept"
+      ]
     },
     {
       "id": "THROWS-001",
@@ -398,8 +411,11 @@
       "source": "docs/guide/getting-started-verify.md#write-checks",
       "support": "supported",
       "dimensions": ["outcome: different exception, synchronous throw, cancellation"],
-      "evidence": [],
-      "gap": { "size": "s", "step": 2, "missing": "No test gives ThrowsAsync a different exception, a synchronous throw or a cancelled task." }
+      "evidence": [
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.ThrowsAsync_reports_a_different_exception",
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.ThrowsAsync_handles_a_throw_before_the_action_returns_a_task",
+        "test/VerificationGlue.Specs/VerifySyntaxSpecs.cs#VerifySyntaxSpecs.ThrowsAsync_treats_a_cancelled_task_as_a_TaskCanceledException"
+      ]
     },
     {
       "id": "THROWS-006",
@@ -481,8 +497,11 @@
       "source": "docs/guide/tiers.md#values-that-are-not-captured",
       "support": "supported",
       "dimensions": ["expression shape: &&, ||, ?:, ??"],
-      "evidence": ["test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run"],
-      "gap": { "size": "s", "step": 2, "missing": "The messages page has a case for the conditional logical operators only. No case covers ?: or ??, or checks that the skipped side has no side effect." }
+      "evidence": [
+        "test/Docs.Specs/MessagePageSpecs.cs#MessagePageSpecs.Every_message_on_the_page_matches_a_fresh_run",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_5_the_skipped_side_is_not_evaluated",
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.A_fixed_seed_run_keeps_plain_CSharp_behavior"
+      ]
     },
     {
       "id": "REWRITE-007",
@@ -492,10 +511,10 @@
       "outcome": { "kind": "fallback", "detail": "The message shows <unavailable> for the part, and VG0006 reports it as information." },
       "evidence": [
         "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_9_a_ref_struct_is_not_captured",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_9_a_pointer_is_not_captured",
         "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_10_a_mutable_struct_receiver_is_not_copied",
         "test/VerificationGlue.Generator.Specs/RewriteAnalyzerSpecs.cs#RewriteAnalyzerSpecs.VG0006_reports_a_part_that_cannot_be_captured"
-      ],
-      "gap": { "size": "xs", "step": 2, "missing": "No case covers a pointer part." }
+      ]
     },
     {
       "id": "REWRITE-008",
@@ -569,8 +588,7 @@
       "support": "unsupported",
       "outcome": { "kind": "fallback", "detail": "No copy is written, no diagnostic is reported, and the method keeps tier 2 messages." },
       "dimensions": ["member shape: each eligibility rule"],
-      "evidence": [],
-      "gap": { "size": "m", "step": 2, "missing": "No test covers these eligibility rules one by one." }
+      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_method_that_breaks_an_eligibility_rule_is_not_rewritten_and_keeps_tier_2"]
     },
     {
       "id": "REWRITE-015",
@@ -578,8 +596,10 @@
       "source": "docs/guide/tiers.md#when-a-method-gets-tier-3",
       "support": "unsupported",
       "outcome": { "kind": "fallback", "detail": "The call keeps its tier 2 message." },
-      "evidence": ["test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_lambda_keeps_its_tier_2_message"],
-      "gap": { "size": "xs", "step": 2, "missing": "No case covers a local function." }
+      "evidence": [
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_lambda_keeps_its_tier_2_message",
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.A_call_in_a_local_function_keeps_its_tier_2_message"
+      ]
     },
     {
       "id": "REWRITE-016",
