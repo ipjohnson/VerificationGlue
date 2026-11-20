@@ -67,7 +67,7 @@ Each problem the sweep or the shape files found is fixed, reported by a named di
 | `ref struct` and pointer parameters, return values and properties | Sweep, 11 interfaces | VGM0003. The member throws `NotSupportedException` |
 | An event whose delegate takes a `ref struct` | `RefStruct.cs` | Unsupported. Adding and removing handlers works, and raising the event throws `NotSupportedException` |
 | An open generic interface whose type parameter has `allows ref struct` | `Constraints.cs` | Unsupported for `ref struct` type arguments. The mock class drops the anti-constraint so it can box its arguments. A mock of the interface closed over a `ref struct` reports VGM0003 on each member that uses it |
-| A type nested in a generic type, whose type arguments come from an extern-aliased assembly | Review of `TypeConversion` | Unsupported. The type is written with `global::`, and the mock fails to compile. No case in the sweep or the shape files has this shape |
+| A type nested in a generic type, whose type arguments come from an extern-aliased assembly | Review of `TypeConversion` | VGM0001 with its own reason, as `CD-10` of [hardening.md](hardening.md#contract-decisions) decides. The mocked type and any type its members name are checked. `ExternAliasNested.cs` |
 
 ## Recursion depth
 
