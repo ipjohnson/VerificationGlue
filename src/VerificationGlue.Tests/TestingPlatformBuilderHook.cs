@@ -31,6 +31,6 @@ public static class TestApplicationBuilderExtensions
         builder.CommandLine.AddProvider(() => new TestFilterOption());
         builder.RegisterTestFramework(
             _ => new TestFrameworkCapabilities(trx),
-            (_, services) => new TestFramework(trx, TestFramework.ReadFilter(services.GetCommandLineOptions())));
+            (_, services) => new TestFramework(trx, TestFramework.ReadFilter(services.GetCommandLineOptions()), services.GetOutputDevice()));
     }
 }

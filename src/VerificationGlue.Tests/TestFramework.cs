@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Testing.Extensions.TrxReport.Abstractions;
 using Microsoft.Testing.Platform.CommandLine;
 using Microsoft.Testing.Platform.Capabilities.TestFramework;
 using Microsoft.Testing.Platform.Extensions.Messages;
+using Microsoft.Testing.Platform.Extensions.OutputDevice;
 using Microsoft.Testing.Platform.Extensions.TestFramework;
+using Microsoft.Testing.Platform.OutputDevice;
 using Microsoft.Testing.Platform.Requests;
 using Microsoft.Testing.Platform.TestHost;
 
@@ -19,16 +22,18 @@ namespace VerificationGlue.Tests;
 /// The MTP test framework. It discovers the tests in <see cref="TestRegistry"/>, honours the UID
 /// filter, and runs the selected tests with an <see cref="ITestScheduler"/>.
 /// </summary>
-internal sealed class TestFramework : ITestFramework, IDataProducer
+internal sealed class TestFramework : ITestFramework, IDataProducer, IOutputDeviceDataProducer
 {
     private readonly TrxCapability _trx;
     private readonly TestFilter? _vgFilter;
+    private readonly IOutputDevice? _outputDevice;
     private IReadOnlyList<TestDescriptor> _tests = [];
 
-    public TestFramework(TrxCapability trx, TestFilter? vgFilter = null)
+    public TestFramework(TrxCapability trx, TestFilter? vgFilter = null, IOutputDevice? outputDevice = null)
     {
         _trx = trx;
         _vgFilter = vgFilter;
+        _outputDevice = outputDevice;
     }
 
     /// <summary>The <c>--vg-filter</c> expression, or null when it is not set. <see cref="TestFilterOption"/> has validated it.</summary>
@@ -178,6 +183,7 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
             var timing = new TimingProperty(new TimingInfo(start, start + watch.Elapsed, watch.Elapsed));
             var (state, failure) = State(outcome.Failures);
             await Publish(context, session, test, state, failure, timing, outcome.Output);
+            await DisplayIfCancelledAsync(context, test.Uid, outcome.Failures);
             if (await runner.CompleteAsync(test) is { } classFailure)
             {
                 await PublishScope(context, session, classFailure);
@@ -225,7 +231,7 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
     }
 
     /// <summary>Publishes a failed node for a class or assembly scope whose disposal failed.</summary>
-    private Task PublishScope(ExecuteRequestContext context, SessionUid session, ScopeFailure scopeFailure)
+    private async Task PublishScope(ExecuteRequestContext context, SessionUid session, ScopeFailure scopeFailure)
     {
         var (state, failure) = State(scopeFailure.Failures);
         var scope = scopeFailure.Scope;
@@ -238,7 +244,33 @@ internal sealed class TestFramework : ITestFramework, IDataProducer
 
         var kind = scope.Kind == TestScopeKind.Class ? "class" : "assembly";
         var node = new TestNode { Uid = scope.Uid + "#" + kind + "-scope", DisplayName = $"Disposing the {kind} scope {scope.Uid}", Properties = properties };
-        return context.MessageBus.PublishAsync(this, new TestNodeUpdateMessage(session, node));
+        await context.MessageBus.PublishAsync(this, new TestNodeUpdateMessage(session, node));
+        await DisplayIfCancelledAsync(context, node.DisplayName, scopeFailure.Failures);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="failures"/> to the output device when the run is cancelled. MTP drops every
+    /// test node published after the cancellation, so this is the only place those failures appear.
+    /// </summary>
+    private async Task DisplayIfCancelledAsync(ExecuteRequestContext context, string name, IReadOnlyList<Exception> failures)
+    {
+        if (failures.Count == 0 || !context.CancellationToken.IsCancellationRequested || _outputDevice is null)
+        {
+            return;
+        }
+
+        var text = new StringBuilder();
+        text.Append(name).Append(" failed after the run was cancelled. The test run summary does not count this failure.");
+        foreach (var failure in failures)
+        {
+            text.Append("\n  ").Append(failure.GetType().Name).Append(": ").Append(failure.Message);
+            if (failure.StackTrace is { } stackTrace)
+            {
+                text.Append('\n').Append(stackTrace);
+            }
+        }
+
+        await _outputDevice.DisplayAsync(this, new ErrorMessageOutputDeviceData(text.ToString()), CancellationToken.None);
     }
 
     private Task Publish(ExecuteRequestContext context, SessionUid session, TestDescriptor test, TestNodeStateProperty state, Exception? failure, TimingProperty? timing = null, string? output = null)

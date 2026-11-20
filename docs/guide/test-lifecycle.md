@@ -147,6 +147,15 @@ A class or assembly scope that fails to dispose is reported as a failed node of 
 - An attribute constructor that throws fails only the scope that owns it. A failing class attribute fails every test of that class with `The class scope Shop.OrderTests could not be created:` and the attribute's message. Tests in other classes still run.
 - A class or assembly container that fails to build fails each test that uses it, with the scope named in the message. The runner does not try to build it again.
 - When the run is cancelled during setup, such as by `--timeout`, the runner disposes what setup created, including the test scope's listeners and the class container, and starts no more tests.
+- A cancelled run is reported as aborted with exit code 3. MTP drops the results that arrive after the cancellation, so a test or scope that fails after it, such as in cleanup, is not in the TRX file or the summary's counts. The runner writes those failures to the console output instead, under the test or scope they belong to and in the order they happened. Each failure's stack trace follows its type and message:
+
+  ```text
+  Shop.OrderTests.Ships(Shop.Order) failed after the run was cancelled. The test run summary does not count this failure.
+    OperationCanceledException: The operation was canceled.
+     at Shop.OrderTests.Ships(Order order) in OrderTests.cs:line 42
+    InvalidOperationException: The connection is already closed.
+     at Shop.Database.Dispose() in Database.cs:line 17
+  ```
 
 ## Retries
 
