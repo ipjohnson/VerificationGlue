@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. The generated campaigns and completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is in progress: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -124,6 +124,28 @@ Check messages independently from semantic equivalence. Tiers intentionally offe
 Exercise lazy messages with side effects on both passing and failing assertions. Include values whose formatting throws or mutates state and define the intended reporting behavior before accepting results.
 
 Persist the seed, generated source, compiler configuration, and observation traces for a failure. Reduce a failing expression while preserving the mismatch. Add the reduced case to the deterministic regression suite.
+
+#### The harness as built
+
+[`test/Hardening.Specs`](../../test/Hardening.Specs) holds the harness. It is not in `VerificationGlue.slnx`, so the build job does not run it. The `hardening` job in [CI](../../.github/workflows/ci.yml) does.
+
+The [grammar](../../test/Hardening.Specs/Grammar.cs) builds boolean expressions over a [`Probe`](../../test/Hardening.Specs/Probe.cs). An expression uses `!`, `&&`, `||`, `?:`, comparisons, `+`, `-` and `/`, `??`, `?.`, relational and property patterns, `out var`, `await`, a cancelled `await`, a throwing call, a getter, a call that changes state, and a write to the local `n`. Each probe call records an event, so the trace holds the order of reads, calls, mutations and awaits. Depth grows from 1 to 4 across the cases of a run. Case `i` of a seed comes from its own random generator, so a replay builds one case without the others.
+
+Each batch of expressions compiles twice. The plain C# baseline compiles with no generator and no reference to VerificationGlue. The cases compile with `VerificationGlueGenerator` and tier 3 on, in each [form](../../test/Hardening.Specs/Forms.cs):
+
+| Form | Expected tier |
+|---|---|
+| `Verify` and `Check` in a `[Verify]` method, called through its redirect | 3 |
+| `Verify` and `Check` twice, in an `if` without braces in a loop of a `[Verify]` method | 3 |
+| `Verify` and `Check` in an ordinary method | 2 |
+| `Verify(() => ...)` and `Check(() => ...)` | 3 (lambda), or 2 as a fallback when the lambda writes `n` |
+| `Verify` in a local function of a `[Verify]` method | 2 as a fallback |
+
+Each form must match its baseline in outcome, trace, final state and skipped calls. The outcome is the result, the exception type and message, or the number of false results. Then the tier it ran under must be the tier it expects. The tier comes from the frame that made the first probe call: a `__Verified` copy is tier 3, the generated `VerifyLambdas` class is tier 3 (lambda), and elsewhere an interceptor at the call site makes it tier 2. A failure message must start with the condition's text, end with its file and line from tier 2 up, and have the shape of the tier that ran. A form that falls back on purpose counts as fallback, not as a pass. With the generator off, every form that requires rewriting fails its tier check, and every form still matches plain C#.
+
+A mismatch prints the seed, the case and a replay command such as `HARDENING_SEED=20261119 HARDENING_CASES=300 HARDENING_CASE=57 dotnet test --project test/Hardening.Specs -c Release --vg-filter "name:A_fixed_seed_run_keeps_plain_CSharp_behavior"`. The harness shrinks the expression to one where no smaller expression gives the same kind of mismatch in the same form. It prints the `[Row(...)]` to add to [`RegressionSpecs`](../../test/Hardening.Specs/RegressionSpecs.cs). With `HARDENING_OUTPUT` set, it writes a report and, for each mismatch, the source, compiler configuration, environment and observations. The CI job keeps them for 30 days.
+
+The fixed-seed run has 300 cases and about 2,700 form runs. It found no mismatch. The whole project takes 11 to 19 s on the development machine, depending on load. The `hardening` job fails when the step 2 cases take more than their 2-minute budget, after every case has run.
 
 ## Mock conformance
 
@@ -368,7 +390,7 @@ The completion criteria name two defects that block completion: a change to norm
 
 | Step | Gaps | Sizes |
 |---|---|---|
-| 2 | 12 | 2 l, 1 m, 6 s, 3 xs |
+| 2 | 10 | 1 m, 6 s, 3 xs |
 | 3 | 15 | 2 l, 2 m, 5 s, 6 xs |
 | 4 | 15 | 1 l, 1 m, 7 s, 6 xs |
 | 5 | 6 | 2 m, 2 s, 2 xs |
@@ -380,13 +402,11 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | Scenario ID | Missing | Size | Step |
 |---|---|---|---|
 | `VERIFY-005` | No case runs a hole with side effects under tier 3, where the rewritten statement builds the message. | s | 2 |
-| `VERIFY-008` | No test compares tier 1 or tier 2 execution with plain C# across the expression and placement matrix. | l | 2 |
 | `VERIFY-013` | No design or guide says what the message shows, and no test exercises it. | s | 2 |
 | `VERIFY-014` | No design or guide says which exception surfaces, and no test exercises it. | s | 2 |
 | `SCOPE-006` | No test exercises it. The documented behavior loses the test's exception, which the completion criteria treat as a blocking defect unless approved. | xs | 2 |
 | `SCOPE-007` | No test runs Check from parallel child tasks, and no guide states the order of their failures. | s | 2 |
 | `THROWS-005` | No test gives ThrowsAsync a different exception, a synchronous throw or a cancelled task. | s | 2 |
-| `REWRITE-003` | Fixed cases only. No generated comparison with plain C# across the expression and placement matrix. | l | 2 |
 | `REWRITE-006` | The messages page has a case for the conditional logical operators only. No case covers ?: or ??, or checks that the skipped side has no side effect. | s | 2 |
 | `REWRITE-007` | No case covers a pointer part. | xs | 2 |
 | `REWRITE-014` | No test covers these eligibility rules one by one. | m | 2 |

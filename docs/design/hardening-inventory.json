@@ -171,8 +171,12 @@
       "source": "docs/design/hardening.md#assertion-conformance",
       "support": "supported",
       "dimensions": ["expression shape", "values", "effects", "placement", "outcome: pass, failure, expression exception, cancellation"],
-      "evidence": [],
-      "gap": { "size": "l", "step": 2, "missing": "No test compares tier 1 or tier 2 execution with plain C# across the expression and placement matrix." }
+      "constraints": "Tier 2 runs in the fixed-seed run. Tier 1 runs in the run with the generator off, which must match plain C# in everything but the tier.",
+      "evidence": [
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.A_fixed_seed_run_keeps_plain_CSharp_behavior",
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.With_the_generator_off_every_case_that_requires_rewriting_fails",
+        "test/Hardening.Specs/RegressionSpecs.cs#RegressionSpecs.A_regression_case_keeps_plain_CSharp_behavior"
+      ]
     },
     {
       "id": "VERIFY-009",
@@ -443,9 +447,12 @@
       "evidence": [
         "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_1_each_part_runs_once_in_the_original_order",
         "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_1_a_getter_that_throws_on_a_second_read_is_read_once",
-        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_8_property_pattern_members_are_not_read_again_and_skipped_members_stay_unevaluated"
-      ],
-      "gap": { "size": "l", "step": 2, "missing": "Fixed cases only. No generated comparison with plain C# across the expression and placement matrix." }
+        "test/VerificationGlue.Generator.Specs/RewriteSpecs.cs#RewriteSpecs.Rule_8_property_pattern_members_are_not_read_again_and_skipped_members_stay_unevaluated",
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.A_fixed_seed_run_keeps_plain_CSharp_behavior",
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.With_tier_3_off_every_case_that_expects_tier_3_fails",
+        "test/Hardening.Specs/GeneratedExpressionSpecs.cs#GeneratedExpressionSpecs.A_mismatch_shrinks_to_a_minimal_expression_and_prints_its_replay_command",
+        "test/Hardening.Specs/RegressionSpecs.cs#RegressionSpecs.A_regression_case_keeps_plain_CSharp_behavior"
+      ]
     },
     {
       "id": "REWRITE-004",

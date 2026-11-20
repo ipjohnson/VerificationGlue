@@ -96,6 +96,51 @@ jobs:
             artifacts/cold-build/report.json
           if-no-files-found: ignore
 
+  # Runs the pull request cases of docs/design/hardening.md beside cold-build. The step 2 cases in
+  # test/Hardening.Specs have a 2-minute budget. A run over it still runs every case, then fails and
+  # reports the overrun.
+  hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      STEP2_BUDGET_SECONDS: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Build the hardening specs
+        run: dotnet build test/Hardening.Specs -c Release
+
+      - name: Run the step 2 cases
+        env:
+          HARDENING_OUTPUT: ${{ github.workspace }}/artifacts/hardening/step2
+        run: |
+          start=$(date +%s)
+          status=0
+          dotnet test --project test/Hardening.Specs -c Release --no-build || status=$?
+          elapsed=$(( $(date +%s) - start ))
+          if [ -f "$HARDENING_OUTPUT/report.md" ]; then
+            cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "The step 2 cases took $elapsed s of their $STEP2_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$elapsed" -gt "$STEP2_BUDGET_SECONDS" ]; then
+            echo "::error::The step 2 cases took $elapsed s, over their $STEP2_BUDGET_SECONDS s budget. Every case ran."
+            status=1
+          fi
+          exit $status
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: hardening
+          path: artifacts/hardening/
+          retention-days: 30
+          if-no-files-found: ignore
+
   # Generates and compiles a mock for every public interface in the BCL and the top 100 NuGet
   # packages, and fails when one does not compile. docs/design/mocks-shape-sweep.md has the triage.
   mock-sweep:
