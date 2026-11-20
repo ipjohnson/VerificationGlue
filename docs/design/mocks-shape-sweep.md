@@ -4,19 +4,33 @@ Status: Phase 0 of [mocks.md](mocks.md), done. The interface class emitter gener
 
 ## What runs
 
-The `mock-sweep` job in `.github/workflows/ci.yml` runs on each pull request and each push to main. It fails when any generated mock does not compile.
+The `mock-sweep` job in `.github/workflows/ci.yml` runs on each pull request and each push to main. It fails when any generated mock does not compile, and when an interface's outcome differs from its [pinned classification](#pinned-classifications).
 
 1. `test/MockSweep.Packages` pins the top 100 packages on the [nuget.org statistics page](https://www.nuget.org/stats/packages) of 2026-11-17 at their latest stable versions that day. Building it restores them and writes every compile reference, with the package or framework it came from, to `obj/sweep-references.txt`.
 2. `test/MockSweep` reads that file and finds every public interface, nested ones included, in the `Microsoft.NETCore.App` reference assemblies and in each listed package's own assemblies. Generic interfaces are mocked as open definitions, so the mock class repeats their type parameters and constraints.
 3. For each source it builds the model with `MockModelBuilder`, writes the class with `MockEmitter`, compiles all the mocks in one compilation, and assigns each error to the mock whose file holds it.
-4. It writes `report.md` and `report.json`, and the source of each mock that failed under `failed/`. The job uploads them as the `mock-sweep` artifact.
+4. It compares each interface's outcome with [`test/MockSweep/classifications.tsv`](../../test/MockSweep/classifications.tsv).
+5. It writes `report.md` and `report.json`, and the source of each mock that failed under `failed/`. The job uploads them as the `mock-sweep` artifact.
 
 Run it locally from the repository root:
 
 ```sh
 dotnet build test/MockSweep.Packages
-dotnet run --project test/MockSweep -- --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep
+dotnet run --project test/MockSweep -- --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep --classifications test/MockSweep/classifications.tsv
 ```
+
+### Pinned classifications
+
+`classifications.tsv` holds one line per swept interface: its status, its source and its name. The status is `compiled`, `compiled with VGM0003`, `refused` or `failed`. A run lists each difference in the report under four headings, and any difference fails the job:
+
+| Heading | Change |
+|---|---|
+| Regressions | The status moved toward `failed`, such as an interface that compiled and is now refused |
+| Other outcome changes | The status moved toward `compiled` |
+| Input changes: interfaces not in the pinned set | A new package version or SDK added the interface |
+| Input changes: pinned interfaces no longer swept | The interface is gone from its source |
+
+The input changes are listed apart, so a package update that adds interfaces cannot hide a regression among them. After reviewing each change, rewrite the file by adding `--write-classifications` to the command above, and commit the input changes apart from the outcome changes. [`SweepClassificationSpecs`](../../test/VerificationGlue.Mocks.Generator.Specs/SweepClassificationSpecs.cs) checks that an interface that compiled and is now refused fails the run.
 
 The hand-written shape files in `test/VerificationGlue.Mocks.Generator.Specs/Shapes` run with the other specs. Each one declares its expected outcome in a header, as the conformance suite in `mocks.md` describes. `ShapeSpecs` compiles every interface the file declares and the type of every field of its `MockTargets` class, and checks the diagnostic IDs.
 

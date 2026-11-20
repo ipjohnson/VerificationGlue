@@ -183,7 +183,8 @@ jobs:
           if-no-files-found: ignore
 
   # Generates and compiles a mock for every public interface in the BCL and the top 100 NuGet
-  # packages, and fails when one does not compile. docs/design/mocks-shape-sweep.md has the triage.
+  # packages. It fails when one does not compile, and when an interface's outcome differs from the
+  # one pinned in test/MockSweep/classifications.tsv. docs/design/mocks-shape-sweep.md has the triage.
   mock-sweep:
     runs-on: ubuntu-latest
     steps:
@@ -203,6 +204,7 @@ jobs:
         run: >
           dotnet run --project test/MockSweep -c Release --no-build --
           --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep
+          --classifications test/MockSweep/classifications.tsv
 
       - name: Add the report to the job summary
         if: always()
