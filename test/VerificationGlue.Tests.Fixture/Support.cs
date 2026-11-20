@@ -76,6 +76,7 @@ public sealed class FixtureContainer : ITestContainer, IServiceProvider
         [typeof(OrderService)] = (false, container => new OrderService((IClock)container.GetService(typeof(IClock))!)),
         [typeof(Database)] = (true, _ => new Database()),
         [typeof(ContainerOwnedTests)] = (false, container => new ContainerOwnedTests((Database)container.GetService(typeof(Database))!)),
+        [typeof(BrokenService)] = (false, _ => throw new InvalidOperationException("The container failed to create BrokenService.")),
     };
 
     private readonly string _name;
@@ -232,6 +233,54 @@ public sealed class ProvideAttribute(string value) : Attribute, ITestParameterPr
     {
         provided = parameter.Type == typeof(string) ? value : null;
         return provided is not null;
+    }
+}
+
+/// <summary>Throws for every string parameter it applies to, and passes the others on.</summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Parameter)]
+public sealed class ThrowingProviderAttribute : Attribute, ITestParameterProvider
+{
+    public bool TryProvide(TestContext context, TestParameter parameter, out object? provided)
+    {
+        provided = null;
+        return parameter.Type == typeof(string) ? throw new InvalidOperationException("The provider failed.") : false;
+    }
+}
+
+/// <summary>A service that <see cref="FixtureContainer"/> fails to create.</summary>
+public sealed class BrokenService;
+
+public sealed class OwnedClock : IClock, IDisposable
+{
+    public DateTime Now => new(2001, 1, 1);
+
+    public void Dispose() => Log.Write("owned clock disposed");
+}
+
+/// <summary>
+/// Adds an <see cref="OwnedClock"/> override to each test scope and disposes it when the scope ends,
+/// so the attribute is the override's only owner.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class OwnedClockAttribute : Attribute, ITestScopeListener
+{
+    private OwnedClock? _clock;
+
+    public ValueTask OnCreatedAsync(TestScope scope)
+    {
+        if (scope.Kind == TestScopeKind.Test)
+        {
+            _clock = new OwnedClock();
+            scope.AddOverride<IClock>(_clock);
+        }
+
+        return default;
+    }
+
+    public ValueTask OnDisposingAsync(TestScope scope)
+    {
+        _clock?.Dispose();
+        return default;
     }
 }
 

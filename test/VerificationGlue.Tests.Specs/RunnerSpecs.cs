@@ -32,6 +32,9 @@ public class RunnerSpecs
         "Service_without_a_mock_gets_the_registered_clock",
         "Starts_with_no_failed_checks",
         "Writes_its_output_in_order",
+        "Uses_the_accessible_constructor_with_the_most_parameters",
+        "Waits_for_the_run_to_be_cancelled",
+        "Override_is_left_to_its_owner",
         "Totals(qty: 2, price: 10)",
         "Totals(qty: 3, price: 5)",
         "WRAPS gift",
@@ -75,6 +78,9 @@ public class RunnerSpecs
         "Fails_before_the_test_runs",
         "Keeps_every_failure",
         "Reports_every_failed_check",
+        "Provider_throws_while_resolving",
+        "Container_throws_while_resolving",
+        "Class_provider_throws_for_a_constructor_parameter",
     ];
 
     [Fact]
