@@ -82,7 +82,7 @@ An attribute that implements `ITestParameterProvider` supplies parameters. On a 
 <a id='snippet-tests-parameter-provider'></a>
 ```cs
 /// <summary>Supplies the string parameters of the tests, or of the parameter, it is placed on.</summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Parameter)]
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Parameter)]
 public sealed class SettingAttribute(string value) : Attribute, ITestParameterProvider
 {
     public bool TryProvide(TestContext context, TestParameter parameter, out object? provided)
