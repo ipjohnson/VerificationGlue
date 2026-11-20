@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The step 4 failure-injection cases of docs/design/hardening.md. They run
+    test/Hardening.Lifecycle.Fixture as a process for each case. The project is not in
+    VerificationGlue.slnx, so the build job's `dotnet test` leaves it out. The hardening job in
+    .github/workflows/ci.yml runs it.
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="VerificationGlue.Configuration" Value="$(Configuration)" />
+  </ItemGroup>
+</Project>

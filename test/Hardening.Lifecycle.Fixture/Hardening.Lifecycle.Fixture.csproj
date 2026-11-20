@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    A VerificationGlue.Tests project that test/Hardening.Lifecycle.Specs runs as a process, once for each
+    failure it injects. VG_INJECT names the faults, so some of its tests fail on purpose. It is not in
+    VerificationGlue.slnx, so the build job's `dotnet test` does not run it.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+  <Import Project="../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <Import Project="../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
+  <Import Project="../../src/VerificationGlue.Mocks/buildTransitive/VerificationGlue.Mocks.targets" />
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>
