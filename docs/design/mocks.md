@@ -117,6 +117,27 @@ Setup syntax needs to link `.Returns(3)` back to the call before it. A `MockCont
 
 The spike used a thread-static context and ran 200 setups in parallel on one mock, and every one bound to the right call. None of those setups awaited. In a model of `calc.Add(1, 2).Returns(await LoadAsync())` run 200 times in parallel, the thread-static context bound 199 setups to the wrong call or none, because the continuation resumed on another thread. The async-local context bound all 200. Behaviour cases cover `Returns(await ...)`, a background caller during `Received()`, a child task that inherits the context, and an abandoned matcher.
 
+### Legal orderings across awaits, child tasks and parallel calls
+
+This section settles contract decision `CD-04` of the [hardening exercise](hardening.md#contract-decisions). The step 3 harness generates cases from these orderings only.
+
+A statement is one setup, check or call written as one C# statement, such as `calc.Add(Arg.Any<int>(), 2).Returns(3)` or `calc.Received(2).Add(1, 2)`. While its arguments are evaluated, it queues matchers and holds a pending check. Then it makes the mock call. Then a setup runs `Returns` or `Throws`. A flow is the async flow a statement runs in.
+
+These orderings are legal, and their observations are part of the contract:
+
+1. Statements in one flow, one after another. Every rule above applies in program order.
+2. An await inside a statement, in an argument of the mock call or in the argument of `Returns`. The queued matchers, the pending check and the last call flow across the await, whichever thread the statement resumes on.
+3. A whole statement of another flow, run at any point of a statement in this flow. That point can be before the mock call while matchers or a pending check wait, or between the mock call and `Returns`. Neither statement sees the other's matchers, pending check or last call. A call from the other flow is recorded and answered by the setups in effect when it runs. A setup takes effect when its `Returns` or `Throws` runs.
+4. A child task started between statements, or between the mock call and `Returns`. The child starts with its parent's state, so it can finish the parent's setup: `var call = calc.Add(1, 2); await Task.Run(() => call.Returns(3));`. Matchers, checks and calls that the child starts stay in the child. A matcher the child queues and abandons does not reach the parent.
+5. Parallel flows that each run whole statements, joined before a statement that depends on them. Each pair of flows follows rule 3. Every call is recorded. Calls that match one response sequence take its values in the order the calls run, so each value is given once before the last one repeats, whichever call gets it.
+
+These orderings are unsupported, and a test must not rely on what they give:
+
+- A child task started while the parent's matchers or pending check wait. The child starts with a copy of them, so a call in each flow can consume them.
+- A check or a `Calls()` count in one flow that matches the call of a setup statement in another flow between its mock call and `Returns`. The setup call counts as received until `Returns` removes it.
+- Setups in parallel flows that match the same call. The one that runs last wins, and that depends on timing.
+- Matchers, a pending check or a last call that one flow leaves behind. The step 3 misuse set states what the next operation in that flow does.
+
 ### Matcher positions
 
 NSubstitute gives a queued matcher to the first argument that holds a default value. For `calc.Add(0, Arg.Any<int>())` both arguments are `0`, so the matcher lands on the wrong one. The generator fixes this with one interceptor per `Arg` call site that passes the parameter ordinal read from the syntax. A matcher stored in a local has no syntax position. Analyzer VGM0002 reports it, and at run time it falls back to the NSubstitute rule.
