@@ -191,6 +191,41 @@ public class AnalyzerSpecs
         Assert.DoesNotContain("TaggedAttribute(", registration);
     }
 
+    // The registration writes types with global::, which cannot reach an assembly referenced only
+    // through an extern alias. [assembly: GenerateMock(typeof(V1::Vendor.IGateway))] is one such use.
+    [VerifyTest]
+    [Row("typeof(First::Vendor.Item)")]
+    [Row("typeof(System.Collections.Generic.List<First::Vendor.Item>)")]
+    [Row("typeof(First::Vendor.Item[])")]
+    public async Task An_argument_from_an_extern_aliased_assembly_reports_VGT0006_and_the_registration_compiles(string argument, CancellationToken cancellationToken)
+    {
+        var library = Library("namespace Vendor { public sealed class Item { } }", "First").WithAliases(["First"]);
+        var source = $$"""
+            extern alias First;
+            using VerificationGlue.Tests;
+
+            [assembly: Tagged({{argument}})]
+
+            public sealed class TaggedAttribute(System.Type kind) : System.Attribute
+            {
+                public System.Type Kind { get; } = kind;
+            }
+
+            public partial class OrderTests
+            {
+                [VerifyTest]
+                public void M() { }
+            }
+            """;
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)], library);
+
+        GeneratorHarness.Driver(rewrite: false, new TestGenerator()).RunGeneratorsAndUpdateCompilation(input, out var output, out _, cancellationToken);
+
+        var diagnostic = Assert.Single(await Analyze(source, library));
+        Assert.Equal("The attribute 'TaggedAttribute' is not passed to extension points, because an argument cannot be written as C#", diagnostic.GetMessage());
+        Assert.Empty(output.GetDiagnostics(cancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
     // C# accepts only a public field or a public read-write property as a named argument (CS0617), so the
     // name binds to a member the registration can set. A private member that hides it does not change that.
     [VerifyTest]
