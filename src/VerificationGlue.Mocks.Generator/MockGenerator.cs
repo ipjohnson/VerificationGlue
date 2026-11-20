@@ -81,7 +81,7 @@ public sealed class MockGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(mocks, static (output, model) => output.AddSource(model.MockName + ".g.cs", MockEmitter.Emit(model)));
 
         var registry = mocks
-            .Select(static (model, _) => new RegistryEntry(model.Type, model.MockName, model.ExternAliases))
+            .Select(static (model, _) => new RegistryEntry(model.Type, model.MockName, model.ExternAliases, model.IsObsolete))
             .Collect()
             .Select(static (entries, _) => new EquatableArray<RegistryEntry>(entries.ToArray()))
             .WithTrackingName(RegistryStep);

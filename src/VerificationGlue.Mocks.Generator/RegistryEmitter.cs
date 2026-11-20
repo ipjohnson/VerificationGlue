@@ -5,8 +5,8 @@ using CSharpAuthor.Collections;
 
 namespace VerificationGlue.Mocks.Generator;
 
-/// <summary>One generated mock to register: the mocked type, the class and the extern aliases the type needs.</summary>
-internal sealed record RegistryEntry(ITypeDefinition Type, string MockName, EquatableArray<string> ExternAliases);
+/// <summary>One generated mock to register: the mocked type, the class, the extern aliases the type needs, and whether a type in it is obsolete.</summary>
+internal sealed record RegistryEntry(ITypeDefinition Type, string MockName, EquatableArray<string> ExternAliases, bool IsObsolete = false);
 
 /// <summary>Writes the module initializer that registers every generated mock.</summary>
 internal static class RegistryEmitter
@@ -35,13 +35,47 @@ internal static class RegistryEmitter
         text.Append("    internal static class MockRegistration\n    {\n");
         text.Append("        [global::System.Runtime.CompilerServices.ModuleInitializer]\n");
         text.Append("        internal static void Register()\n        {\n");
+        var obsolete = false;
         foreach (var entry in entries)
         {
-            text.Append("            ").Append(MockEmitter.Render(KnownTypes.MockRegistry)).Append(".Register<")
-                .Append(MockEmitter.Render(entry.Type)).Append(">(static () => new ").Append(entry.MockName).Append("());\n");
+            if (entry.IsObsolete)
+            {
+                obsolete = true;
+                continue;
+            }
+
+            AppendRegistration(text, entry);
         }
 
-        text.Append("        }\n    }\n}\n");
+        if (obsolete)
+        {
+            text.Append("            RegisterObsolete();\n");
+        }
+
+        text.Append("        }\n");
+
+        // A type marked [Obsolete(error: true)] can be named only inside obsolete code, and a #pragma
+        // cannot hide that error.
+        if (obsolete)
+        {
+            text.Append("\n        [global::System.Obsolete]\n");
+            text.Append("        private static void RegisterObsolete()\n        {\n");
+            foreach (var entry in entries)
+            {
+                if (entry.IsObsolete)
+                {
+                    AppendRegistration(text, entry);
+                }
+            }
+
+            text.Append("        }\n");
+        }
+
+        text.Append("    }\n}\n");
         return text.ToString();
     }
+
+    private static void AppendRegistration(StringBuilder text, RegistryEntry entry) =>
+        text.Append("            ").Append(MockEmitter.Render(KnownTypes.MockRegistry)).Append(".Register<")
+            .Append(MockEmitter.Render(entry.Type)).Append(">(static () => new ").Append(entry.MockName).Append("());\n");
 }
