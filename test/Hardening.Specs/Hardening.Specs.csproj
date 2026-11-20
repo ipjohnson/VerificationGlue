@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The step 2 harness of docs/design/hardening.md. It is not in VerificationGlue.slnx, so the build
+    job's `dotnet test` leaves it out. The hardening job in .github/workflows/ci.yml runs it.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+    <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />
+  </ItemGroup>
+</Project>
