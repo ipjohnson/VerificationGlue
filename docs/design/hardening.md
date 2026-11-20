@@ -220,6 +220,32 @@ Compare lifecycle traces against the [lifecycle contract](../guide/test-lifecycl
 
 Include simultaneous body and cleanup failures. Exercise container-owned and runner-owned test instances separately. Run process-level cases for selection, reporting, exit status, and retry isolation under the supported retry mechanism.
 
+#### The failure injection as built
+
+[`test/Hardening.Lifecycle.Specs`](../../test/Hardening.Lifecycle.Specs) runs [`test/Hardening.Lifecycle.Fixture`](../../test/Hardening.Lifecycle.Fixture) as a process for each case. Neither is in `VerificationGlue.slnx`. The `hardening` job in [CI](../../.github/workflows/ci.yml) runs the specs on xunit v3, so the runner is not the only check of itself.
+
+The fixture has a scope listener, middleware and a parameter provider on the assembly, the class and the method, and a container that builds at test, class or assembly scope. `VG_INJECT` names the faults, such as `test:body:exception;class:disposal:exception`. Each place that a fault can reach writes a line to the fixture's log, and each resource writes `acquire` and `release` lines. The resources are listeners, entered middleware, containers, the services they create and test class instances. A cancellation fault sends SIGINT to the fixture, as Ctrl+C does, waits for the run's token, and throws `OperationCanceledException`. The cancellation cases skip on Windows, which is outside the supported matrix.
+
+| Scope | Boundaries |
+|---|---|
+| Test | Scope creation, container construction, middleware entry, class construction for a runner-owned and a container-owned instance, parameter resolution, the body, middleware exit, and disposal of the instance, the listener and the container |
+| Class | Scope creation, container construction, middleware entry, parameter resolution, middleware exit, and disposal of the listener and the container |
+| Assembly | The same as the class scope, with two classes sharing the assembly container |
+
+Each boundary runs once with an exception and once with a cancellation. Four more runs combine faults: a body failure with several cleanup failures, a middleware entry failure with cleanup failures, a listener entry failure with class scope cleanup failures, and a disposal failure at every scope at once. Every case checks that:
+
+- Each acquired resource is released exactly once.
+- The faults fire in the expected order, and a shared scope or container that fails is not created again.
+- Each failing test or scope node reports its faults in the order they fired, and every other test passes.
+- A test whose setup fails does not run its body, and a test whose cleanup fails did run it.
+- After a cancellation, nothing more is acquired and no body runs, and the run exits with code 3.
+
+A separate case lets one test leave a failed `Check`, a mock call with no `Returns`, two queued matchers, a pending `Received` on a shared mock and its own output. The next test passes only when it sees none of them.
+
+To check that the cases can fail, three changes to the runner were tried one at a time and reverted. Skipping a test's container disposal after a failure failed 17 of the 26 exception cases and 14 of the 22 cancellation cases. Reporting listener cleanup failures before earlier failures failed the 3 cases where one test has several cleanup failures. Starting tests after a cancellation failed 18 of the 22 cancellation cases. The other 4 cancel while a class or assembly scope is created or disposed, where the next test either fails before it acquires anything or does not exist.
+
+The 49 cases took 6.7 s on the development machine, after the fixture was built. The `hardening` job fails when they take more than their 1-minute budget, after every case has run. The cases found no runner defect. They found that MTP drops every result published after a cancellation, so a cleanup failure after it is not reported. [tests.md](tests.md#scopes) records that as part of the `CD-05` answer.
+
 ### Framework and package consumers
 
 Run the framework hooks in actual xunit, NUnit, MSTest, and TUnit projects. Include manual mock creation and attributed mock parameters. Verify that direct helper calls and reflection-invoked test methods receive the documented rewrite tier.
@@ -426,11 +452,6 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | `SHAPE-007` | No test calls such a member and checks for NotSupportedException, or checks that the other members still work. | xs | 3 |
 | `SHAPE-008` | No test raises the event at run time. | xs | 3 |
 | `SHAPE-010` | No shape case exists, and the failure has no diagnostic. | s | 3 |
-| `LIFE-007` | Only the documented test-level combination is covered. Listener and middleware entry failures, and their order, are not. | m | 4 |
-| `LIFE-009` | No case covers the assembly scope. | xs | 4 |
-| `LIFE-011` | No fixture has a container that fails to build. | s | 4 |
-| `LIFE-013` | No failure-injection fixture. Existing specs cover single hand-picked boundaries. | l | 4 |
-| `LIFE-015` | Only failed checks are covered. No test leaves a pending matcher or setup and checks the next test. | s | 4 |
 | `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
 | `MIX-001` | No test combines the three factors. | s | 5 |
 | `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |

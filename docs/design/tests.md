@@ -167,6 +167,12 @@ Rules:
 - Test output written at any point, including during container build, goes to that test's result. The test scope exists before the container does.
 - The test scope opens a `VerifyScope`, so `Check` failures are collected and reported when the test ends.
 
+When more than one step fails, each failure goes to the test or scope it belongs to, in the order it happened. A test's result holds the failures of its own steps: a scope listener's `OnCreatedAsync`, middleware entry, class construction, parameter resolution, the body, the instance's disposal, middleware exit, a listener's `OnDisposingAsync` and the container's disposal. A class or assembly scope's node holds the failures of its listeners' `OnDisposingAsync` and of its container's disposal. A class or assembly scope that fails to be created, or whose container fails to build, fails each test that uses it, and the runner does not try again.
+
+When the run is cancelled, cleanup still runs every remaining step, including the class and assembly scopes, and no further test starts. MTP then reports the session as aborted with exit code 3. It drops every result published after the cancellation, so a failure that happens after it, such as a cleanup failure, is not in the console output or the TRX file.
+
+This is the answer to contract decision `CD-05` in `docs/design/hardening.md`. `test/Hardening.Lifecycle.Specs` checks it by injecting an exception and a cancellation at each step.
+
 ## Containers
 
 ```csharp
