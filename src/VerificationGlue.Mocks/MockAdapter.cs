@@ -63,6 +63,8 @@ public sealed class MockAdapter
     public TResult CallMock<TResult>(int memberId, string name, Type[]? typeArguments, object?[] arguments)
         where TResult : class
     {
+        // A callback can write to the arguments. The mock belongs to the arguments the caller passed.
+        var passed = (object?[])arguments.Clone();
         if (Dispatch(memberId, name, typeArguments, arguments, out var result, out var recorded))
         {
             return result is TResult typed ? typed : default!;
@@ -73,7 +75,7 @@ public sealed class MockAdapter
             return default!;
         }
 
-        var call = new CallRecord(memberId, name, typeArguments ?? Type.EmptyTypes, arguments);
+        var call = new CallRecord(memberId, name, typeArguments ?? Type.EmptyTypes, passed);
         lock (_gate)
         {
             foreach (var (spec, mock) in _recursiveMocks)
@@ -85,7 +87,7 @@ public sealed class MockAdapter
             }
 
             var created = create();
-            _recursiveMocks.Add((CallSpec.Create(memberId, name, typeArguments, (object?[])arguments.Clone(), []), created));
+            _recursiveMocks.Add((CallSpec.Create(memberId, name, typeArguments, passed, []), created));
             return created;
         }
     }
