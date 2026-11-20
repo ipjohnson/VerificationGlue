@@ -70,6 +70,8 @@ Verify(calc.Calls().Add(Arg<int>.Any(), Arg<int>.Any()) == 2);
 <sup><a href='/samples/MocksGuide/SetupStyles.cs#L50-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-style-mixed' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+When several setups match one call, the last one wins, whatever its style. A later setup with a narrower matcher wins only for the values it matches. After `calc.Add(Arg.Is<int>(x => x > 5), 1).Returns(1)` and then `calc.Setup().Add(Arg<int>.Is(x => x > 10), 1).Returns(2)`, `calc.Add(11, 1)` returns 2 and `calc.Add(7, 1)` still returns 1.
+
 ## Side by side
 
 | Task | NSubstitute style | Typed surface |

@@ -742,17 +742,19 @@
     {
       "id": "MOCK-008",
       "contract": "The last setup for a call wins, whether it is exact or uses Arg.Any.",
-      "source": "docs/guide/nsubstitute-differences.md",
+      "source": "docs/guide/choose-a-setup-style.md#mix-them",
       "support": "supported",
       "decision": "CD-02",
       "dimensions": ["setup style: typed, NSubstitute-style, mixed", "matching: exact, any, predicate, overlapping"],
       "evidence": [
         "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.The_last_setup_for_a_call_wins",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.The_last_matching_setup_wins_whatever_its_style",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.The_last_of_overlapping_matchers_wins_for_the_values_it_matches",
         "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Later_setup_wins",
         "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Any_after_exact",
-        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Exact_after_any"
-      ],
-      "gap": { "size": "m", "step": 3, "missing": "No case mixes setup styles or overlapping predicates on one call, and no guide states the rule for them." }
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Exact_after_any",
+        "test/NSubstituteComparison/Cases/Precedence.cs#Precedence.Overlapping_predicates"
+      ]
     },
     {
       "id": "MOCK-009",
@@ -877,9 +879,11 @@
       "dimensions": ["member: out, ref"],
       "evidence": [
         "test/NSubstituteComparison/Cases/Matching.cs#Matching.Out_argument",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Ref_argument",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.A_factory_reads_and_sets_a_ref_argument_that_Arg_Any_stands_in_for",
+        "test/Hardening.Specs/Mocks/MockSequenceSpecs.cs#MockSequenceSpecs.A_fixed_seed_run_of_mock_sequences_matches_the_reference_model",
         "samples/MocksGuide/Matchers.cs#Matchers.Out_arguments"
-      ],
-      "gap": { "size": "xs", "step": 3, "missing": "No case covers a ref argument." }
+      ]
     },
     {
       "id": "MOCK-021",
@@ -903,11 +907,13 @@
     {
       "id": "MOCK-023",
       "contract": "An Arg.Is predicate that throws during matching does not corrupt the mock.",
-      "source": "docs/design/hardening.md#operations-and-sequences",
-      "support": "unclassified",
+      "source": "docs/guide/arguments-and-matchers.md#any-and-is",
+      "support": "supported",
       "decision": "CD-09",
-      "evidence": [],
-      "gap": { "size": "s", "step": 3, "missing": "No guide states the outcome, and no test exercises it." }
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Matching.cs#Matching.A_predicate_that_throws_does_not_match_and_leaves_the_call_unchanged",
+        "test/NSubstituteComparison/Cases/Matching.cs#Matching.Predicate_that_throws"
+      ]
     },
     {
       "id": "MOCK-024",
@@ -972,8 +978,11 @@
       "contract": "Verification does not consume response sequences, and repeating a check gives the same result.",
       "source": "docs/design/hardening.md#operations-and-sequences",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "s", "step": 3, "missing": "No test checks a sequence after Received, or repeats a check." }
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Verification.cs#Verification.Checks_take_no_value_from_a_response_sequence_and_give_the_same_result_when_repeated",
+        "test/NSubstituteComparison/Cases/Sequences.cs#Sequences.Checks_leave_a_sequence",
+        "test/Hardening.Specs/Mocks/MockInvariantSpecs.cs#MockInvariantSpecs.Each_mock_invariant_holds_on_a_fixed_seed_run"
+      ]
     },
     {
       "id": "MOCK-031",
@@ -1028,8 +1037,10 @@
       "contract": "A cancelled task passed to Returns cancels the await.",
       "source": "docs/guide/mock-async-members.md#return-a-value",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "xs", "step": 3, "missing": "No test returns a cancelled task." }
+      "evidence": [
+        "test/VerificationGlue.Mocks.Specs/Behaviour/Setup.cs#Setup.Returns_with_a_cancelled_task_cancels_the_await",
+        "test/NSubstituteComparison/Cases/AsyncResults.cs#AsyncResults.Returns_a_cancelled_task"
+      ]
     },
     {
       "id": "MOCK-036",
@@ -1111,13 +1122,17 @@
       "source": "docs/diagnostics/VGM0005.md",
       "support": "unsupported",
       "decision": "CD-09",
-      "outcome": { "kind": "throws", "detail": "VGM0005 warns at build. At run time the setup throws MockSetupException saying no mock call came before it." },
+      "outcome": { "kind": "throws", "detail": "VGM0005 warns at build. At run time the setup throws MockSetupException saying no mock call came before it, and clears the flow's queued matchers, pending check and pending raise, as every misuse failure does." },
       "evidence": [
         "test/VerificationGlue.Mocks.Specs/Behaviour/MockContextFlow.cs#MockContextFlow.Returns_with_no_mock_call_before_it_fails",
         "test/NSubstituteComparison/Cases/LastCall.cs#LastCall.Returns_with_no_mock_call",
-        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005"
-      ],
-      "gap": { "size": "s", "step": 3, "missing": "No test checks the state of the next mock operation after the failure." }
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.Returns_or_Throws_on_a_value_that_is_not_a_mock_call_reports_VGM0005",
+        "test/Hardening.Specs/Mocks/MockMisuseSpecs.cs#MockMisuseSpecs.Returns_with_no_mock_call_clears_a_queued_matcher_and_a_pending_check",
+        "test/Hardening.Specs/Mocks/MockMisuseSpecs.cs#MockMisuseSpecs.A_matcher_that_fits_no_argument_also_clears_the_last_call",
+        "test/Hardening.Specs/Mocks/MockMisuseSpecs.cs#MockMisuseSpecs.When_with_no_mock_call_clears_a_queued_matcher_and_a_pending_raise",
+        "test/Hardening.Specs/Mocks/MockMisuseSpecs.cs#MockMisuseSpecs.Received_on_a_value_that_is_not_a_mock_fails_and_clears_a_queued_matcher",
+        "test/Hardening.Specs/Mocks/MockMisuseSpecs.cs#MockMisuseSpecs.Received_with_a_negative_count_fails_and_leaves_no_pending_check_or_matcher"
+      ]
     },
     {
       "id": "MOCK-043",
@@ -1151,9 +1166,10 @@
       "decision": "CD-03",
       "evidence": [
         "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.The_same_arguments_return_the_same_mock",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.Arguments_that_are_equal_return_the_same_mock_whether_or_not_they_are_the_same_object",
+        "test/VerificationGlue.Mocks.Specs/Behaviour/RecursiveMocks.cs#RecursiveMocks.A_new_setup_on_the_parent_replaces_the_recursive_mock",
         "samples/MocksGuide/RecursiveMocks.cs#RecursiveMocks.Each_set_of_arguments_gets_its_own_mock"
-      ],
-      "gap": { "size": "s", "step": 3, "missing": "No case uses arguments that are equal but not identical, or reconfigures the parent after access." }
+      ]
     },
     {
       "id": "MOCK-046",
@@ -1171,8 +1187,10 @@
       "source": "docs/guide/recursive-mocks.md#set-up-a-member-of-a-member",
       "support": "unsupported",
       "outcome": { "kind": "fallback", "detail": "The member returns a completed task with default, or default for a System interface." },
-      "evidence": [],
-      "gap": { "size": "xs", "step": 3, "missing": "No test covers either rule." }
+      "evidence": [
+        "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.A_task_or_System_interface_return_gets_no_recursive_mock_and_depth_0_returns_default",
+        "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.The_default_depth_generates_mocks_two_steps_from_the_named_type"
+      ]
     },
     {
       "id": "MOCK-048",
@@ -1183,9 +1201,9 @@
       "evidence": [
         "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.The_default_depth_generates_mocks_two_steps_from_the_named_type",
         "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.VerificationGlueMocksRecursionDepth_sets_how_far_the_generator_goes",
-        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007"
-      ],
-      "gap": { "size": "xs", "step": 3, "missing": "No test sets the depth to 0." }
+        "test/VerificationGlue.Mocks.Generator.Specs/MockAnalyzerSpecs.cs#MockAnalyzerSpecs.A_type_also_named_at_a_call_site_starts_its_own_walk_and_reports_no_VGM0007",
+        "test/VerificationGlue.Mocks.Generator.Specs/RecursiveMockSpecs.cs#RecursiveMockSpecs.A_task_or_System_interface_return_gets_no_recursive_mock_and_depth_0_returns_default"
+      ]
     },
     {
       "id": "MOCK-049",

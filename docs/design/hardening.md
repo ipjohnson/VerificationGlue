@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 has started: the [mock sequence harness](#the-mock-sequence-harness-as-built) runs in the same job. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -233,7 +233,9 @@ The [invariant checks](../../test/Hardening.Specs/Mocks/Invariants.cs) do not us
 
 A mismatch prints the seed, the case and a replay command such as `HARDENING_SEED=20261119 HARDENING_CASES=2000 HARDENING_CASE=57 dotnet test --project test/Hardening.Specs -c Release --vg-filter "name:A_fixed_seed_run_of_mock_sequences_matches_the_reference_model"`. It shrinks with the shrinker step 2 uses, until no op can be dropped, flattened or reduced without losing the mismatch. It prints the shrunk sequence as JSON in the `[Row(...)]` to add to [`MockRegressionSpecs`](../../test/Hardening.Specs/Mocks/MockRegressionSpecs.cs). Two specs break a rule in the model on purpose, the last setup winning and a check leaving sequences alone, and check that each run fails, shrinks to at most three ops and replays.
 
-The fixed-seed run has 2,000 sequences and about 29,000 observations, and takes 0.5 s. All 26 step 3 cases take about 2 s on the development machine. Runs of 20,000 sequences on eight other seeds found one defect. A `Does` callback that wrote the argument of a recursive member changed which mock `MockAdapter.CallMock` returned for those arguments. It is fixed, and a regression row and a behaviour case cover it.
+The fixed-seed run has 2,000 sequences and about 29,000 observations, and takes 0.5 s. All 59 step 3 cases, with the shape consumers, take about 2 s on the development machine. Runs of 20,000 sequences on eight other seeds found one defect. A `Does` callback that wrote the argument of a recursive member changed which mock `MockAdapter.CallMock` returned for those arguments. It is fixed, and a regression row and a behaviour case cover it.
+
+The cases for the remaining step 3 gaps found two more defects, both fixed. An `Arg.Is` predicate that threw escaped the mock call after the call was recorded and before it became the flow's last call. A misuse failure left the flow's queued matchers, pending check and last call in place, so after an `AmbiguousArgumentsException` the next bare `Returns` bound to an earlier call and removed it from the recorded calls. [mocks.md](mocks.md#throwing-predicates-and-misuse-failures) records the `CD-09` answer, and the misuse set checks the next operation after each misuse failure.
 
 ## Test construction and lifecycle
 
@@ -472,15 +474,6 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 
 | Scenario ID | Missing | Size | Step |
 |---|---|---|---|
-| `MOCK-008` | No case mixes setup styles or overlapping predicates on one call, and no guide states the rule for them. | m | 3 |
-| `MOCK-020` | No case covers a ref argument. | xs | 3 |
-| `MOCK-023` | No guide states the outcome, and no test exercises it. | s | 3 |
-| `MOCK-030` | No test checks a sequence after Received, or repeats a check. | s | 3 |
-| `MOCK-035` | No test returns a cancelled task. | xs | 3 |
-| `MOCK-042` | No test checks the state of the next mock operation after the failure. | s | 3 |
-| `MOCK-045` | No case uses arguments that are equal but not identical, or reconfigures the parent after access. | s | 3 |
-| `MOCK-047` | No test covers either rule. | xs | 3 |
-| `MOCK-048` | No test sets the depth to 0. | xs | 3 |
 | `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
 | `MIX-001` | No test combines the three factors. | s | 5 |
 | `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |

@@ -32,6 +32,8 @@ Verify(!ReferenceEquals(first, calc.History.Find(2)));
 <sup><a href='/samples/MocksGuide/RecursiveMocks.cs#L27-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-recursive-arguments' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+Arguments decide the mock as they do for an exact match. Equal strings, and arrays with equal elements, get the same mock even when they are different objects. A setup on the member, such as `calc.History.Returns(history)`, replaces the recursive mock, even after the test has read it.
+
 A member that returns `Task<T>` or `ValueTask<T>` returns a completed task with `default`, not a task holding a mock. An interface in a `System` namespace, such as `IServiceProvider`, gets no recursive mock. `Received()` and `DidNotReceive()` checks create no mocks.
 
 ## The depth
@@ -51,7 +53,7 @@ Verify(entry.Next is null);
 <sup><a href='/samples/MocksGuide/RecursiveMocks.cs#L40-L45' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-recursive-depth' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-Set `VerificationGlueMocksRecursionDepth` in the project to change the depth. The value 0 turns recursive mocks off:
+Set `VerificationGlueMocksRecursionDepth` in the project to change the depth. The value 0 turns recursive mocks off, so every member that would return one returns null:
 
 <!-- snippet: mocks-recursion-depth -->
 <a id='snippet-mocks-recursion-depth'></a>
