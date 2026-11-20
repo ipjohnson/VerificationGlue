@@ -2,13 +2,13 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
     <IsSpecsProject>$(MSBuildProjectName.EndsWith('.Specs'))</IsSpecsProject>
-    <_IsRunnerSpecs Condition="'$(MSBuildProjectName)' == 'VerificationGlue.Tests.Specs'">true</_IsRunnerSpecs>
+    <_IsRunnerSpecs Condition="'$(MSBuildProjectName)' == 'VerificationGlue.Tests.Specs' or '$(MSBuildProjectName)' == 'Hardening.Lifecycle.Specs'">true</_IsRunnerSpecs>
   </PropertyGroup>
 
   <!--
     SpecsRunner picks the runner of a .Specs project. The .Specs projects run on VerificationGlue.Tests,
-    except VerificationGlue.Tests.Specs, which stays on xunit v3 because a runner cannot be the only
-    check of itself. Pass -p:SpecsRunner=xunit to run another .Specs project on xunit v3. CI does so
+    except VerificationGlue.Tests.Specs and Hardening.Lifecycle.Specs, which stay on xunit v3 because a
+    runner cannot be the only check of itself. Pass -p:SpecsRunner=xunit to run another .Specs project on xunit v3. CI does so
     for the conformance suites. That build compiles XunitShim.cs, which gives [VerifyTest], [Row] and
     [RowSource] to xunit, and writes to its own bin and obj folders.
   -->

@@ -1547,8 +1547,11 @@
       "source": "docs/guide/test-lifecycle.md#a-test-with-more-than-one-failure",
       "support": "supported",
       "decision": "CD-05",
-      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Invocation_cleanup_and_check_failures_are_all_kept_in_order"],
-      "gap": { "size": "m", "step": 4, "missing": "Only the documented test-level combination is covered. Listener and middleware entry failures, and their order, are not." }
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Invocation_cleanup_and_check_failures_are_all_kept_in_order",
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.An_exception_is_reported_against_its_test_or_scope_and_every_resource_is_released",
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.Cancellation_releases_every_resource_and_starts_no_more_work"
+      ]
     },
     {
       "id": "LIFE-008",
@@ -1566,8 +1569,10 @@
       "source": "docs/guide/test-lifecycle.md#a-test-with-more-than-one-failure",
       "support": "supported",
       "decision": "CD-05",
-      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.A_class_scope_that_fails_to_dispose_is_reported_as_its_own_node"],
-      "gap": { "size": "xs", "step": 4, "missing": "No case covers the assembly scope." }
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.A_class_scope_that_fails_to_dispose_is_reported_as_its_own_node",
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.An_exception_is_reported_against_its_test_or_scope_and_every_resource_is_released"
+      ]
     },
     {
       "id": "LIFE-010",
@@ -1581,15 +1586,17 @@
       "contract": "A class or assembly container that fails to build fails each test that uses it with the scope named, and is not built again.",
       "source": "docs/guide/test-lifecycle.md#failures-outside-the-test",
       "support": "supported",
-      "evidence": [],
-      "gap": { "size": "s", "step": 4, "missing": "No fixture has a container that fails to build." }
+      "evidence": ["test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.An_exception_is_reported_against_its_test_or_scope_and_every_resource_is_released"]
     },
     {
       "id": "LIFE-012",
       "contract": "When the run is cancelled during setup, the runner disposes what setup created and starts no more tests.",
       "source": "docs/guide/test-lifecycle.md#failures-outside-the-test",
       "support": "supported",
-      "evidence": ["test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Cancellation_during_setup_disposes_what_setup_acquired"]
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/LifecycleSpecs.cs#LifecycleSpecs.Cancellation_during_setup_disposes_what_setup_acquired",
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.Cancellation_releases_every_resource_and_starts_no_more_work"
+      ]
     },
     {
       "id": "LIFE-013",
@@ -1598,8 +1605,10 @@
       "support": "supported",
       "decision": "CD-05",
       "dimensions": ["scope: assembly, class, test", "boundary: each of the eight", "fault: exception, cancellation"],
-      "evidence": [],
-      "gap": { "size": "l", "step": 4, "missing": "No failure-injection fixture. Existing specs cover single hand-picked boundaries." }
+      "evidence": [
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.An_exception_is_reported_against_its_test_or_scope_and_every_resource_is_released",
+        "test/Hardening.Lifecycle.Specs/InjectionSpecs.cs#InjectionSpecs.Cancellation_releases_every_resource_and_starts_no_more_work"
+      ]
     },
     {
       "id": "LIFE-014",
@@ -1613,8 +1622,10 @@
       "contract": "A later test inherits no failed checks, mock state, pending matchers or test context from an earlier one.",
       "source": "docs/design/hardening.md#failure-injection-and-ownership",
       "support": "supported",
-      "evidence": ["test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Check_failures_are_reported_with_their_own_test"],
-      "gap": { "size": "s", "step": 4, "missing": "Only failed checks are covered. No test leaves a pending matcher or setup and checks the next test." }
+      "evidence": [
+        "test/VerificationGlue.Tests.Specs/ContainerSpecs.cs#ContainerSpecs.Check_failures_are_reported_with_their_own_test",
+        "test/Hardening.Lifecycle.Specs/IsolationSpecs.cs#IsolationSpecs.A_later_test_sees_no_failed_checks_pending_mock_state_output_or_context_of_an_earlier_one"
+      ]
     },
     {
       "id": "RUN-001",
