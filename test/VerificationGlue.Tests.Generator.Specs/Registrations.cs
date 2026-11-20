@@ -1,5 +1,7 @@
 using System.Runtime.Loader;
+using Generator.Harness;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace VerificationGlue.Tests.Generator.Specs;
 
@@ -7,9 +9,13 @@ namespace VerificationGlue.Tests.Generator.Specs;
 internal static class Registrations
 {
     /// <summary>The emitted tests by ID, each as a function that runs it through the runner and returns its failures.</summary>
-    public static Dictionary<string, Func<Task<IReadOnlyList<Exception>>>> Load(string source, bool rewrite, params IIncrementalGenerator[] generators)
+    public static Dictionary<string, Func<Task<IReadOnlyList<Exception>>>> Load(string source, bool rewrite, params IIncrementalGenerator[] generators) =>
+        Load(source, rewrite, [], generators);
+
+    /// <summary>The same, for a source that references <paramref name="libraries"/>.</summary>
+    public static Dictionary<string, Func<Task<IReadOnlyList<Exception>>>> Load(string source, bool rewrite, IReadOnlyList<Library> libraries, params IIncrementalGenerator[] generators)
     {
-        var assembly = Compile(source, rewrite, generators);
+        var assembly = Compile(source, rewrite, generators, libraries);
         var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
         var runnerType = assembly.GetType("VerificationGlue.Tests.TestRunner", throwOnError: true)!;
         var uid = descriptorType.GetProperty("Uid")!;
@@ -38,7 +44,7 @@ internal static class Registrations
     /// <summary>The ID and display name of each emitted test, in registration order.</summary>
     public static (string Uid, string DisplayName)[] Names(string source)
     {
-        var assembly = Compile(source, rewrite: false, [new TestGenerator()]);
+        var assembly = Compile(source, rewrite: false, [new TestGenerator()], []);
         var descriptorType = assembly.GetType("VerificationGlue.Tests.TestDescriptor", throwOnError: true)!;
         return Expand(assembly)
             .Select(descriptor => ((string)descriptorType.GetProperty("Uid")!.GetValue(descriptor)!, (string)descriptorType.GetProperty("DisplayName")!.GetValue(descriptor)!))
@@ -59,9 +65,9 @@ internal static class Registrations
         return ((System.Collections.IEnumerable)task.GetType().GetProperty("Result")!.GetValue(task)!).Cast<object>().ToArray();
     }
 
-    private static System.Reflection.Assembly Compile(string source, bool rewrite, IIncrementalGenerator[] generators)
+    private static System.Reflection.Assembly Compile(string source, bool rewrite, IIncrementalGenerator[] generators, IReadOnlyList<Library> libraries)
     {
-        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)]);
+        var input = GeneratorHarness.Compilation([("/repo/Tests/OrderTests.cs", source)], [.. libraries.Select(library => library.Reference)]);
         GeneratorHarness.Driver(rewrite, generators)
             .RunGeneratorsAndUpdateCompilation(input, out var output, out var diagnostics, CancellationToken.None);
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
@@ -71,6 +77,29 @@ internal static class Registrations
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)));
 
         stream.Position = 0;
-        return new AssemblyLoadContext("Registrations", isCollectible: true).LoadFromStream(stream);
+        var context = new AssemblyLoadContext("Registrations", isCollectible: true);
+        context.Resolving += (loading, name) =>
+            libraries.FirstOrDefault(library => library.Name == name.Name) is { } library ? loading.LoadFromStream(new MemoryStream(library.Image)) : null;
+        return context.LoadFromStream(stream);
+    }
+}
+
+/// <summary>An assembly compiled from source that a spec's input references, through <see cref="Alias"/> when it is set.</summary>
+internal sealed record Library(string Name, byte[] Image, string? Alias)
+{
+    public MetadataReference Reference =>
+        Alias is null ? MetadataReference.CreateFromImage(Image) : MetadataReference.CreateFromImage(Image).WithAliases([Alias]);
+
+    public static Library Compile(string name, string source, string? alias = null)
+    {
+        var compilation = CSharpCompilation.Create(
+            name,
+            [CSharpSyntaxTree.ParseText(source)],
+            PlatformReferences.All,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var stream = new MemoryStream();
+        var emitted = compilation.Emit(stream);
+        Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics));
+        return new Library(name, stream.ToArray(), alias);
     }
 }

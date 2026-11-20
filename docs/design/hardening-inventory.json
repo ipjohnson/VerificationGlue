@@ -1268,7 +1268,7 @@
       "source": "docs/design/mocks-shape-sweep.md#triage",
       "support": "supported",
       "dimensions": ["member shape: each shape file", "creation: Mock.Of<T>(), [Mock] parameter, MockRegistry.Create(Type), generic helper with GenerateMock"],
-      "constraints": "A type marked [Obsolete(error: true)] has no [Mock] parameter or GenerateMock, because C# lets only obsolete code name it. A VerificationGlue.Tests test method cannot take an extern-aliased type, so those [Mock] parameters go through a framework hook that calls MockRegistry.Create(Type).",
+      "constraints": "A type marked [Obsolete(error: true)] has no [Mock] parameter or GenerateMock, because C# lets only obsolete code name it.",
       "evidence": [
         "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Mocks_compile_and_report_the_expected_diagnostics",
         "test/VerificationGlue.Mocks.Generator.Specs/ShapeSpecs.cs#ShapeSpecs.Every_case_mocks_at_least_one_type",
@@ -1289,7 +1289,9 @@
         "test/Hardening.Specs/ShapeConsumers/ParameterConsumerSpecs.cs",
         "test/Hardening.Specs/ShapeConsumers/ReferencedAssemblyConsumerSpecs.cs",
         "test/VerificationGlue.Mocks.Generator.Specs/MockGeneratorSpecs.cs#MockGeneratorSpecs.The_registry_of_a_mock_of_a_type_obsolete_as_an_error_compiles",
-        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_argument_from_an_extern_aliased_assembly_reports_VGT0006_and_the_registration_compiles"
+        "test/VerificationGlue.Tests.Generator.Specs/AnalyzerSpecs.cs#AnalyzerSpecs.An_argument_from_an_extern_aliased_assembly_reports_VGT0006_and_the_registration_compiles",
+        "test/VerificationGlue.Tests.Generator.Specs/ExternAliasSpecs.cs#ExternAliasSpecs.A_test_with_parameters_from_an_extern_aliased_assembly_compiles_and_runs",
+        "test/VerificationGlue.Tests.Generator.Specs/ExternAliasSpecs.cs#ExternAliasSpecs.The_registration_declares_the_alias_and_writes_the_types_with_it"
       ]
     },
     {

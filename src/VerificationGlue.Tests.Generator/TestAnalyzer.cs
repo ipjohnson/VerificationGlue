@@ -63,7 +63,7 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
                     }
                 }
 
-                foreach (var source in RowSourceReader.Read(method, compilation))
+                foreach (var source in RowSourceReader.Read(method, compilation, new TypeNames(compilation)))
                 {
                     if (source.Error is not null)
                     {

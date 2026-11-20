@@ -143,10 +143,10 @@ internal static class TestDiscovery
     /// The global type name of the <c>ITestNameFormatter</c> from the narrowest <c>[NameFormatter&lt;T&gt;]</c>:
     /// the method's, then the class's, then the assembly's. <c>DefaultNameFormatter</c> when none applies.
     /// </summary>
-    public static string NameFormatter(IMethodSymbol method, Compilation compilation)
+    public static string NameFormatter(IMethodSymbol method, Compilation compilation, TypeNames names)
     {
         var formatter = Formatter(method.GetAttributes()) ?? Formatter(method.ContainingType.GetAttributes()) ?? Formatter(compilation.Assembly.GetAttributes());
-        return formatter?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? KnownTypes.DefaultNameFormatter;
+        return formatter is null ? KnownTypes.DefaultNameFormatter : names.Write(formatter);
 
         static ITypeSymbol? Formatter(IEnumerable<AttributeData> attributes) =>
             attributes.Select(attribute => TypeArgument(attribute.AttributeClass, KnownTypes.NameFormatterAttribute)).LastOrDefault(type => type is not null);
@@ -202,20 +202,22 @@ internal static class TestDiscovery
     public static TestEntry Build(IMethodSymbol method, Compilation compilation)
     {
         var type = method.ContainingType;
-        var parameters = method.Parameters.Select(parameter => Parameter(parameter, compilation)).ToArray();
+        var names = new TypeNames(compilation);
+        var parameters = method.Parameters.Select(parameter => Parameter(parameter, compilation, names)).ToArray();
         var constructor = Constructor(method, compilation);
 
         var location = method.Locations.FirstOrDefault(candidate => candidate.IsInSource);
         var span = location?.GetLineSpan();
         var rows = RowReader.Read(method, compilation);
-        var sources = RowSourceReader.Read(method, compilation);
+        var sources = RowSourceReader.Read(method, compilation, names);
+        var nameFormatter = NameFormatter(method, compilation, names);
         var testClass = new TestClassModel(
             MetadataName(type),
             type.GetTypeDefinition(),
             type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString(),
             NestedName(type, '+'),
             constructor is not null,
-            constructor?.Parameters.Select(parameter => Parameter(parameter, compilation)).ToArray() ?? [],
+            constructor?.Parameters.Select(parameter => Parameter(parameter, compilation, names)).ToArray() ?? [],
             AttributeMaterializer.Materialize(type.GetAttributes(), compilation));
 
         var testMethod = new TestMethodModel(
@@ -231,12 +233,13 @@ internal static class TestDiscovery
             AttributeMaterializer.Materialize(method.GetAttributes().Where(attribute => !RowReader.IsRow(attribute)).ToImmutableArray(), compilation),
             rows.Count > 0,
             rows.Where(row => row.Row is not null).Select(row => row.Row!).ToArray(),
-            NameFormatter(method, compilation),
+            nameFormatter,
             Schedule(method, compilation),
             sources.Count > 0,
             sources.Where(source => source.Source is not null).Select(source => source.Source!).ToArray(),
             method.GetAttributes().Any(RowSourceReader.IsDataSource),
-            Traits(method));
+            Traits(method),
+            names.Aliases);
 
         return new TestEntry(testClass, testMethod);
     }
@@ -303,7 +306,7 @@ internal static class TestDiscovery
     private static string NestedName(INamedTypeSymbol type, char separator) =>
         type.ContainingType is { } outer ? NestedName(outer, separator) + separator + type.Name : type.Name;
 
-    private static ParameterModel Parameter(IParameterSymbol parameter, Compilation compilation)
+    private static ParameterModel Parameter(IParameterSymbol parameter, Compilation compilation, TypeNames names)
     {
         var serviceKey = parameter.GetAttributes()
             .FirstOrDefault(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.FromKeyedServicesAttribute && attribute.ConstructorArguments.Length == 1)
@@ -313,11 +316,11 @@ internal static class TestDiscovery
 
         return new ParameterModel(
             parameter.Name,
-            parameter.Type.TypeKind == TypeKind.Dynamic ? "object" : parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            names.Write(parameter.Type),
             TypeName(parameter.Type),
             IsMock(parameter),
             serviceKey,
-            AttributeMaterializer.WriteDefault(parameter),
+            AttributeMaterializer.WriteDefault(parameter, names),
             AttributeMaterializer.Materialize(parameter.GetAttributes(), compilation));
     }
 

@@ -15,9 +15,8 @@ namespace Hardening.Specs.ShapeConsumers;
 public class ReferencedAssemblyConsumerSpecs
 {
     [VerifyTest]
-    public void Interfaces_with_one_name_in_two_aliased_assemblies_are_mocked_apart()
+    public void Interfaces_with_one_name_in_two_aliased_assemblies_are_mocked_apart([Mock] V1::Vendor.IGateway first, [Mock] V2::Vendor.IGateway second)
     {
-        var (first, second) = Hook.Invoke<(V1::Vendor.IGateway, V2::Vendor.IGateway)>(typeof(ReferencedAssemblyConsumerSpecs), nameof(Gateways));
         Paths.Each(Mock.Of<V1::Vendor.IGateway>(), first, mock =>
         {
             var payment = new V1::Vendor.Payment();
@@ -39,11 +38,11 @@ public class ReferencedAssemblyConsumerSpecs
     }
 
     [VerifyTest]
-    public void Generic_interfaces_closed_over_aliased_and_local_types_are_mocked()
+    public void Generic_interfaces_closed_over_aliased_and_local_types_are_mocked(
+        [Mock] V1::Vendor.IGateway<V2::Vendor.Payment> mixed,
+        [Mock] V1::Vendor.IGateway<Local> withLocal,
+        [Mock] IList<V2::Vendor.Payment> bclOfAliased)
     {
-        var (mixed, withLocal, bclOfAliased) = Hook.Invoke<(V1::Vendor.IGateway<V2::Vendor.Payment>, V1::Vendor.IGateway<Local>, IList<V2::Vendor.Payment>)>(
-            typeof(ReferencedAssemblyConsumerSpecs),
-            nameof(GenericGateways));
         Paths.Each(Mock.Of<V1::Vendor.IGateway<V2::Vendor.Payment>>(), mixed, mock =>
         {
             var payment = new V2::Vendor.Payment();
@@ -75,10 +74,10 @@ public class ReferencedAssemblyConsumerSpecs
     }
 
     [VerifyTest]
-    public void A_type_nested_in_an_aliased_generic_type_over_a_local_type_is_mocked() =>
+    public void A_type_nested_in_an_aliased_generic_type_over_a_local_type_is_mocked([Mock] V1::Vendor.Ledger<Shapes.ExternAliasNested.Local>.IEntry entry) =>
         Paths.Each(
             Mock.Of<V1::Vendor.Ledger<Shapes.ExternAliasNested.Local>.IEntry>(),
-            Hook.Invoke<V1::Vendor.Ledger<Shapes.ExternAliasNested.Local>.IEntry>(typeof(ReferencedAssemblyConsumerSpecs), nameof(Entry)),
+            entry,
             mock =>
         {
             var local = new Shapes.ExternAliasNested.Local();
@@ -111,19 +110,6 @@ public class ReferencedAssemblyConsumerSpecs
             Assert.True(mock.Calls().Hidden() == 1);
         });
     }
-
-    // The VerificationGlue.Tests registration writes a test parameter's type with global::, which cannot
-    // name an extern-aliased type, so these hook methods take the [Mock] parameters instead.
-    private static (V1::Vendor.IGateway, V2::Vendor.IGateway) Gateways([Mock] V1::Vendor.IGateway first, [Mock] V2::Vendor.IGateway second) =>
-        (first, second);
-
-    private static (V1::Vendor.IGateway<V2::Vendor.Payment>, V1::Vendor.IGateway<Local>, IList<V2::Vendor.Payment>) GenericGateways(
-        [Mock] V1::Vendor.IGateway<V2::Vendor.Payment> mixed,
-        [Mock] V1::Vendor.IGateway<Local> withLocal,
-        [Mock] IList<V2::Vendor.Payment> bclOfAliased) =>
-        (mixed, withLocal, bclOfAliased);
-
-    private static V1::Vendor.Ledger<Shapes.ExternAliasNested.Local>.IEntry Entry([Mock] V1::Vendor.Ledger<Shapes.ExternAliasNested.Local>.IEntry entry) => entry;
 
     // A public test method cannot take the internal Friend.IFriendOnly, so it has no [Mock] parameter.
     private static class InternalUses
