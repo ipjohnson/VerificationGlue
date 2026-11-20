@@ -101,10 +101,11 @@ The copy runs only when something calls it.
 |---|---|
 | A direct call from your code to an eligible `[Verify]` method | The copy, through the redirect |
 | A call to an eligible method from inside another copy | The copy |
-| An xunit or NUnit test method marked `[Verify]` | The original, because the framework calls it through reflection. Its checks give tier 2 messages. |
+| An xunit, NUnit or MSTest test method marked `[Verify]` | The original, because the framework calls it through reflection. Its checks give tier 2 messages. |
+| A TUnit test method marked `[Verify]` | The original, because TUnit calls it from code that its own generator writes, and the VerificationGlue generator cannot see that code. Its checks give tier 2 messages. |
 | A `[VerifyTest]` method in `VerificationGlue.Tests` | The copy, because the runner calls it directly |
 
-In xunit, NUnit, MSTest and TUnit, write the checks that need values in the test body as `Verify(() => ...)`, or put them in a `[Verify]` helper and call it from the test. A `Verify(condition)` in the test body itself gets tier 2.
+In xunit, NUnit, MSTest and TUnit, write the checks that need values in the test body as `Verify(() => ...)`, or put them in a `[Verify]` helper and call it from the test. A `Verify(condition)` in the test body itself gets tier 2. `CheckAndTierTests.cs` in each of `samples/VerifyInXunit`, `samples/VerifyInNUnit`, `samples/VerifyInMSTest` and `samples/VerifyInTUnit` checks both cases.
 
 ## Values that are not captured
 

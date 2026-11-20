@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <EnableMSTestRunner>true</EnableMSTestRunner>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MSTest" />
