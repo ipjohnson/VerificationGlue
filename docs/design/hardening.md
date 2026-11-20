@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 has started: the [mock sequence harness](#the-mock-sequence-harness-as-built) runs in the same job. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -191,6 +191,43 @@ The required invariants include:
 Use barriers or controlled scheduling for concurrency cases. Define which orderings are legal before comparing observations. Repeated timing-dependent tests alone cannot establish isolation.
 
 Extend the NSubstitute comparison for operations where compatibility is intended. Retain explicit differences. NSubstitute is an additional reference, not the definition of VerificationGlue's typed API or its intentional differences.
+
+#### The mock sequence harness as built
+
+[`test/Hardening.Specs/Mocks`](../../test/Hardening.Specs/Mocks) holds the step 3 cases. Each class has `[Trait("Step", "3")]`, and the `hardening` job runs them in their own step with a 2-minute budget. The mocks come from the public generator: `Mock.Of<IService>()` names the [subject](../../test/Hardening.Specs/Mocks/Subjects.cs), the generator follows its recursive members to `IChild` and `ILeaf`, and NSubstitute-style matchers go through the `Arg` interceptors.
+
+A sequence is a list of ops on two root mocks and four slots that hold recursive mocks. The [generator](../../test/Hardening.Specs/Mocks/SequenceGenerator.cs) covers each factor of the table above:
+
+| Factor | Ops and values |
+|---|---|
+| Setup style | `Returns` and `Throws`, `Setup()` with `Does`, `When(...).Do` and `When(...).Throw`, mixed on one mock |
+| Matching | Exact values, `Arg.Any`, `Arg.Is` with a predicate or a value, the typed `Arg<T>` forms, null and default values, two `int` arguments |
+| Response | Values, sequences, factories that read the arguments and set an out argument, exceptions, callbacks that write an argument, and unconfigured calls |
+| Member | Overloads, a generic method, a property and an indexer with setters, an event, `out` and `ref` parameters |
+| Async result | `Task<int>` and `ValueTask<int>` with a value, a fault and a cancellation |
+| Verification | `Received`, `Received(n)`, `DidNotReceive`, `Calls()` counts, the received calls, and the count and listed calls of a failed check |
+| Identity | Two root mocks, recursive mocks reached again, a configured recursive member, and `ILeaf.Next` beyond the depth |
+| Context | Awaits, child tasks, a setup finished in a child task, an abandoned matcher, interleavings and parallel flows |
+
+Each sequence runs on the [reference model](../../test/Hardening.Specs/Mocks/ReferenceModel.cs) and on the mocks, and the two lists of observations must be equal. The model implements the rules of [mocks.md](mocks.md) and does not call VerificationGlue.Mocks. The orderings are the legal ones of [`CD-04`](mocks.md#legal-orderings-across-awaits-child-tasks-and-parallel-calls). An interleaving runs a whole statement of another flow before the mock call of a setup or check in this flow, or between a setup's mock call and its `Returns`. The interpreter controls the point with semaphores: a hook on the last exact argument hands over before the mock call, and the setup blocks or awaits before `Returns`. Parallel flows start behind one barrier. Their observations are sorted, because which call takes which value of a response sequence depends on timing.
+
+The [invariant checks](../../test/Hardening.Specs/Mocks/Invariants.cs) do not use the model. Each runs a changed sequence that the invariant says must give the same observations:
+
+| Invariant | Check |
+|---|---|
+| Setup and verification do not add received calls | The received calls are the same before and after each setup and check that finishes |
+| Verification does not consume response sequences | Each check runs twice. The second gives the same result, and every other statement gives the same observation |
+| Separate instances do not share configuration or recorded calls | Leaving out every statement on the second root mock changes no observation of the first |
+| Reconfiguration follows the declared precedence rules | Four setups of one call at the end, typed and NSubstitute-style, exact and with wildcards. After each, the call gives that setup's value |
+| Recursive mock identity and depth follow their contracts | Each recursive member reached twice gives the same mock, and the member beyond the depth gives null |
+| Matchers and pending setup state follow the documented async context rules | Child task statements run in this flow, setup awaits removed, blocking and awaiting swapped, abandoned matchers left out, and another flow's statement moved before the whole statement. No observation changes |
+| Exceptions and abandoned setup state do not silently corrupt subsequent operations | Failed checks and abandoned matchers added between statements change no other observation |
+
+[`MockMisuseSpecs`](../../test/Hardening.Specs/Mocks/MockMisuseSpecs.cs) holds the misuse set. Each case states its failure and what the next operation in the flow does. [`MockSchedulingSpecs`](../../test/Hardening.Specs/Mocks/MockSchedulingSpecs.cs) runs 168 interleavings of six statements with sixteen statements of another flow, on the same mock and on the other one.
+
+A mismatch prints the seed, the case and a replay command such as `HARDENING_SEED=20261119 HARDENING_CASES=2000 HARDENING_CASE=57 dotnet test --project test/Hardening.Specs -c Release --vg-filter "name:A_fixed_seed_run_of_mock_sequences_matches_the_reference_model"`. It shrinks with the shrinker step 2 uses, until no op can be dropped, flattened or reduced without losing the mismatch. It prints the shrunk sequence as JSON in the `[Row(...)]` to add to [`MockRegressionSpecs`](../../test/Hardening.Specs/Mocks/MockRegressionSpecs.cs). Two specs break a rule in the model on purpose, the last setup winning and a check leaving sequences alone, and check that each run fails, shrinks to at most three ops and replays.
+
+The fixed-seed run has 2,000 sequences and about 29,000 observations, and takes 0.5 s. All 26 step 3 cases take about 2 s on the development machine. Runs of 20,000 sequences on eight other seeds found one defect. A `Does` callback that wrote the argument of a recursive member changed which mock `MockAdapter.CallMock` returned for those arguments. It is fixed, and a regression row and a behaviour case cover it.
 
 ## Test construction and lifecycle
 
@@ -432,7 +469,6 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | `MOCK-023` | No guide states the outcome, and no test exercises it. | s | 3 |
 | `MOCK-030` | No test checks a sequence after Received, or repeats a check. | s | 3 |
 | `MOCK-035` | No test returns a cancelled task. | xs | 3 |
-| `MOCK-041` | Existing cases use fixed timing. No controlled scheduling, and the legal orderings are not written down. | l | 3 |
 | `MOCK-042` | No test checks the state of the next mock operation after the failure. | s | 3 |
 | `MOCK-045` | No case uses arguments that are equal but not identical, or reconfigures the parent after access. | s | 3 |
 | `MOCK-047` | No test covers either rule. | xs | 3 |

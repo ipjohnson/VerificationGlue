@@ -97,13 +97,15 @@ jobs:
           if-no-files-found: ignore
 
   # Runs the pull request cases of docs/design/hardening.md beside cold-build. The step 2 cases in
-  # test/Hardening.Specs have a 2-minute budget, and the step 4 cases in test/Hardening.Lifecycle.Specs
-  # have a 1-minute budget. A run over its budget still runs every case, then fails and reports the overrun.
+  # test/Hardening.Specs have a 2-minute budget, its step 3 cases, marked [Trait("Step", "3")], have a
+  # 2-minute budget, and the step 4 cases in test/Hardening.Lifecycle.Specs have a 1-minute budget. A
+  # run over its budget still runs every case, then fails and reports the overrun.
   hardening:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       STEP2_BUDGET_SECONDS: 120
+      STEP3_BUDGET_SECONDS: 120
       STEP4_BUDGET_SECONDS: 60
     steps:
       - uses: actions/checkout@v5
@@ -126,7 +128,7 @@ jobs:
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Specs -c Release --no-build || status=$?
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "!trait:Step=3" || status=$?
           elapsed=$(( $(date +%s) - start ))
           if [ -f "$HARDENING_OUTPUT/report.md" ]; then
             cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -134,6 +136,25 @@ jobs:
           echo "The step 2 cases took $elapsed s of their $STEP2_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
           if [ "$elapsed" -gt "$STEP2_BUDGET_SECONDS" ]; then
             echo "::error::The step 2 cases took $elapsed s, over their $STEP2_BUDGET_SECONDS s budget. Every case ran."
+            status=1
+          fi
+          exit $status
+
+      - name: Run the step 3 cases
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          HARDENING_OUTPUT: ${{ github.workspace }}/artifacts/hardening/step3
+        run: |
+          start=$(date +%s)
+          status=0
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=3" || status=$?
+          elapsed=$(( $(date +%s) - start ))
+          if [ -f "$HARDENING_OUTPUT/report.md" ]; then
+            cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "The step 3 cases took $elapsed s of their $STEP3_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$elapsed" -gt "$STEP3_BUDGET_SECONDS" ]; then
+            echo "::error::The step 3 cases took $elapsed s, over their $STEP3_BUDGET_SECONDS s budget. Every case ran."
             status=1
           fi
           exit $status

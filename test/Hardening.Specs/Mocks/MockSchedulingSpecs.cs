@@ -18,7 +18,7 @@ public class MockSchedulingSpecs
             results.Add(await MockCampaign.RunAsync(sequence));
         }
 
-        Assert.True(results.Count > 100, $"{results.Count} interleavings");
+        Assert.Equal(168, results.Count);
         var failures = results.Where(result => !result.Passed).Select(result => $"{result.Detail}\n{result.Sequence}").ToList();
         Assert.True(failures.Count == 0, $"{failures.Count} of {results.Count} interleavings differ from the model:\n\n" + string.Join("\n\n", failures.Take(5)));
     }
