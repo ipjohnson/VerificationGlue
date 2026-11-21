@@ -7,17 +7,11 @@
 
 [![CI](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml)
 
-**Clear expectations. Readable failures.**
+## Verify your code
 
-C# checks, generated mocks, and a test runner built for Native AOT. Use Verify and Mocks with your existing test framework, or run tests with VerificationGlue.Tests on Microsoft.Testing.Platform.
+Write the C# condition you expect to be true. When it fails, see the values that made it fail.
 
-[Documentation site preview](spikes/docs-site/README.md) · [Getting started](docs/guide/getting-started-verify.md) · [Samples](samples) · [Diagnostics](docs/diagnostics)
-
-> **Preview packages:** all four packages are previews. VerificationGlue.Tests builds against the MTP 3 preview and needs the feed and runner settings in its [setup guide](docs/guide/getting-started-tests.md).
-
-## See what failed
-
-When `Verify(() => order.Total == 30)` fails, the message names the condition, the value of each part, and the source location:
+Call `Verify(() => order.Total == 30)` on an order with a total of 40 and you get:
 
 ```text
 Verify failed: order.Total == 30
@@ -26,7 +20,47 @@ Verify failed: order.Total == 30
   at OrderTests.cs:51
 ```
 
-The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The same source information is available under Native AOT. [Read the failure message guide](docs/guide/getting-started-verify.md#read-a-failure).
+Use Verify in your existing test framework. The failure message also includes source information under Native AOT. [Write your first check](docs/guide/getting-started-verify.md) · [Read a failure message](docs/guide/messages.md)
+
+## Mock a dependency. Control what happens.
+
+An order needs a timestamp. Create a clock with `var clock = Mock.Of<IClock>();` and set the time it reports with `clock.Now.Returns(now);`. Every read of `clock.Now` returns the instant you chose.
+
+[Set up a generated mock](docs/guide/getting-started-mocks.md)
+
+## Test with your container
+
+How do you give that clock to an order service? Mark the test class with `[Container<ShopBootstrap>]` and give the test two parameters, `OrderService orders` and `[Mock] IClock clock`. The runner registers the mock before resolving the service. Set the clock, create an order, and the order carries the time you chose.
+
+[See the container and test together](docs/guide/containers-and-scopes.md#replace-a-service-with-a-mock)
+
+## Launch your app in a test
+
+Send the order through your ASP.NET Core endpoint. Each test starts its own app, and the endpoint receives the same clock the test controls.
+
+<!-- snippet: first-app-test -->
+<a id='snippet-first-app-test'></a>
+```cs
+[WebApp<ShopApiEntry>]
+public partial class OrderTests
+{
+    [VerifyTest]
+    public async Task Post_stamps_the_order_with_the_clock(HttpClient client, [Mock] IClock clock)
+    {
+        clock.Now.Returns(new DateTime(2026, 11, 17));
+
+        var response = await client.PostAsJsonAsync("/orders", new CreateOrder(2));
+        var order = await response.Content.ReadFromJsonAsync<Order>();
+
+        Verify(response.IsSuccessStatusCode);
+        Verify(order!.Created == new DateTime(2026, 11, 17));
+    }
+}
+```
+<sup><a href='/samples/TestsAspNetCore/OrderTests.cs#L10-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-app-test' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+[Test your first endpoint](docs/guide/getting-started-aspnetcore.md)
 
 ## Choose your starting point
 
@@ -39,106 +73,7 @@ The [xunit sample](samples/VerifyInXunit/OrderTests.cs) checks this message. The
 
 Verify and Mocks work with xunit, NUnit, MSTest, and TUnit. The Tests package includes both and runs on Microsoft.Testing.Platform.
 
-`VerificationGlue.Tests.AspNetCore` starts each app on TestServer at test scope. Its other phases are in [its design](docs/design/aspnet.md).
-
-## Write expectations in C#
-
-Import `VerificationGlue.VerifySyntax` with `using static`, then write a condition as a lambda:
-
-<!-- snippet: verify-in-xunit -->
-<a id='snippet-verify-in-xunit'></a>
-```cs
-[Fact]
-public async Task Checkout_reports_an_empty_cart()
-{
-    var order = new Order(Id: 7, Total: 40);
-    Verify(() => order.Total == 40);
-    Verify(order.Id > 0, $"order {order.Id} has no id");
-
-    var error = Throws<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(() => error.Message == "The cart is empty.");
-
-    var exact = ThrowsExactly<InvalidOperationException>(() => new Cart().Checkout());
-    Verify(() => exact.Message == "The cart is empty.");
-
-    var timeout = await ThrowsAsync<TimeoutException>(() => new Client().GetAsync("/orders/7"));
-    Verify(() => timeout.Message.Contains("/orders/7"));
-}
-```
-<sup><a href='/samples/VerifyInXunit/OrderTests.cs#L10-L27' title='Snippet source file'>snippet source</a> | <a href='#snippet-verify-in-xunit' title='Start of snippet'>anchor</a></sup>
-<!-- endSnippet -->
-
-Keep `Verify(condition)` without a lambda when the condition uses `await`, reads a `Span<T>`, or checks for null a value that the next lines use. A message such as `$"order {order.Id} has no id"` also needs `Verify(condition, $"...")`. Analyzer [VG0009](docs/diagnostics/VG0009.md) suggests the lambda form everywhere else in a test.
-
-[Install and use Verify](docs/guide/getting-started-verify.md) · [Collect failures with Check](docs/guide/check.md) · [Understand failure messages](docs/guide/messages.md)
-
-<details>
-<summary><strong>Set up dependencies with generated mocks</strong></summary>
-
-Use the typed `Setup()` surface to configure behavior and `Calls()` to check how a mock was used:
-
-<!-- snippet: mocks-style-typed -->
-<a id='snippet-mocks-style-typed'></a>
-```cs
-var calc = Mock.Of<ICalculator>();
-calc.Setup().Add(1, Arg<int>.Any()).Returns(3);
-calc.Setup().Divide(Arg<int>.Any(), 0).Throws(new DivideByZeroException());
-calc.Setup().Mode.Returns(Mode.Scientific);
-
-var sum = calc.Add(1, 2);
-
-Verify(calc.Calls().Add(1, 2) == 1);
-Verify(calc.Calls().Reset() == 0);
-```
-<sup><a href='/samples/MocksGuide/SetupStyles.cs#L31-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-mocks-style-typed' title='Start of snippet'>anchor</a></sup>
-<!-- endSnippet -->
-
-[Get started with Mocks](docs/guide/getting-started-mocks.md) · [Choose a setup style](docs/guide/choose-a-setup-style.md)
-
-</details>
-
-<details>
-<summary><strong>Run tests registered at build time</strong></summary>
-
-Mark methods with `[VerifyTest]` in a partial class. Run them with `dotnet test` or `dotnet run`:
-
-<!-- snippet: first-verify-tests -->
-<a id='snippet-first-verify-tests'></a>
-```cs
-public partial class CartTests
-{
-    [VerifyTest]
-    public void Total_adds_the_line_prices()
-    {
-        var prices = Mock.Of<IPrices>();
-        prices.PriceOf("apple").Returns(3);
-        prices.PriceOf("pear").Returns(4);
-        var cart = new Cart(prices);
-
-        cart.Add("apple", 2);
-        cart.Add("pear", 1);
-
-        Verify(cart.Total == 10);
-    }
-
-    [VerifyTest]
-    public async Task Checkout_empties_the_cart(CancellationToken cancellationToken)
-    {
-        var cart = new Cart(Mock.Of<IPrices>());
-        cart.Add("apple", 1);
-
-        await cart.CheckoutAsync(cancellationToken);
-
-        Verify(cart.Total == 0);
-    }
-}
-```
-<sup><a href='/samples/TestsGettingStarted/CartTests.cs#L27-L55' title='Snippet source file'>snippet source</a> | <a href='#snippet-first-verify-tests' title='Start of snippet'>anchor</a></sup>
-<!-- endSnippet -->
-
-[Get started with Tests](docs/guide/getting-started-tests.md) · [Run tests under Native AOT](docs/guide/run-tests-under-native-aot.md) · [Set up CI with TRX and retries](docs/guide/ci-setup-with-trx-and-retries.md)
-
-</details>
+> **Preview packages:** all four packages are previews. VerificationGlue.Tests builds against the MTP 3 preview and needs the feed and runner settings in its [setup guide](docs/guide/getting-started-tests.md).
 
 ## Bring your existing tests
 
