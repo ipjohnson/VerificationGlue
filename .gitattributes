@@ -1,0 +1,4 @@
+# Every checkout gets LF line endings. The specs compare messages and generated code with raw string
+# literals and snapshots, the interceptor locations hash the source bytes, and Bash cannot run a script
+# with CRLF line endings.
+* text=auto eol=lf

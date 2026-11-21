@@ -1,0 +1,64 @@
+name: Release candidate matrix
+
+# The macOS arm64 and Windows x64 rows of the supported matrix in docs/design/hardening.md, which join for
+# release candidates. ci.yml runs Linux x64. The matrix has no Native AOT on these platforms, so the packed
+# consumer runs on the JIT. release.yml calls this workflow before it publishes.
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release-candidate.yml
+      - eng/pack-and-consume.sh
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  platform:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-arm64
+            runner: macos-latest
+          - os: windows-x64
+            runner: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Record the platform
+        run: |
+          echo "Release candidate matrix on ${{ matrix.os }}: $(uname -sm), .NET SDK $(dotnet --version)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build
+        run: dotnet build VerificationGlue.slnx -c Release
+
+      - name: Run specs
+        run: dotnet test --solution VerificationGlue.slnx -c Release --no-build
+
+      - name: Run the conformance suites on xunit v3
+        run: |
+          for suite in VerificationGlue.Specs VerificationGlue.Generator.Specs VerificationGlue.Mocks.Specs \
+                       VerificationGlue.Mocks.Generator.Specs NSubstituteComparison.Specs; do
+            dotnet test --project "test/$suite" -c Release -p:SpecsRunner=xunit
+          done
+
+      - name: Pack, consume and check version mismatch on the JIT
+        env:
+          NATIVE_AOT: false
+        run: eng/pack-and-consume.sh --no-build

@@ -299,6 +299,14 @@ Run the framework hooks in actual xunit, NUnit, MSTest, and TUnit projects. Incl
 
 Run representative scenarios from packed packages, not only project references. Include generator discovery, build properties, version mismatch diagnostics, trimming, and Native AOT where supported. Record SDK, framework, operating system, and architecture in the compatibility matrix. Step 1 defines the supported matrix. An untested platform is not a release guarantee.
 
+#### The release candidate matrix as built
+
+[`release-candidate.yml`](../../.github/workflows/release-candidate.yml) runs on `macos-latest`, which is arm64, and on `windows-latest`, which is x64. Each job builds `VerificationGlue.slnx`, runs the specs and the xunit v3 conformance suites, and runs `eng/pack-and-consume.sh` with `NATIVE_AOT=false`. The [supported matrix](#supported-matrix) has Native AOT on linux-x64 only, so the script skips each Native AOT publish and runs the packed samples on the JIT. `release.yml` calls the workflow, and its release job waits for it. A pull request that changes the workflow or the script also runs it.
+
+The first run, on draft pull request [#178](https://github.com/ipjohnson/VerificationGlue/pull/178), passed on macOS arm64 and failed 24 of 1,119 specs on Windows x64. Each failure came from the runner's checkout, which turned every LF into CRLF. Raw string literals with expected messages held carriage returns. The snapshot interceptor locations hashed different source bytes. A verbatim literal over two lines held `\r\n`, and the text that `MUT-05` and `MUT-06` replace no longer matched. The failures were fixed, so no issue or skipped case was needed. [`.gitattributes`](../../.gitattributes) now gives every checkout LF line endings, and renormalizing the repository changed no file. The second run, at commit `259570d`, passed on both platforms. Each ran 1,119 specs, the five xunit v3 suites with 606 cases, and `eng/pack-and-consume.sh` to `pack-and-consume: passed`. The images were `macos-26-arm64` and `windows-2025-vs2026`.
+
+The specs build the repository's own LF sources, so the matrix does not check a consumer whose sources have CRLF line endings on Windows.
+
 ## Interaction coverage
 
 Use exhaustive cases for small truth tables and boundary rules. Use pairwise coverage for the larger configuration matrix: every valid pair of factor values must occur in a selected case. Record exclusions and their reasons.
@@ -532,7 +540,7 @@ Each decision settles an observable behavior that no guide or design states. Its
 | SDK | .NET SDK 10.0.403 and later 10.0.4xx patches, from `global.json` | CI and local |
 | Framework | `net10.0` for `VerificationGlue`, `VerificationGlue.Mocks` and `VerificationGlue.Tests`. The generators target `netstandard2.0` and need the Roslyn 4.14 compiler of that SDK. | CI and local |
 | Test hosts | xunit.v3 4.0.3, NUnit 4.6.1, MSTest 4.5.3, TUnit 1.85.0, and Microsoft.Testing.Platform 3.0.0-preview.26566.9 for `VerificationGlue.Tests` | CI |
-| OS and architecture | Linux x64 as the release guarantee. macOS arm64 and Windows x64 join the release candidate matrix in step 5. | Linux x64 in CI. macOS arm64 on the development machine only. Windows x64 never. |
+| OS and architecture | Linux x64 as the release guarantee. macOS arm64 and Windows x64 join the release candidate matrix in step 5. | Linux x64 in CI. Since step 5, macOS arm64 and Windows x64 in the release candidate matrix. |
 | Native AOT | linux-x64 | CI, through `eng/pack-and-consume.sh` |
 
 An earlier .NET version, .NET Framework and an IDE's debugger are outside the matrix. `docs/research/ide-report.md` records the IDE state.
@@ -587,9 +595,10 @@ The completion criteria name two defects that block completion: a change to norm
 
 Sizes: xs is one case in an existing spec. s is a few cases or one fixture test. m is a new spec class or fixture scenario. l is a new harness component.
 
+Every gap is closed. `PKG-006`, the last one, closed when the [release candidate matrix](#the-release-candidate-matrix-as-built) ran on macOS arm64 and Windows x64.
+
 | Scenario ID | Missing | Size | Step |
 |---|---|---|---|
-| `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
 
 ### Gate approval
 
