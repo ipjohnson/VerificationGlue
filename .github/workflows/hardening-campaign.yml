@@ -1,10 +1,17 @@
 name: Hardening campaign
 
-# The scheduled campaign of docs/design/hardening.md, kept out of the pull request run. It starts only by
-# hand until the campaign has a named triage owner and a destination for its failures, which the doc
-# requires before it gets a schedule.
+# The scheduled campaign of docs/design/hardening.md, kept out of the pull request run.
+# docs/design/hardening-campaign.json holds its case counts, its limits, its triage owner and the label of
+# its failure issues.
 on:
+  schedule:
+    - cron: "0 4 * * 1"
   workflow_dispatch:
+    inputs:
+      seed:
+        description: The seed of the generators. Leave it empty for the UTC date, such as 20261123.
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -14,12 +21,12 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  # Applies each mutation of docs/design/hardening-mutations.json alone to a copy of the repository and runs
-  # the suite against it. Fails when the suite fails without a mutation, when a mutation cannot be applied
-  # or built, or when a result does not match the mutation's recorded explanation.
-  mutations:
+  # Runs each generator of test/Hardening.Specs with its campaign case count and the seed, then each mutation
+  # of docs/design/hardening-mutations.json. Each run stops at its limit, and a run over its limit reports the
+  # overrun and incomplete coverage. Fails when a run failed or did not finish.
+  campaign:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v5
 
@@ -30,21 +37,81 @@ jobs:
       - name: Install Native AOT prerequisites
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
-      - name: Run the targeted mutations
-        run: dotnet run --project test/Hardening.Mutations -c Release -- --output artifacts/mutations
+      - name: Run the campaign
+        env:
+          SEED: ${{ inputs.seed }}
+        run: dotnet run --project test/Hardening.Campaign -c Release -- --output artifacts/campaign ${SEED:+--seed "$SEED"}
 
       - name: Add the report to the job summary
         if: always()
         run: |
-          if [ -f artifacts/mutations/mutations.md ]; then
-            cat artifacts/mutations/mutations.md >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for report in artifacts/campaign/campaign.md artifacts/campaign/mutations/mutations.md; do
+            if [ -f "$report" ]; then
+              cat "$report" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
       - name: Upload the report
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: mutations
-          path: artifacts/mutations/
+          name: hardening-campaign
+          path: artifacts/campaign/
           retention-days: 30
           if-no-files-found: ignore
+
+  # Opens an issue for each entry of issues.json, labelled and assigned as hardening-campaign.json says, or
+  # comments on the open issue with the same title. A campaign job that failed without writing issues.json
+  # gets one issue that links the run.
+  triage:
+    needs: campaign
+    if: ${{ always() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download the report
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: hardening-campaign
+          path: artifacts/campaign
+
+      - name: File the failures for the triage owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CAMPAIGN_RESULT: ${{ needs.campaign.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          config=docs/design/hardening-campaign.json
+          owner=$(jq -r .owner "$config")
+          label=$(jq -r .label "$config")
+          issues=artifacts/campaign/issues.json
+          if [ ! -f "$issues" ]; then
+            if [ "$CAMPAIGN_RESULT" = success ]; then
+              exit 0
+            fi
+            issues="$RUNNER_TEMP/issues.json"
+            jq -n --arg result "$CAMPAIGN_RESULT" --arg url "$RUN_URL" --arg owner "$owner" \
+              '[{title: "Hardening campaign: the run wrote no issues.json", body: "The campaign job ended with the result \($result) and wrote no issues.json, so its failures are unknown. \($owner) triages it from the workflow run, \($url)."}]' \
+              > "$issues"
+          fi
+          gh label create "$label" --description "A failure of the scheduled hardening campaign" --color B60205 --force
+          open=$(gh issue list --label "$label" --state open --limit 500 --json number,title)
+          count=$(jq length "$issues")
+          for i in $(seq 0 $((count - 1))); do
+            title=$(jq -r ".[$i].title" "$issues")
+            jq -r ".[$i].body" "$issues" > "$RUNNER_TEMP/body.md"
+            number=$(jq -r --arg title "$title" 'map(select(.title == $title)) | first | .number // empty' <<< "$open")
+            if [ -n "$number" ]; then
+              gh issue comment "$number" --body-file "$RUNNER_TEMP/body.md"
+              echo "Commented on #$number: $title"
+            else
+              gh issue create --title "$title" --label "$label" --assignee "$owner" --body-file "$RUNNER_TEMP/body.md"
+            fi
+          done

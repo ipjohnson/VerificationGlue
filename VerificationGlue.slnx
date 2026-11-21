@@ -52,6 +52,7 @@
     <Project Path="test/Generator.Harness/Generator.Harness.csproj" />
     <Project Path="test/Generator.Harness.Sample/Generator.Harness.Sample.csproj" />
     <Project Path="test/Generator.Harness.Specs/Generator.Harness.Specs.csproj" />
+    <Project Path="test/Hardening.Campaign/Hardening.Campaign.csproj" />
     <Project Path="test/Hardening.Mutations/Hardening.Mutations.csproj" />
     <Project Path="test/Hardening.Reports/Hardening.Reports.csproj" />
     <Project Path="test/Inventory.Specs/Inventory.Specs.csproj" />

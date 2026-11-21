@@ -1,0 +1,28 @@
+{
+  "owner": "ipjohnson",
+  "label": "hardening-campaign",
+  "retentionDays": 30,
+  "generators": [
+    {
+      "name": "expressions",
+      "test": "A_fixed_seed_run_keeps_plain_CSharp_behavior",
+      "cases": 3000,
+      "limitMinutes": 30
+    },
+    {
+      "name": "mock-sequences",
+      "test": "A_fixed_seed_run_of_mock_sequences_matches_the_reference_model",
+      "cases": 100000,
+      "limitMinutes": 15
+    },
+    {
+      "name": "mock-invariants",
+      "test": "Each_mock_invariant_holds_on_a_fixed_seed_run",
+      "cases": 20000,
+      "limitMinutes": 15
+    }
+  ],
+  "mutations": {
+    "limitMinutes": 60
+  }
+}
