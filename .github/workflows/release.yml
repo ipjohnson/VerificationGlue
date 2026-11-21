@@ -21,7 +21,12 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  # The release candidate matrix on macOS arm64 and Windows x64. The release job checks the packages on Linux x64.
+  platforms:
+    uses: ./.github/workflows/release-candidate.yml
+
   release:
+    needs: platforms
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

@@ -1824,9 +1824,8 @@
       "contract": "The packages work on each SDK, framework, OS and architecture in the supported matrix.",
       "source": "docs/design/hardening.md#framework-and-package-consumers",
       "support": "supported",
-      "constraints": "CI runs ubuntu-latest x64 with SDK 10.0.403 and net10.0 only.",
-      "evidence": ["eng/pack-and-consume.sh"],
-      "gap": { "size": "m", "step": 5, "missing": "Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run." }
+      "constraints": "Each pull request runs ubuntu-latest x64 with SDK 10.0.403 and net10.0, with Native AOT. The release candidate matrix runs macOS arm64 and Windows x64 on the JIT before each release, because the supported matrix has Native AOT on linux-x64 only.",
+      "evidence": ["eng/pack-and-consume.sh", ".github/workflows/release-candidate.yml"]
     },
     {
       "id": "MIX-001",

@@ -11,12 +11,20 @@
 #      warnings as errors and runs. It checks that each message has its shape, file and line, at tier 2
 #      and, for its [Verify] methods, at tier 3. The JIT build then runs the same checks;
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
-#      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface;
+#      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface.
+#      The JIT build then runs the same checks;
 #   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
 # Extra arguments are passed to dotnet pack, for example -p:VersionSuffix=ci.42 or --no-build.
+# NATIVE_AOT=false skips each Native AOT publish and run, for a platform where the supported matrix in
+# docs/design/hardening.md has no Native AOT. The JIT builds still run.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+# Git Bash on Windows gives /d/a/... paths, which dotnet and NuGet.config do not read.
+if command -v cygpath > /dev/null; then root="$(cygpath -m "$root")"; fi
+native_aot="${NATIVE_AOT:-true}"
+python=python3
+command -v python3 > /dev/null || python=python
 configuration="${CONFIGURATION:-Release}"
 work="$root/artifacts/pack-and-consume"
 feed="$work/feed"
@@ -129,12 +137,12 @@ write_sample() {
 CONFIG
 }
 
-now_ms() { python3 -I -c 'import time; print(int(time.time() * 1000))'; }
+now_ms() { "$python" -I -c 'import time; print(int(time.time() * 1000))'; }
 
 echo "== Consume as a test project without the global.json runner setting"
 sample="$work/sample"
 write_sample "$sample"
-python3 -I -c 'import json, sys; g = json.load(open(sys.argv[1])); g.pop("test", None); json.dump(g, open(sys.argv[2], "w"), indent=2)' \
+"$python" -I -c 'import json, sys; g = json.load(open(sys.argv[1])); g.pop("test", None); json.dump(g, open(sys.argv[2], "w"), indent=2)' \
   "$root/global.json" "$sample/global.json"
 grep -q '"runner"' "$sample/global.json" && fail "the sample's global.json still selects a test runner"
 mtp_version="$(sed -n 's/.*Include="Microsoft.Testing.Platform" Version="\([^"]*\)".*/\1/p' "$root/Directory.Packages.props")"
@@ -143,9 +151,11 @@ grep -q "Include=\"Microsoft.Testing.Extensions.TrxReport\" Version=\"$mtp_versi
 
 cd "$sample"
 # The publish comes first, because it restores for the runtime identifier and a later restore without one keeps working.
-dotnet publish PackageConsumer.csproj -c Release -warnaserror -p:VerificationGlueVersion="$version" -o "$sample/publish"
-[ -x "$sample/publish/PackageConsumer" ] || [ -f "$sample/publish/PackageConsumer.exe" ] \
-  || fail "the Native AOT publish produced no executable"
+if [ "$native_aot" = true ]; then
+  dotnet publish PackageConsumer.csproj -c Release -warnaserror -p:VerificationGlueVersion="$version" -o "$sample/publish"
+  [ -x "$sample/publish/PackageConsumer" ] || [ -f "$sample/publish/PackageConsumer.exe" ] \
+    || fail "the Native AOT publish produced no executable"
+fi
 dotnet build PackageConsumer.csproj -c Release -warnaserror -p:VerificationGlueVersion="$version"
 dotnet run --project PackageConsumer.csproj -c Release --no-build --property:VerificationGlueVersion="$version"
 
@@ -158,52 +168,60 @@ echo "$output"
 echo "$output" | grep -q "error VGT1001" || fail "dotnet test without the runner setting failed, but not with VGT1001"
 echo "dotnet test without the runner setting failed with VGT1001"
 
-echo "== Run the tests under Native AOT"
-"$sample/publish/PackageConsumer" || fail "the tests failed under Native AOT"
-"$sample/publish/PackageConsumer" --list-tests | grep -q "found 7 test(s)" || fail "the Native AOT binary did not list 7 tests"
-"$sample/publish/PackageConsumer" --filter-uid "PackageConsumer.AotTests.Runs_a_test()" | grep -q "total: 1" \
-  || fail "--filter-uid did not select exactly one test under Native AOT"
-"$sample/publish/PackageConsumer" --report-trx --report-trx-filename aot.trx --results-directory "$sample/results" > /dev/null
-[ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "7" ] \
-  || fail "the TRX report from the Native AOT binary does not show 7 passed tests"
+if [ "$native_aot" = true ]; then
+  echo "== Run the tests under Native AOT"
+  "$sample/publish/PackageConsumer" || fail "the tests failed under Native AOT"
+  "$sample/publish/PackageConsumer" --list-tests | grep -q "found 7 test(s)" || fail "the Native AOT binary did not list 7 tests"
+  "$sample/publish/PackageConsumer" --filter-uid "PackageConsumer.AotTests.Runs_a_test()" | grep -q "total: 1" \
+    || fail "--filter-uid did not select exactly one test under Native AOT"
+  "$sample/publish/PackageConsumer" --report-trx --report-trx-filename aot.trx --results-directory "$sample/results" > /dev/null
+  [ "$(grep -o 'outcome="Passed"' "$sample/results/aot.trx" | wc -l | tr -d ' ')" = "7" ] \
+    || fail "the TRX report from the Native AOT binary does not show 7 passed tests"
 
-# Timed after the runs above, so the first launch of each binary is not part of the figure.
-"$sample/bin/Release/net10.0/PackageConsumer" > /dev/null || fail "the tests failed before the Native AOT publish"
-jit_start="$(now_ms)"
-"$sample/bin/Release/net10.0/PackageConsumer" > /dev/null
-jit_ms=$(( $(now_ms) - jit_start ))
-aot_start="$(now_ms)"
-"$sample/publish/PackageConsumer" > /dev/null
-aot_ms=$(( $(now_ms) - aot_start ))
+  # Timed after the runs above, so the first launch of each binary is not part of the figure.
+  "$sample/bin/Release/net10.0/PackageConsumer" > /dev/null || fail "the tests failed before the Native AOT publish"
+  jit_start="$(now_ms)"
+  "$sample/bin/Release/net10.0/PackageConsumer" > /dev/null
+  jit_ms=$(( $(now_ms) - jit_start ))
+  aot_start="$(now_ms)"
+  "$sample/publish/PackageConsumer" > /dev/null
+  aot_ms=$(( $(now_ms) - aot_start ))
 
-summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 7 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
-echo "$summary"
-if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
+  summary="Native AOT test run of samples/PackageConsumer: ${aot_ms} ms for 7 tests, from process start to exit. The same tests on the JIT took ${jit_ms} ms."
+  echo "$summary"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then echo "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
+fi
 
 echo "== dotnet test with the runner setting"
 cp "$root/global.json" "$sample/global.json"
 dotnet test --project PackageConsumer.csproj -c Release --no-build -p:VerificationGlueVersion="$version"
 cd "$root"
 
-echo "== Verify messages under Native AOT"
+echo "== Verify messages"
 aot="$work/verify-aot"
 write_sample "$aot" VerifyAot
-dotnet publish "$aot/VerifyAot.csproj" -c Release -warnaserror \
-  -p:VerificationGlueVersion="$version" -o "$aot/publish"
-[ -x "$aot/publish/VerifyAot" ] || [ -f "$aot/publish/VerifyAot.exe" ] \
-  || fail "the Native AOT publish of VerifyAot produced no executable"
-"$aot/publish/VerifyAot" || fail "VerifyAot reported a wrong message under Native AOT"
+if [ "$native_aot" = true ]; then
+  dotnet publish "$aot/VerifyAot.csproj" -c Release -warnaserror \
+    -p:VerificationGlueVersion="$version" -o "$aot/publish"
+  [ -x "$aot/publish/VerifyAot" ] || [ -f "$aot/publish/VerifyAot.exe" ] \
+    || fail "the Native AOT publish of VerifyAot produced no executable"
+  "$aot/publish/VerifyAot" || fail "VerifyAot reported a wrong message under Native AOT"
+fi
 dotnet build "$aot/VerifyAot.csproj" -c Release -warnaserror -p:VerificationGlueVersion="$version"
 "$aot/bin/Release/net10.0/VerifyAot" || fail "VerifyAot reported a wrong message on the JIT"
 
-echo "== Mocks under Native AOT"
+echo "== Mocks"
 mocks="$work/mocks-aot"
 write_sample "$mocks" MocksAot
-dotnet publish "$mocks/MocksAot.csproj" -c Release -warnaserror \
-  -p:VerificationGlueVersion="$version" -o "$mocks/publish"
-[ -x "$mocks/publish/MocksAot" ] || [ -f "$mocks/publish/MocksAot.exe" ] \
-  || fail "the Native AOT publish of MocksAot produced no executable"
-"$mocks/publish/MocksAot" || fail "MocksAot found a mock feature that misbehaves under Native AOT"
+if [ "$native_aot" = true ]; then
+  dotnet publish "$mocks/MocksAot.csproj" -c Release -warnaserror \
+    -p:VerificationGlueVersion="$version" -o "$mocks/publish"
+  [ -x "$mocks/publish/MocksAot" ] || [ -f "$mocks/publish/MocksAot.exe" ] \
+    || fail "the Native AOT publish of MocksAot produced no executable"
+  "$mocks/publish/MocksAot" || fail "MocksAot found a mock feature that misbehaves under Native AOT"
+fi
+dotnet build "$mocks/MocksAot.csproj" -c Release -warnaserror -p:VerificationGlueVersion="$version"
+"$mocks/bin/Release/net10.0/MocksAot" || fail "MocksAot found a mock feature that misbehaves on the JIT"
 
 echo "== Mismatched VerificationGlue version"
 # A separate artifacts path keeps this build from overwriting src/VerificationGlue/bin.
