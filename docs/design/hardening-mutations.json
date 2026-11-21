@@ -1,0 +1,52 @@
+{
+  "mutations": [
+    {
+      "id": "MUT-01",
+      "kind": "Evaluate a skipped operand",
+      "change": "The tier 3 copy writes & for && and the or operator that does not short-circuit for the one that does, so the right operand runs when the left one decides the result.",
+      "file": "src/VerificationGlue.Generator/ConditionRewriter.cs",
+      "find": "return left.Text + \" \" + binary.OperatorToken.Text + \" \" + Visit(binary.Right, rightGuard, capture: true).Text;",
+      "replace": "return left.Text + (binary.IsKind(SyntaxKind.LogicalOrExpression) ? \" | \" : \" & \") + Visit(binary.Right, rightGuard, capture: true).Text;"
+    },
+    {
+      "id": "MUT-02",
+      "kind": "Record setup as a call",
+      "change": "Returns and Throws leave the mock call they configure in the received calls.",
+      "file": "src/VerificationGlue.Mocks/MockAdapter.cs",
+      "find": "_calls.Remove(setupCall);",
+      "replace": "_ = setupCall;"
+    },
+    {
+      "id": "MUT-03",
+      "kind": "Reverse setup precedence",
+      "change": "A call takes the first matching response instead of the last.",
+      "file": "src/VerificationGlue.Mocks/MockAdapter.cs",
+      "find": "for (var i = _responses.Count - 1; i >= 0; i--)",
+      "replace": "for (var i = 0; i < _responses.Count; i++)"
+    },
+    {
+      "id": "MUT-04",
+      "kind": "Consume a response during verification",
+      "change": "A Received or DidNotReceive check also runs the matching response, so a Returns sequence advances and a Returns factory runs.",
+      "file": "src/VerificationGlue.Mocks/MockAdapter.cs",
+      "find": "Check(spec, pending.Min, pending.Max);",
+      "replace": "Check(spec, pending.Min, pending.Max);\n            var checkedCall = new CallRecord(memberId, name, typeArguments ?? Type.EmptyTypes, (object?[])arguments.Clone());\n            Func<CallInfo, object?>? consumed = null;\n            lock (_gate)\n            {\n                for (var i = _responses.Count - 1; i >= 0; i--)\n                {\n                    if (_responses[i].Spec.Matches(checkedCall))\n                    {\n                        consumed = _responses[i].Response;\n                        break;\n                    }\n                }\n            }\n\n            try\n            {\n                consumed?.Invoke(new CallInfo(arguments, typeArguments));\n            }\n            catch (Exception)\n            {\n            }"
+    },
+    {
+      "id": "MUT-05",
+      "kind": "Skip a cleanup stage",
+      "change": "The runner does not dispose a test's own container.",
+      "file": "src/VerificationGlue.Tests/TestRunner.cs",
+      "find": "        if (container is not null)\n        {\n            await DisposeAsync(container, failures);\n        }\n\n",
+      "replace": ""
+    },
+    {
+      "id": "MUT-06",
+      "kind": "Skip a cleanup stage",
+      "change": "The runner does not end a test's VerifyScope, so the test's Check failures are dropped.",
+      "file": "src/VerificationGlue.Tests/TestRunner.cs",
+      "find": "        try\n        {\n            checks.Dispose();\n        }\n        catch (VerifyException failure)\n        {\n            failures.Add(failure);\n        }\n\n",
+      "replace": ""
+    }
+  ]
+}

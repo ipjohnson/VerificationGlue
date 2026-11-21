@@ -2,5 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../Hardening.Reports/Hardening.Reports.csproj" />
     <Using Include="Hardening.Reports" />
+    <ProjectReference Include="../Hardening.Mutations/Hardening.Mutations.csproj" />
+    <Using Include="Hardening.Mutations" />
   </ItemGroup>
 </Project>

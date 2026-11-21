@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Applies each targeted mutation of docs/design/hardening-mutations.json to a copy of the repository and
+    runs the suite against it. docs/design/hardening.md, Targeted mutations, describes the run.
+    test/Inventory.Specs holds its specs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Hardening.Reports/Hardening.Reports.csproj" />
+  </ItemGroup>
+</Project>
