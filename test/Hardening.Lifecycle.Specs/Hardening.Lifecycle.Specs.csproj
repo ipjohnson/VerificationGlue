@@ -6,6 +6,7 @@
     .github/workflows/ci.yml runs it.
   -->
   <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
     <AssemblyMetadata Include="VerificationGlue.Configuration" Value="$(Configuration)" />
   </ItemGroup>
 </Project>

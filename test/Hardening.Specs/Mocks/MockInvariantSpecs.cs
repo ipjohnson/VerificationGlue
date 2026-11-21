@@ -22,6 +22,7 @@ public class MockInvariantSpecs
     public async Task Each_mock_invariant_holds_on_a_fixed_seed_run(string invariant)
     {
         var settings = CampaignSettings.FromEnvironment(DefaultCases, SpecName);
+        settings.RecordSeed();
         var check = Invariants.All.Single(entry => entry.Name == invariant).Check;
         var failures = new List<string>();
         var comparisons = 0;

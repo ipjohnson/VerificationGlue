@@ -1,10 +1,10 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Inventory.Specs;
+namespace Hardening.Reports;
 
 // Finds a test method from a reference such as path/File.cs#Outer.Inner.Method.
-internal sealed class TestMethodIndex(string repositoryRoot)
+public sealed class TestMethodIndex(string repositoryRoot)
 {
     private static readonly HashSet<string> TestAttributes =
         ["Fact", "Theory", "Test", "TestMethod", "DataTestMethod", "TestCase", "VerifyTest", "Case"];
@@ -22,16 +22,9 @@ internal sealed class TestMethodIndex(string repositoryRoot)
 
         var type = member[..dot];
         var method = member[(dot + 1)..];
-        var full = Path.Combine(repositoryRoot, path);
-        if (!File.Exists(full))
+        if (Unit(path) is not { } unit)
         {
             return $"the file {path} does not exist";
-        }
-
-        if (!files.TryGetValue(path, out var unit))
-        {
-            unit = CSharpSyntaxTree.ParseText(File.ReadAllText(full)).GetCompilationUnitRoot();
-            files[path] = unit;
         }
 
         var types = unit.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(t => NestedName(t) == type).ToList();
@@ -50,6 +43,33 @@ internal sealed class TestMethodIndex(string repositoryRoot)
         }
 
         return methods.Any(IsTest) ? null : $"{type}.{method} in {path} has no test attribute";
+    }
+
+    // The test methods of the types a file declares, each as Type.Method.
+    public IReadOnlyList<string> Tests(string path) =>
+        Unit(path) is { } unit
+            ? [.. unit.DescendantNodes()
+                .OfType<TypeDeclarationSyntax>()
+                .SelectMany(type => type.Members.OfType<MethodDeclarationSyntax>().Where(IsTest).Select(method => $"{NestedName(type)}.{method.Identifier.Text}"))
+                .Distinct()]
+            : [];
+
+    private CompilationUnitSyntax? Unit(string path)
+    {
+        if (files.TryGetValue(path, out var unit))
+        {
+            return unit;
+        }
+
+        var full = Path.Combine(repositoryRoot, path);
+        if (!File.Exists(full))
+        {
+            return null;
+        }
+
+        unit = CSharpSyntaxTree.ParseText(File.ReadAllText(full)).GetCompilationUnitRoot();
+        files[path] = unit;
+        return unit;
     }
 
     private static string NestedName(TypeDeclarationSyntax type)

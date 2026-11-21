@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <ProjectReference Include="../Hardening.Reports/Hardening.Reports.csproj" />
+    <Using Include="Hardening.Reports" />
   </ItemGroup>
 </Project>

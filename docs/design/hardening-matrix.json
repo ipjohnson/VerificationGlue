@@ -1,0 +1,31 @@
+{
+  "factors": [
+    { "name": "os", "values": ["linux-x64", "macos-arm64", "windows-x64"] },
+    { "name": "runtime", "values": ["jit", "native-aot"] },
+    { "name": "consumption", "values": ["project-reference", "package"] },
+    { "name": "host", "values": ["none", "VerificationGlue.Tests", "xunit.v3", "NUnit", "MSTest", "TUnit"] },
+    { "name": "tier", "values": ["1", "2", "3"] }
+  ],
+  "exclusions": [
+    { "pair": ["os=macos-arm64", "runtime=native-aot"], "reason": "The supported matrix has Native AOT on linux-x64 only." },
+    { "pair": ["os=windows-x64", "runtime=native-aot"], "reason": "The supported matrix has Native AOT on linux-x64 only." },
+    { "pair": ["runtime=native-aot", "host=xunit.v3"], "reason": "The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use Mock.Of<T>() under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project." },
+    { "pair": ["runtime=native-aot", "host=NUnit"], "reason": "The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use Mock.Of<T>() under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project." },
+    { "pair": ["runtime=native-aot", "host=MSTest"], "reason": "The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use Mock.Of<T>() under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project." },
+    { "pair": ["runtime=native-aot", "host=TUnit"], "reason": "The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use Mock.Of<T>() under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project." }
+  ],
+  "profiles": [
+    {
+      "name": "hardening-specs",
+      "project": "test/Hardening.Specs",
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "hardening-lifecycle",
+      "project": "test/Hardening.Lifecycle.Specs",
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "2" },
+      "os": ["linux-x64"]
+    }
+  ]
+}

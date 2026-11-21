@@ -11,6 +11,7 @@ public class MockSequenceSpecs
     public async Task A_fixed_seed_run_of_mock_sequences_matches_the_reference_model()
     {
         var settings = MockCampaign.Settings();
+        settings.RecordSeed();
 
         var report = await MockCampaign.RunCampaignAsync(settings);
 

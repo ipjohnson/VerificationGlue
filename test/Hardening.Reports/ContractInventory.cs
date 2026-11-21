@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Inventory.Specs;
+namespace Hardening.Reports;
 
 // The shape of docs/design/hardening-inventory.json. docs/design/hardening.md, Coverage inventory,
 // defines each field. Verification status and run details belong in run reports, so an entry that
