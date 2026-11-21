@@ -26,7 +26,7 @@ A new policy is active for 7 days. The first successful push makes it permanent.
    git push origin v0.3.0-preview.1
    ```
 
-The workflow fails when the tag's version prefix differs from `VersionPrefix`. It runs `eng/pack-and-consume.sh` with the label as `VersionSuffix` and pushes the four packages to nuget.org only if the script passes. It then creates a GitHub prerelease for the tag, with the packages attached.
+The workflow fails when the tag's version prefix differs from `VersionPrefix`. It first runs the release candidate matrix in `.github/workflows/release-candidate.yml`, which builds the solution, runs the specs and runs `eng/pack-and-consume.sh` on the JIT on macOS arm64 and Windows x64. It then runs `eng/pack-and-consume.sh` on Linux x64 with the label as `VersionSuffix`, and pushes the four packages to nuget.org only if the matrix and the script pass. It then creates a GitHub prerelease for the tag, with the packages attached.
 
 To release without a tag, run the workflow from the Actions tab and enter the label, such as `preview.2`. The workflow then creates the tag with the GitHub release.
 
