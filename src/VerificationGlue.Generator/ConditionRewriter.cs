@@ -336,10 +336,12 @@ internal sealed class ConditionRewriter
         }
 
         var name = _prefix + _locals.Count;
-        if (type.TypeKind == TypeKind.Dynamic || !CanName(type))
+        if (type.TypeKind == TypeKind.Dynamic || !CanName(type) || HasUnboundPart(expression))
         {
             // A type with no name, such as an anonymous type or a member another generator adds,
-            // is declared from the part itself without running it.
+            // is declared from the part itself without running it. So is a part that uses such a
+            // member, because error recovery can bind a later call to an unrelated extension
+            // method: in calc.Calls().Count(), Count() binds to Enumerable.Count.
             if (DeclaresOrUsesConditionVariables(expression))
             {
                 NotCaptured(expression, guard, "its type has no name and it uses a variable that the condition declares");
@@ -414,6 +416,9 @@ internal sealed class ConditionRewriter
             _ => false,
         };
     }
+
+    private bool HasUnboundPart(ExpressionSyntax expression) =>
+        expression.DescendantNodes().OfType<ExpressionSyntax>().Any(node => _model.GetTypeInfo(node, _token).Type is { TypeKind: TypeKind.Error });
 
     private bool DeclaresOrUsesConditionVariables(ExpressionSyntax expression)
     {

@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -316,6 +316,22 @@ Pairwise coverage does not prove interactions involving three or more factors. A
 
 Generate a coverage report from executed cases. Report valid combinations covered, exclusions, unverified combinations, and failures. Do not derive this report from the number of tests alone.
 
+### The interaction cases as built
+
+[`test/Hardening.Specs/Interactions`](../../test/Hardening.Specs/Interactions) holds the cases for `MIX-001`, `MIX-002`, `MIX-004` and `MIX-005`. Each class has `[Trait("Step", "5")]`, and the `hardening` job runs them in their own step with a 30 s budget. That budget is an addition to the approved 5-minute case budget of steps 2 to 4, for the completion gate to settle. The project now runs the VerificationGlue generator with `VerificationGlueRewrite` on, so these cases run as tier 3 copies. The step 2 and step 3 cases never call `Verify`, so the change leaves them as they were. `MIX-003` already had its evidence from step 4.
+
+| Scenario | Cases |
+|---|---|
+| `MIX-001` | A `[VerifyTest]` awaits the `Task<int>` and `ValueTask<int>` results of a mock inside `Verify` with `\|\|`, `&&` and `?:`. `Calls()` counts show that each awaited call ran once and each skipped call did not run. A failing `[Verify]` helper shows the awaited value and `<not evaluated>` for the skipped side, and the call count stays at one. The mock's factory records the stack of the call, which shows the call came from a `__Verified` copy. |
+| `MIX-002` | One bootstrap builds the container at test, class and assembly scope. In each test, the constructor's `[Mock]`, the method's `[Mock]`, a plain parameter the container resolves and the clock of each container-created service are one mock. No two tests at a scope share a mock. The container's store belongs to one test at test scope, and the class or the assembly shares it at those scopes. Two classes share the assembly container. |
+| `MIX-004` | `ICatalog<Item>.Shelf(name)` returns a recursive mock of `IShelf<Item>`, whose members return `Task<Item>`, `ValueTask<int>` and the generic `Task<TResult>`. NSubstitute-style and typed setups overlap on one member, and the last matching one answers, as `CD-02` says. The recursive mock and each returned instance keep their identity, as `CD-03` says. `Calls()` and `Received` counts match the calls made and count no setup. |
+| `MIX-005` | A `Received`, `Received(n)`, `DidNotReceive` or setup is pending in a child task while another flow runs a call, a setup or a check. The step 3 interpreter's semaphores pick the point: before the mock call, or between a setup's mock call and `Returns`. The child is one task, a task inside a task, or a task with calls and an await around the statement. All 168 orderings that `CD-04` makes legal match the reference model. Two of them also state their observations in the spec. |
+| `MIX-006` | `samples/PackageConsumer` sets `VerificationGlueRewrite`. `AotTier3Tests.Reports_captured_values` checks the captured values, the skipped parts and the file of a tier 3 message. `eng/pack-and-consume.sh` runs it on the JIT and from the Native AOT binary, and now expects 7 tests. |
+
+The cases found one defect, which is fixed. In a tier 3 copy, a part that calls a member another generator adds, such as `shelf.Calls().CountAsync()`, got a local of the wrong type. The VerificationGlue generator cannot see `Calls()`. Roslyn's error recovery then binds the next call to an extension method of the same name, such as `Enumerable.Count` or `AsyncEnumerable.CountAsync`. The copy declared an `int` or a `ValueTask<int>` local for a `CallCount`, and the project failed to build with CS0029. A part with an unbound part inside it now takes the `var` declaration of rule 11 in [verification-glue.md](verification-glue.md). `WillRewriteContractSpecs.Every_runner_call_binds_and_runs` now also checks `Verify(calc.Calls().Count() == 2)` on the stand-in typed surface, and without the fix its two runs with rewriting on fail with CS0029.
+
+The 14 step 5 cases take under 1 s on the development machine. All 95 cases of the project take about 33 s.
+
 ## Test effectiveness and execution budgets
 
 Use targeted mutation testing to check whether the suite detects broken behavior. Candidate mutations include evaluating a skipped operand, recording setup as a call, reversing setup precedence, consuming a response during verification, and skipping a cleanup stage.
@@ -475,11 +491,6 @@ Sizes: xs is one case in an existing spec. s is a few cases or one fixture test.
 | Scenario ID | Missing | Size | Step |
 |---|---|---|---|
 | `PKG-006` | Windows x64 and macOS arm64, if the gate adds them to the matrix, have no CI run. | m | 5 |
-| `MIX-001` | No test combines the three factors. | s | 5 |
-| `MIX-002` | The sample covers class scope only. No case at test or assembly scope. | xs | 5 |
-| `MIX-004` | No test combines the factors. | s | 5 |
-| `MIX-005` | Needs the controlled scheduling from step 3. | m | 5 |
-| `MIX-006` | PackageConsumer does not turn tier 3 rewriting on, so the AOT run does not check a captured-value message. | xs | 5 |
 
 ### Gate approval
 

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    The harness of docs/design/hardening.md, steps 2 and 3. It is not in VerificationGlue.slnx, so the
+    The harness of docs/design/hardening.md, steps 2, 3 and 5. It is not in VerificationGlue.slnx, so the
     build job's `dotnet test` leaves it out. The hardening job in .github/workflows/ci.yml runs it.
   -->
   <ItemGroup>
@@ -18,6 +18,19 @@
   <ItemGroup>
     <ProjectReference Include="../../src/VerificationGlue.Mocks/VerificationGlue.Mocks.csproj" />
     <ProjectReference Include="../../src/VerificationGlue.Mocks.Generator/VerificationGlue.Mocks.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!--
+    The step 5 interaction cases in Interactions/ need tier 3 rewriting, so the project also runs the
+    VerificationGlue generator, as the VerificationGlue package adds it. The step 2 cases compile their
+    own sources and do not use it.
+  -->
+  <Import Project="../../src/VerificationGlue/buildTransitive/VerificationGlue.props" />
+  <PropertyGroup>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!--

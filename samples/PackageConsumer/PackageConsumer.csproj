@@ -29,6 +29,11 @@
   </ItemGroup>
   <!-- end-snippet -->
 
+  <!-- AotTier3Tests checks a tier 3 message from the packed generator under Native AOT. -->
+  <PropertyGroup>
+    <VerificationGlueRewrite>true</VerificationGlueRewrite>
+  </PropertyGroup>
+
   <!-- Rooting the runtimes makes the Native AOT publish analyze all of their code, not only what this sample calls. -->
   <ItemGroup>
     <TrimmerRootAssembly Include="VerificationGlue" />

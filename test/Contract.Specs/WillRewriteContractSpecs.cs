@@ -20,6 +20,7 @@ public class WillRewriteContractSpecs
 {
     private const string Tests = """
         using System;
+        using System.Linq;
         using System.Threading.Tasks;
         using VerificationGlue;
         using VerificationGlue.Mocks;
@@ -46,6 +47,14 @@ public class WillRewriteContractSpecs
                 var calc = Mock.Of<ICalculator>();
                 calc.Add(1, 2);
                 Verify(calc.Calls().Add(1, 2) == 2);
+            }
+
+            [VerifyTest]
+            public void Counts_every_call()
+            {
+                var calc = Mock.Of<ICalculator>();
+                calc.Add(1, 2);
+                Verify(calc.Calls().Count() == 2);
             }
 
             [VerifyTest]
@@ -120,6 +129,9 @@ public class WillRewriteContractSpecs
             ["Contract.CalculatorTests.Counts_calls"] = rewrite
                 ? ("Counts_calls__Verified", "Verify failed: calc.Calls().Add(1, 2) == 2\n  calc.Calls().Add(1, 2) → 1\n")
                 : ("Counts_calls", "Verify failed: calc.Calls().Add(1, 2) == 2\n  expected calc.Calls().Add(1, 2) to equal 2\n"),
+            ["Contract.CalculatorTests.Counts_every_call"] = rewrite
+                ? ("Counts_every_call__Verified", "Verify failed: calc.Calls().Count() == 2\n  calc.Calls().Count() → 1\n")
+                : ("Counts_every_call", "Verify failed: calc.Calls().Count() == 2\n  expected calc.Calls().Count() to equal 2\n"),
             ["Contract.CalculatorTests.Awaits"] = rewrite
                 ? ("Awaits__Verified", "Verify failed: Total(2) == 5\n  Total(2) → 3\n")
                 : ("Awaits", "Verify failed: Total(2) == 5\n  expected Total(2) to equal 5\n"),
