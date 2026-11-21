@@ -433,7 +433,7 @@ Every generated failure should provide a replay command, seed, source or operati
 dotnet run --project test/Hardening.Mutations -c Release -- --output artifacts/mutations
 ```
 
-The tool copies the files that git tracks, with their uncommitted changes, to a temporary folder, so the checkout does not change. It builds the copy and runs the suite there once without a mutation. The suite is every test project of `VerificationGlue.slnx`, with `test/Hardening.Specs` and `test/Hardening.Lifecycle.Specs`. Then, for each mutation, it applies the change, builds, runs the suite and restores the file. `--only MUT-03` runs one mutation.
+The tool copies the files that git tracks, with their uncommitted changes, to a temporary folder, so the checkout does not change. It builds the copy and runs the suite there once without a mutation. The suite is every test project of `VerificationGlue.slnx` except `test/Inventory.Specs`, with `test/Hardening.Specs` and `test/Hardening.Lifecycle.Specs`. `test/Inventory.Specs` checks the inventory, this doc and the catalog rather than product behavior, and its catalog check fails whenever a mutation removes its text, so it would detect every mutation. Then, for each mutation, it applies the change, builds, runs the suite and restores the file. `--only MUT-03` runs one mutation.
 
 A mutation is detected when a case fails, when a case that passed without the mutation does not run, or when a test command fails or times out. The report names the failing cases. A mutation survives when the whole suite passes. The tool builds with `VerificationGlueReportTrx=true`, which gives every test application the TRX extension, so the failing cases come from TRX files. NUnit3TestAdapter 5.2.0 does not start with that extension, so the failing cases of the two NUnit samples come from their console output.
 
@@ -445,7 +445,7 @@ The tool writes `mutations.json`, `mutations.md` and the output of each command 
 - A mutation is not caught by the case that its missing-assertion explanation names.
 - A mutation that the catalog explains as equivalent is caught.
 
-An explanation records why the suite once let a mutation survive. A missing assertion names the case that was added to catch it. An equivalent mutation changes no behavior that the contract covers, and its reason says why. `MutationSpecs` in `test/Inventory.Specs` runs on every pull request. It checks that each mutation's text is still in its file once, and that the table below matches the catalog. The mutations run in the `mutations` job of the [hardening campaign workflow](../../.github/workflows/hardening-campaign.yml), not in the pull request run. That workflow starts by hand until the campaign has a triage owner and a failure destination.
+An explanation records why the suite once let a mutation survive. A missing assertion names the case that was added to catch it. An equivalent mutation changes no behavior that the contract covers, and its reason says why. `MutationSpecs` in `test/Inventory.Specs` runs on every pull request. It checks that each mutation's text is still in its file once, and that the table below matches the catalog. It also checks that the suite of the mutation runs leaves that project out. The mutations run in the `mutations` job of the [hardening campaign workflow](../../.github/workflows/hardening-campaign.yml), not in the pull request run. That workflow starts by hand until the campaign has a triage owner and a failure destination.
 
 | ID | Mutation | Change | Result | Explanation |
 |---|---|---|---|---|

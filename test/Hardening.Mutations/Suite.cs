@@ -7,8 +7,8 @@ using Hardening.Reports;
 
 namespace Hardening.Mutations;
 
-// Builds and tests a copy of the repository. The suite is every test project of VerificationGlue.slnx and
-// the two hardening projects outside it. Each command's output goes to a log file.
+// Builds and tests a copy of the repository. The suite is every test project of VerificationGlue.slnx except
+// test/Inventory.Specs, and the two hardening projects outside it. Each command's output goes to a log file.
 public sealed partial class Suite(string repository, string logs)
 {
     private static readonly TimeSpan BuildTimeout = TimeSpan.FromMinutes(30);
@@ -24,6 +24,19 @@ public sealed partial class Suite(string repository, string logs)
     ];
 
     private static readonly string[] OutsideTheSolution = ["test/Hardening.Specs", "test/Hardening.Lifecycle.Specs"];
+
+    // test/Inventory.Specs checks the inventory, the design doc and the mutation catalog, not product behavior.
+    // Its MutationSpecs fail whenever a mutation removes its text, so running it would detect every mutation.
+    public static readonly string[] LeftOut = ["test/Inventory.Specs/Inventory.Specs.csproj"];
+
+    // The projects of VerificationGlue.slnx that the solution run tests.
+    public static IReadOnlyList<string> SolutionProjects(string repository) =>
+        [.. XDocument.Load(Path.Combine(repository, "VerificationGlue.slnx")).Descendants("Project")
+            .Select(project => project.Attribute("Path")!.Value)
+            .Except(LeftOut)];
+
+    // Every project the suite tests, as paths from the repository root.
+    public static IReadOnlyList<string> TestedProjects(string repository) => [.. SolutionProjects(repository), .. OutsideTheSolution];
 
     // Copies the files git tracks or would track, including uncommitted changes, so the run never touches the checkout.
     public static void Copy(string root, string destination)
@@ -62,11 +75,12 @@ public sealed partial class Suite(string repository, string logs)
 
     public async Task<IReadOnlyList<RunResult>> TestAsync(string label, string results)
     {
-        var nunit = SolutionProjects().Where(UsesNUnit).ToList();
+        var projects = SolutionProjects(repository);
+        var nunit = projects.Where(UsesNUnit).ToList();
         var filter = Path.Combine(repository, "suite.slnf");
         File.WriteAllText(filter, JsonSerializer.Serialize(new
         {
-            solution = new { path = "VerificationGlue.slnx", projects = SolutionProjects().Except(nunit).ToArray() },
+            solution = new { path = "VerificationGlue.slnx", projects = projects.Except(nunit).ToArray() },
         }));
 
         var runs = new List<RunResult>
@@ -106,9 +120,6 @@ public sealed partial class Suite(string repository, string logs)
 
     private static CaseResult Case(TrxResult result) =>
         new(result.Name.StartsWith(result.ClassName + ".", StringComparison.Ordinal) ? result.Name : $"{result.ClassName}.{result.Name}", result.Outcome);
-
-    private IEnumerable<string> SolutionProjects() =>
-        XDocument.Load(Path.Combine(repository, "VerificationGlue.slnx")).Descendants("Project").Select(project => project.Attribute("Path")!.Value);
 
     // NUnit3TestAdapter 5.2.0 does not start with the TRX extension. Directory.Build.targets explains why.
     private bool UsesNUnit(string project) =>

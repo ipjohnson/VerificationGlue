@@ -26,6 +26,18 @@ public class MutationSpecs
         Assert.Empty(MutationCatalog.Load(RepositoryRoot.Path).Validate(RepositoryRoot.Path));
     }
 
+    // A mutation removes its text, so the catalog check above would fail and detect every mutation.
+    [VerifyTest]
+    public void The_mutated_suite_leaves_out_the_project_that_checks_the_catalog()
+    {
+        var project = typeof(MutationSpecs).Assembly.GetName().Name + ".csproj";
+
+        var tested = Suite.TestedProjects(RepositoryRoot.Path);
+
+        Assert.Contains("test/VerificationGlue.Mocks.Specs/VerificationGlue.Mocks.Specs.csproj", tested);
+        Assert.DoesNotContain(tested, path => Path.GetFileName(path) == project || Path.GetFileName(path.TrimEnd('/')) + ".csproj" == project);
+    }
+
     [VerifyTest]
     public void The_mutation_table_in_the_design_doc_matches_the_catalog()
     {
