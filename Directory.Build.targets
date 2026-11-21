@@ -17,6 +17,17 @@
     <None Include="$(MSBuildThisFileDirectory)assets/logo/icon-128.png" Pack="true" PackagePath="icon.png" Visible="false" />
   </ItemGroup>
 
+  <!--
+    With VerificationGlueReportTrx=true every test application has the TRX extension, so report-trx
+    works across the solution. test/Hardening.Mutations builds with it to name each mutation's failing cases.
+    Restore does not import package props, so a test application of xunit, MSTest or TUnit is found by
+    its package reference rather than by IsTestingPlatformApplication. NUnit3TestAdapter 5.2.0 fails to
+    start on the Microsoft.Testing.Platform version the extension needs, so NUnit projects go without it.
+  -->
+  <ItemGroup Condition="'$(VerificationGlueReportTrx)' == 'true' and '@(PackageReference->WithMetadataValue('Identity', 'Microsoft.Testing.Extensions.TrxReport'))' == '' and '@(PackageReference->WithMetadataValue('Identity', 'NUnit3TestAdapter'))' == '' and ('$(IsTestingPlatformApplication)' == 'true' or '@(PackageReference->WithMetadataValue('Identity', 'xunit.v3'))@(PackageReference->WithMetadataValue('Identity', 'MSTest'))@(PackageReference->WithMetadataValue('Identity', 'TUnit'))' != '')">
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+  </ItemGroup>
+
   <Target Name="AddGeneratorsToPackage">
     <MSBuild Projects="@(ProjectReference->WithMetadataValue('PackAsAnalyzer', 'true'))"
              Targets="GetTargetPath"

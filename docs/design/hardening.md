@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The [targeted mutations](#targeted-mutations-as-built) run in the hardening campaign workflow, which starts by hand. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -424,6 +424,39 @@ A run that exceeds its budget reports the overrun. It does not drop a required c
 A scheduled campaign starts only after it has a named triage owner and a defined destination for its failures, such as an issue label.
 
 Every generated failure should provide a replay command, seed, source or operation sequence, environment, expected observations, and actual observations. Retain reduced regressions permanently. Keep campaign artifacts for 30 days.
+
+### Targeted mutations as built
+
+[`hardening-mutations.json`](hardening-mutations.json) lists the targeted mutations. Each one replaces one exact piece of text in one source file. [Hardening.Mutations](../../test/Hardening.Mutations) applies each mutation in turn and runs the suite against it:
+
+```sh
+dotnet run --project test/Hardening.Mutations -c Release -- --output artifacts/mutations
+```
+
+The tool copies the files that git tracks, with their uncommitted changes, to a temporary folder, so the checkout does not change. It builds the copy and runs the suite there once without a mutation. The suite is every test project of `VerificationGlue.slnx`, with `test/Hardening.Specs` and `test/Hardening.Lifecycle.Specs`. Then, for each mutation, it applies the change, builds, runs the suite and restores the file. `--only MUT-03` runs one mutation.
+
+A mutation is detected when a case fails, when a case that passed without the mutation does not run, or when a test command fails or times out. The report names the failing cases. A mutation survives when the whole suite passes. The tool builds with `VerificationGlueReportTrx=true`, which gives every test application the TRX extension, so the failing cases come from TRX files. NUnit3TestAdapter 5.2.0 does not start with that extension, so the failing cases of the two NUnit samples come from their console output.
+
+The tool writes `mutations.json`, `mutations.md` and the output of each command to the output folder. It exits with 1 in these cases:
+
+- The suite fails without a mutation.
+- A mutation's text is not in its file exactly once, or the mutated copy does not build.
+- A mutation survives and the catalog records no explanation.
+- A mutation is not caught by the case that its missing-assertion explanation names.
+- A mutation that the catalog explains as equivalent is caught.
+
+An explanation records why the suite once let a mutation survive. A missing assertion names the case that was added to catch it. An equivalent mutation changes no behavior that the contract covers, and its reason says why. `MutationSpecs` in `test/Inventory.Specs` runs on every pull request. It checks that each mutation's text is still in its file once, and that the table below matches the catalog. The mutations run in the `mutations` job of the [hardening campaign workflow](../../.github/workflows/hardening-campaign.yml), not in the pull request run. That workflow starts by hand until the campaign has a triage owner and a failure destination.
+
+| ID | Mutation | Change | Result | Explanation |
+|---|---|---|---|---|
+| `MUT-01` | Evaluate a skipped operand | The tier 3 copy writes `&` for `&&` and the or operator that does not short-circuit for the one that does, so the right operand runs when the left one decides the result. | Detected by 12 cases, such as `RewriteSpecs.Rule_5_the_skipped_side_is_not_evaluated` and `GeneratedExpressionSpecs.A_fixed_seed_run_keeps_plain_CSharp_behavior` | |
+| `MUT-02` | Record setup as a call | `Returns` and `Throws` leave the mock call they configure in the received calls. | Detected by 50 cases, such as `Setup.The_setup_call_is_not_a_received_call` and `MockInvariantSpecs.Each_mock_invariant_holds_on_a_fixed_seed_run` | |
+| `MUT-03` | Reverse setup precedence | A call takes the first matching response instead of the last. | Detected by 22 cases, such as `Setup.The_last_matching_setup_wins_whatever_its_style` and `MockSequenceSpecs.A_fixed_seed_run_of_mock_sequences_matches_the_reference_model` | |
+| `MUT-04` | Consume a response during verification | A `Received` or `DidNotReceive` check also runs the matching response, so a `Returns` sequence advances and a `Returns` factory runs. | Detected by 6 cases, such as `Verification.Checks_take_no_value_from_a_response_sequence_and_give_the_same_result_when_repeated` and `MockSchedulingSpecs.Every_legal_interleaving_of_a_statement_pair_matches_the_reference_model` | |
+| `MUT-05` | Skip a cleanup stage | The runner does not dispose a test's own container. | Detected by 54 cases, such as `LifecycleSpecs.Container_owned_and_runner_owned_instances_are_disposed_exactly_once` and `InjectionSpecs.An_exception_is_reported_against_its_test_or_scope_and_every_resource_is_released` | |
+| `MUT-06` | Skip a cleanup stage | The runner does not end a test's `VerifyScope`, so the test's `Check` failures are dropped. | Detected by 4 cases, such as `ContainerSpecs.Check_failures_are_reported_with_their_own_test` and `IsolationSpecs.A_later_test_sees_no_failed_checks_pending_mock_state_output_or_context_of_an_earlier_one` | |
+
+The results come from a run on the development machine, an Apple M3 Pro, on 2026-11-20 at commit `4d656cc` with this tool added. The run took about 13 minutes. Without a mutation, the suite ran 1,248 cases and passed. Every mutation was detected, so no mutation needs an explanation. A case count counts each data row. `MUT-04` and `MUT-06` are caught by the fewest cases. Each of them has one spec written for its rule, in `test/VerificationGlue.Mocks.Specs` and `test/VerificationGlue.Tests.Specs`, and the generated or process-level cases catch it as well.
 
 ## Delivery sequence
 

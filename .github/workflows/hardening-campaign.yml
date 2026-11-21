@@ -1,0 +1,50 @@
+name: Hardening campaign
+
+# The scheduled campaign of docs/design/hardening.md, kept out of the pull request run. It starts only by
+# hand until the campaign has a named triage owner and a destination for its failures, which the doc
+# requires before it gets a schedule.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # Applies each mutation of docs/design/hardening-mutations.json alone to a copy of the repository and runs
+  # the suite against it. Fails when the suite fails without a mutation, when a mutation cannot be applied
+  # or built, or when a result does not match the mutation's recorded explanation.
+  mutations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Install Native AOT prerequisites
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Run the targeted mutations
+        run: dotnet run --project test/Hardening.Mutations -c Release -- --output artifacts/mutations
+
+      - name: Add the report to the job summary
+        if: always()
+        run: |
+          if [ -f artifacts/mutations/mutations.md ]; then
+            cat artifacts/mutations/mutations.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mutations
+          path: artifacts/mutations/
+          retention-days: 30
+          if-no-files-found: ignore
