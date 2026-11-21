@@ -210,6 +210,58 @@ public class ValidatorSpecs
             problems);
     }
 
+    [VerifyTest]
+    public void A_run_report_entry_whose_Scenario_ID_the_inventory_does_not_define_is_rejected()
+    {
+        var report = Report(Entry("VERIFY-001"), Entry("VERIFY-404"));
+
+        Assert.Equal(["VERIFY-404: the run report names a Scenario ID that the inventory does not define"], report.Validate(Valid));
+    }
+
+    [VerifyTest]
+    public void A_run_report_entry_needs_a_known_status_and_the_run_s_commit()
+    {
+        var report = Report(Entry("VERIFY-001") with { Status = "unverified", Commit = "fedcba9876543210fedcba9876543210fedcba98" });
+
+        Assert.Equal(
+            [
+                "VERIFY-001: the status 'unverified' is not one of passed, failed, blocked",
+                "VERIFY-001: the entry's commit fedcba9876543210fedcba9876543210fedcba98 is not the run's commit 0123456789abcdef0123456789abcdef01234567",
+            ],
+            report.Validate(Valid));
+    }
+
+    [VerifyTest]
+    public void A_run_report_with_two_entries_for_one_Scenario_ID_and_configuration_is_rejected()
+    {
+        var report = Report(Entry("VERIFY-001"), Entry("VERIFY-001"), Entry("VERIFY-001") with { Configuration = ["os=macos-arm64"] });
+
+        Assert.Equal(["VERIFY-001: the run report has more than one entry for the configuration os=linux-x64"], report.Validate(Valid));
+    }
+
+    private static RunReport Report(params ScenarioRun[] entries) => new()
+    {
+        Commit = Valid.Baseline,
+        Created = DateTimeOffset.UnixEpoch,
+        Environment = Machine,
+        Complete = true,
+        Incomplete = [],
+        Steps = [],
+        Scenarios = entries,
+    };
+
+    private static ScenarioRun Entry(string id) => new()
+    {
+        Id = id,
+        Status = ScenarioStatus.Passed,
+        Commit = Valid.Baseline,
+        Configuration = ["os=linux-x64"],
+        Environment = Machine,
+        Tests = [new TestRun { Test = AnExistingTest, Outcome = TestOutcome.Passed }],
+    };
+
+    private static readonly RunEnvironment Machine = new() { Os = "Ubuntu 24.04", Architecture = "x64", Runtime = ".NET 10.0.0", Sdk = "10.0.403" };
+
     internal static void NotATest()
     {
     }

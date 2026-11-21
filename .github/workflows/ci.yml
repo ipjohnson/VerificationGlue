@@ -99,7 +99,8 @@ jobs:
   # Runs the pull request cases of docs/design/hardening.md beside cold-build. The step 2 cases in
   # test/Hardening.Specs have a 2-minute budget, its step 3 cases, marked [Trait("Step", "3")], have a
   # 2-minute budget, and the step 4 cases in test/Hardening.Lifecycle.Specs have a 1-minute budget. A
-  # run over its budget still runs every case, then fails and reports the overrun.
+  # run over its budget still runs every case, then fails and reports the overrun. Each step writes a
+  # TRX file, and the last steps build the run report and the coverage report from them.
   hardening:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -124,12 +125,14 @@ jobs:
           dotnet build test/Hardening.Lifecycle.Fixture -c Release
 
       - name: Run the step 2 cases
+        id: step2
         env:
           HARDENING_OUTPUT: ${{ github.workspace }}/artifacts/hardening/step2
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "!trait:Step=3&!trait:Step=5" || status=$?
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "!trait:Step=3&!trait:Step=5" \
+            --report-trx --report-trx-filename results.trx --results-directory "$HARDENING_OUTPUT" || status=$?
           elapsed=$(( $(date +%s) - start ))
           if [ -f "$HARDENING_OUTPUT/report.md" ]; then
             cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -142,13 +145,15 @@ jobs:
           exit $status
 
       - name: Run the step 3 cases
+        id: step3
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         env:
           HARDENING_OUTPUT: ${{ github.workspace }}/artifacts/hardening/step3
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=3" || status=$?
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=3" \
+            --report-trx --report-trx-filename results.trx --results-directory "$HARDENING_OUTPUT" || status=$?
           elapsed=$(( $(date +%s) - start ))
           if [ -f "$HARDENING_OUTPUT/report.md" ]; then
             cat "$HARDENING_OUTPUT/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -161,11 +166,13 @@ jobs:
           exit $status
 
       - name: Run the step 4 cases
+        id: step4
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Lifecycle.Specs -c Release --no-build || status=$?
+          dotnet test --project test/Hardening.Lifecycle.Specs -c Release --no-build \
+            --report-trx --report-trx-filename results.trx --results-directory artifacts/hardening/step4 || status=$?
           elapsed=$(( $(date +%s) - start ))
           echo "The step 4 cases took $elapsed s of their $STEP4_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
           if [ "$elapsed" -gt "$STEP4_BUDGET_SECONDS" ]; then
@@ -175,16 +182,39 @@ jobs:
           exit $status
 
       - name: Run the step 5 cases
+        id: step5
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          HARDENING_OUTPUT: ${{ github.workspace }}/artifacts/hardening/step5
         run: |
           start=$(date +%s)
           status=0
-          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=5" || status=$?
+          dotnet test --project test/Hardening.Specs -c Release --no-build --vg-filter "trait:Step=5" \
+            --report-trx --report-trx-filename results.trx --results-directory "$HARDENING_OUTPUT" || status=$?
           elapsed=$(( $(date +%s) - start ))
           echo "The step 5 cases took $elapsed s of their $STEP5_BUDGET_SECONDS s budget." >> "$GITHUB_STEP_SUMMARY"
           if [ "$elapsed" -gt "$STEP5_BUDGET_SECONDS" ]; then
             echo "::error::The step 5 cases took $elapsed s, over their $STEP5_BUDGET_SECONDS s budget. Every case ran."
             status=1
+          fi
+          exit $status
+
+      # Runs after a failure, a cancellation or a timeout too. A step that was cancelled, skipped or cut
+      # short makes the coverage incomplete, and then this step fails. docs/design/hardening.md, Run and
+      # coverage reports, describes both reports.
+      - name: Write the run report and the coverage report
+        if: always()
+        env:
+          OUT: ${{ github.workspace }}/artifacts/hardening
+        run: |
+          status=0
+          dotnet run --project test/Hardening.Reports -c Release -- --output "$OUT" \
+            --step step2 hardening-specs "${{ steps.step2.outcome || 'missing' }}" "$OUT/step2" \
+            --step step3 hardening-specs "${{ steps.step3.outcome || 'missing' }}" "$OUT/step3" \
+            --step step4 hardening-lifecycle "${{ steps.step4.outcome || 'missing' }}" "$OUT/step4" \
+            --step step5 hardening-specs "${{ steps.step5.outcome || 'missing' }}" "$OUT/step5" || status=$?
+          if [ -f "$OUT/coverage.md" ]; then
+            cat "$OUT/coverage.md" >> "$GITHUB_STEP_SUMMARY"
           fi
           exit $status
 

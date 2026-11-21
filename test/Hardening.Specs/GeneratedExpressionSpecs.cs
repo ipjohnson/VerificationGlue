@@ -11,6 +11,7 @@ public class GeneratedExpressionSpecs
     public async Task A_fixed_seed_run_keeps_plain_CSharp_behavior()
     {
         var settings = CampaignSettings.FromEnvironment();
+        settings.RecordSeed();
 
         var report = await Campaign.RunAsync(settings);
 

@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The other campaigns and the completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -60,11 +60,11 @@ Each inventory entry needs these fields:
 | Gap | `gap` | Missing evidence, with its size and the step that fills it |
 | Follow-up | `followUp` | Defect or decision needed, with its issue |
 
-Verification status and run details live in the run reports, not in the inventory. A run report records, for each Scenario ID, the status (not yet verified, passed, failed, or blocked), the commit, the configuration, the environment, the seed where applicable, and the report location.
+Verification status and run details live in the run reports, not in the inventory. A run report records, for each Scenario ID, the status (not yet verified, passed, failed, or blocked), the commit, the configuration, the environment, the seed where applicable, and the report location. A Scenario ID with no entry in a run is not yet verified by that run. [Run and coverage reports](#run-and-coverage-reports) describes the reports the `hardening` job writes.
 
 CI validates the inventory on each pull request. [`test/Inventory.Specs`](../../test/Inventory.Specs) holds the checks and runs in the `Run specs` step of the build job:
 
-- Every Scenario ID is unique and names a declared area, and every decision names an existing ID. Report entries will join the same check when step 5 adds run reports.
+- Every Scenario ID is unique and names a declared area, and every decision names an existing ID. A run report entry must name a Scenario ID that the inventory defines. The `hardening` job runs that check on each report it writes.
 - Every evidence reference names a test method with a test attribute, a project, or a file that exists.
 - Every source names an existing file, and its heading when it names one.
 - An unsupported entry names its expected outcome.
@@ -331,6 +331,72 @@ Generate a coverage report from executed cases. Report valid combinations covere
 The cases found one defect, which is fixed. In a tier 3 copy, a part that calls a member another generator adds, such as `shelf.Calls().CountAsync()`, got a local of the wrong type. The VerificationGlue generator cannot see `Calls()`. Roslyn's error recovery then binds the next call to an extension method of the same name, such as `Enumerable.Count` or `AsyncEnumerable.CountAsync`. The copy declared an `int` or a `ValueTask<int>` local for a `CallCount`, and the project failed to build with CS0029. A part with an unbound part inside it now takes the `var` declaration of rule 11 in [verification-glue.md](verification-glue.md). `WillRewriteContractSpecs.Every_runner_call_binds_and_runs` now also checks `Verify(calc.Calls().Count() == 2)` on the stand-in typed surface, and without the fix its two runs with rewriting on fail with CS0029.
 
 The 14 step 5 cases take under 1 s on the development machine. All 95 cases of the project take about 33 s.
+
+### Run and coverage reports
+
+Each `hardening` job run writes `run-report.json` and `coverage.md` to its `hardening` artifact, and adds `coverage.md` to the job summary. [`test/Hardening.Reports`](../../test/Hardening.Reports) builds both in the job's last step, which also runs after a failure, a cancellation or a timeout. [`test/Inventory.Specs`](../../test/Inventory.Specs) holds its specs.
+
+Each case step writes a TRX file. The tool joins the results to the inventory through its evidence. A reference of the form `path#Type.Method` names one test, and a path to a `.cs` file names every test the file declares. Only evidence in the project of a step's profile is part of the run. Each entry of the run report is one Scenario ID in one configuration, with these fields:
+
+| Field | Value |
+|---|---|
+| `id` | A Scenario ID that the inventory defines. The tool rejects the report otherwise. |
+| `status` | `passed` when every test of the entry passed. `failed` when one failed. `blocked` when one was skipped or did not run, or when the entry's contract decision is not approved. |
+| `commit` | The commit the job checked out |
+| `configuration` | The matrix values of the step, such as `os=linux-x64 runtime=jit consumption=project-reference host=VerificationGlue.Tests tier=3` |
+| `environment` | The OS description, architecture, runtime, SDK and runner image |
+| `seeds` | For a seeded spec, its seed, the cases it ran and its case budget |
+| `tests` | Each test of the evidence, with its outcome and the step that ran it |
+| `location` | The URL of the workflow run |
+
+The seeded specs write their seed to `seeds/<spec>.json` in the step's `HARDENING_OUTPUT` folder. The report also lists each step with its outcome, its TRX file and its counts.
+
+A run is incomplete when a step was cancelled or skipped, wrote no TRX file, or wrote one that says the run was aborted. A run is also incomplete when a seeded spec ran fewer cases than its budget or replayed one case, or when a test the inventory names did not run in a step that finished. An incomplete run sets `complete` to false and lists each reason. The coverage report then starts with "Coverage is incomplete" and covers no combination of an unfinished step. The tool exits with 1 when the run is incomplete, when a step or an entry failed, or when the report or the matrix has a problem.
+
+#### The configuration matrix
+
+[`hardening-matrix.json`](hardening-matrix.json) holds the factors, the excluded pairs and the profiles. A profile gives the values of a CI step apart from its OS, which the tool reads from the machine.
+
+| Factor | Values |
+|---|---|
+| `os` | `linux-x64`, `macos-arm64`, `windows-x64` |
+| `runtime` | `jit`, `native-aot` |
+| `consumption` | `project-reference`, `package` |
+| `host` | `none`, `VerificationGlue.Tests`, `xunit.v3`, `NUnit`, `MSTest`, `TUnit` |
+| `tier` | `1`, `2`, `3`, the highest [rewrite tier](../guide/tiers.md) the project turns on |
+
+| Profile | Project | Values |
+|---|---|---|
+| `hardening-specs` | `test/Hardening.Specs`, steps 2, 3 and 5 | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 3 |
+| `hardening-lifecycle` | `test/Hardening.Lifecycle.Specs`, step 4 | `jit`, `project-reference`, `VerificationGlue.Tests` in the fixture, tier 2 |
+
+The pairwise selection starts with each profile on each OS that CI runs it on, which is `linux-x64` for both. It then adds combinations until every valid pair of values is in one. Each added combination starts from the first pair still missing and takes, factor by factor, the allowed value that adds the most missing pairs. The selection has 22 combinations, which hold all 91 valid pairs. The product of the two largest factors makes 18 the least possible. The coverage report lists each combination as covered, failed or unverified. A combination is covered when a finished step ran it and none of that step's tests failed. A combination that no step ran is unverified, so the 20 combinations outside the `hardening` job's profiles stay unverified until another run reports them.
+
+#### Excluded pairs
+
+| First | Second | Reason |
+|---|---|---|
+| `os=macos-arm64` | `runtime=native-aot` | The supported matrix has Native AOT on linux-x64 only. |
+| `os=windows-x64` | `runtime=native-aot` | The supported matrix has Native AOT on linux-x64 only. |
+| `runtime=native-aot` | `host=xunit.v3` | The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use `Mock.Of<T>()` under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project. |
+| `runtime=native-aot` | `host=NUnit` | The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use `Mock.Of<T>()` under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project. |
+| `runtime=native-aot` | `host=MSTest` | The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use `Mock.Of<T>()` under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project. |
+| `runtime=native-aot` | `host=TUnit` | The framework hooks read test parameters through reflection, and getting-started-mocks.md says to use `Mock.Of<T>()` under Native AOT. Native AOT runs a program with no test host or a VerificationGlue.Tests project. |
+
+`MatrixSpecs` checks that the selection holds every valid pair and no excluded pair, and that this table matches the matrix file.
+
+#### The coverage report
+
+The coverage report comes from the run report, not from a test count. It has these parts:
+
+- Whether the run is complete, and each reason when it is not.
+- Each step with its configuration, outcome and counts.
+- The Scenario IDs with evidence in the run, with each failed or blocked entry and its detail.
+- Each combination of the selection with its status, and how many valid pairs the covered combinations hold.
+- The excluded pairs with their reasons.
+- The failed steps and entries.
+
+A local run on the development machine, with all four steps passing, gave 21 entries, all passed. The 21 Scenario IDs are the ones with evidence in the two hardening projects. The run's `os=macos-arm64` configurations are outside the selection, so that run covered no combination.
 
 ## Test effectiveness and execution budgets
 

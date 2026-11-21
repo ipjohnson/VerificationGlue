@@ -3,8 +3,10 @@
     The harness of docs/design/hardening.md, steps 2, 3 and 5. It is not in VerificationGlue.slnx, so the
     build job's `dotnet test` leaves it out. The hardening job in .github/workflows/ci.yml runs it.
   -->
+  <!-- The hardening job writes a TRX report of each step, and test/Hardening.Reports builds the run report from them. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
     <ProjectReference Include="../../src/VerificationGlue.Generator/VerificationGlue.Generator.csproj" />
     <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
     <ProjectReference Include="../Generator.Harness/Generator.Harness.csproj" />

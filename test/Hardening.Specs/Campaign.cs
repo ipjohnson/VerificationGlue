@@ -9,9 +9,12 @@ namespace Hardening.Specs;
 /// <c>HARDENING_CASE</c> override them, so a replay command can run one case of a seed again.
 /// <c>HARDENING_OUTPUT</c> names a folder for the report and the files of each mismatch. Step 2 and
 /// step 3 read the same variables, and <see cref="Spec"/> names the spec a replay runs.
+/// <see cref="Budget"/> is the number of cases the spec runs when <c>HARDENING_CASES</c> is not set.
 /// </summary>
-public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, string? Output = null, string Spec = CampaignSettings.SpecName)
+public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, string? Output = null, string Spec = CampaignSettings.SpecName, int? Budget = null)
 {
+    private static readonly Lock SeedLock = new();
+
     public const int DefaultSeed = 20261119;
 
     public const int DefaultCases = 300;
@@ -23,9 +26,31 @@ public sealed record CampaignSettings(int Seed, int Cases, int? Case = null, str
         Number("HARDENING_CASES") ?? defaultCases,
         Number("HARDENING_CASE"),
         Environment.GetEnvironmentVariable("HARDENING_OUTPUT") is { Length: > 0 } output ? output : null,
-        spec);
+        spec,
+        defaultCases);
 
     public IEnumerable<int> Indices => Case is { } index ? [index] : Enumerable.Range(0, Cases);
+
+    /// <summary>
+    /// Writes the seed and the cases of this run to <c>seeds/&lt;Spec&gt;.json</c> in the output folder.
+    /// test/Hardening.Reports puts them in the run report, and reports a run with fewer cases than
+    /// <see cref="Budget"/>, or a replay of one case, as incomplete.
+    /// </summary>
+    public void RecordSeed()
+    {
+        if (Output is not { } output)
+        {
+            return;
+        }
+
+        var directory = Path.Combine(output, "seeds");
+        var json = string.Create(CultureInfo.InvariantCulture, $$"""{ "test": "{{Spec}}", "seed": {{Seed}}, "cases": {{Cases}}, "budget": {{Budget ?? Cases}}, "case": {{(Case is { } index ? index.ToString(CultureInfo.InvariantCulture) : "null")}} }""");
+        lock (SeedLock)
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, Spec + ".json"), json + "\n");
+        }
+    }
 
     public string ReplayCommand(int index) =>
         $"HARDENING_SEED={Seed} HARDENING_CASES={Cases} HARDENING_CASE={index} dotnet test --project test/Hardening.Specs -c Release --vg-filter \"name:{Spec}\"";
