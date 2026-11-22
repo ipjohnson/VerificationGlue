@@ -21,11 +21,13 @@
     With VerificationGlueReportTrx=true every test application has the TRX extension, so report-trx
     works across the solution. test/Hardening.Mutations builds with it to name each mutation's failing cases,
     and the build job of ci.yml builds with it for the run report.
-    Restore does not import package props, so a test application of xunit, MSTest or TUnit is found by
+    Restore does not import package props, so a test application of xunit or MSTest is found by
     its package reference rather than by IsTestingPlatformApplication. NUnit3TestAdapter 5.2.0 fails to
     start on the Microsoft.Testing.Platform version the extension needs, so NUnit projects go without it.
+    TUnit already brings a TRX extension built for its Microsoft.Testing.Platform version. The newer
+    extension lifts the platform past the types TUnit's GitHubReporter loads, so TUnit projects keep their own.
   -->
-  <ItemGroup Condition="'$(VerificationGlueReportTrx)' == 'true' and '@(PackageReference->WithMetadataValue('Identity', 'Microsoft.Testing.Extensions.TrxReport'))' == '' and '@(PackageReference->WithMetadataValue('Identity', 'NUnit3TestAdapter'))' == '' and ('$(IsTestingPlatformApplication)' == 'true' or '@(PackageReference->WithMetadataValue('Identity', 'xunit.v3'))@(PackageReference->WithMetadataValue('Identity', 'MSTest'))@(PackageReference->WithMetadataValue('Identity', 'TUnit'))' != '')">
+  <ItemGroup Condition="'$(VerificationGlueReportTrx)' == 'true' and '@(PackageReference->WithMetadataValue('Identity', 'Microsoft.Testing.Extensions.TrxReport'))' == '' and '@(PackageReference->WithMetadataValue('Identity', 'NUnit3TestAdapter'))' == '' and '@(PackageReference->WithMetadataValue('Identity', 'TUnit'))' == '' and ('$(IsTestingPlatformApplication)' == 'true' or '@(PackageReference->WithMetadataValue('Identity', 'xunit.v3'))@(PackageReference->WithMetadataValue('Identity', 'MSTest'))' != '')">
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
   </ItemGroup>
 
