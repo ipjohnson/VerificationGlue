@@ -40,7 +40,7 @@ public class CompletionGateSpecs
         Profiles =
         [
             new Profile { Name = "fixture", Projects = ["test/Inventory.Specs"], Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "a" }, Os = ["linux-x64"] },
-            new Profile { Name = "cases", Projects = ["test/NSubstituteComparison.Specs", "test/NSubstituteComparison"], Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "b" }, Os = ["linux-x64"] },
+            new Profile { Name = "cases", Projects = ["test/NSubstituteComparison.Specs", "test/NSubstituteComparison", "test/VerificationGlue.Mocks.Generator.Specs"], Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "b" }, Os = ["linux-x64"] },
             new Profile { Name = "packed", Projects = [Consumer], Values = new Dictionary<string, string> { ["runtime"] = "native-aot", ["host"] = "a" }, Os = ["linux-x64"] },
         ],
     };
@@ -105,6 +105,25 @@ public class CompletionGateSpecs
 
         Assert.Equal(ScenarioStatus.Passed, report.Scenarios.Single(entry => entry.Id == "MIX-001").Status);
         Assert.Equal((2, 0), (report.Steps[0].Passed, report.Steps[0].Failed));
+    }
+
+    [VerifyTest]
+    [Row("Passed", ScenarioStatus.Passed)]
+    [Row("Failed", ScenarioStatus.Failed)]
+    public void A_case_file_that_declares_no_test_takes_the_row_named_after_it(string outcome, string status)
+    {
+        const string Shape = "test/VerificationGlue.Mocks.Generator.Specs/Shapes/StaticAbstract.cs";
+        var inventory = Inventory with { Scenarios = [Scenario("MIX-001", "unsupported", Shape)] };
+        using var run = new FakeRun();
+        run.Trx("specs", "VerificationGlue.Mocks.Generator.Specs",
+            ("ShapeSpecs", "Mocks_compile", "Mocks_compile(file: \"Members.cs\")", "Passed"),
+            ("ShapeSpecs", "Mocks_compile", "Mocks_compile(file: \"StaticAbstract.cs\")", outcome));
+
+        var report = new RunReportBuilder(RepositoryRoot.Path, inventory, Matrix).Build(
+            [new StepInput("specs", "cases", "success", Path.Combine(run.Root, "specs"))], Current, Machine, "linux-x64", null, run.Root);
+
+        var entry = Assert.Single(report.Scenarios);
+        Assert.Equal((status, Shape), (entry.Status, Assert.Single(entry.Tests).Test));
     }
 
     [VerifyTest]
@@ -190,6 +209,8 @@ public class CompletionGateSpecs
         private static readonly XNamespace Ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
 
         private readonly DirectoryInfo directory = Directory.CreateTempSubdirectory("vg-completion-gate-");
+
+        public string Root => directory.FullName;
 
         public void Trx(string step, string assembly, params (string Type, string Method, string Name, string Outcome)[] results)
         {

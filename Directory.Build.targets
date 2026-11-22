@@ -19,7 +19,8 @@
 
   <!--
     With VerificationGlueReportTrx=true every test application has the TRX extension, so report-trx
-    works across the solution. test/Hardening.Mutations builds with it to name each mutation's failing cases.
+    works across the solution. test/Hardening.Mutations builds with it to name each mutation's failing cases,
+    and the build job of ci.yml builds with it for the run report.
     Restore does not import package props, so a test application of xunit, MSTest or TUnit is found by
     its package reference rather than by IsTestingPlatformApplication. NUnit3TestAdapter 5.2.0 fails to
     start on the Microsoft.Testing.Platform version the extension needs, so NUnit projects go without it.

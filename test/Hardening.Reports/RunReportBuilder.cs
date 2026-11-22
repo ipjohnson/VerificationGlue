@@ -46,7 +46,7 @@ public sealed class RunReportBuilder(string repositoryRoot, ContractInventory in
                     continue;
                 }
 
-                var testRuns = tests.Select(test => Outcome(test, profile, profileRuns)).ToList();
+                var testRuns = tests.Select(test => Outcome(test, profileRuns)).ToList();
                 if (profileComplete)
                 {
                     incomplete.AddRange(testRuns
@@ -110,13 +110,14 @@ public sealed class RunReportBuilder(string repositoryRoot, ContractInventory in
 
     // A test of a step with TRX files takes the results of its own assembly. A case that a test of another
     // assembly runs as a row, such as an NSubstituteComparison case, takes the row whose argument is
-    // "Type.Method". A folder, a file or a test of a step without TRX files takes the step's outcome.
-    private TestRun Outcome(ExpectedTest test, Profile profile, IReadOnlyList<ReadRun> runs)
+    // "Type.Method", and a case file takes the row whose argument is its file name. A folder, another file
+    // or a test of a step without TRX files takes the step's outcome.
+    private static TestRun Outcome(ExpectedTest test, IReadOnlyList<ReadRun> runs)
     {
         var results = new List<(string Step, string Outcome)>();
         foreach (var run in runs)
         {
-            if (test.Method is null || !run.HasResults)
+            if (test.Method is null && test.Row is null || !run.HasResults)
             {
                 var outcome = run.Run.Outcome == "success" && run.Run.Complete ? TestOutcome.Passed
                     : run.Run.Outcome == "failure" ? TestOutcome.Failed
@@ -125,10 +126,10 @@ public sealed class RunReportBuilder(string repositoryRoot, ContractInventory in
                 continue;
             }
 
-            var own = run.Results.Where(result => (result.Assembly is null || test.Assembly is null || result.Assembly == test.Assembly) && result.Is(test.Type!, test.Method)).ToList();
+            var own = test.Method is null ? [] : run.Results.Where(result => (result.Assembly is null || test.Assembly is null || result.Assembly == test.Assembly) && result.Is(test.Type!, test.Method)).ToList();
             if (own.Count == 0)
             {
-                var row = $"\"{test.Type}.{test.Method}\"";
+                var row = test.Row ?? $"\"{test.Type}.{test.Method}\"";
                 own = [.. run.Results.Where(result => result.Name.Contains(row, StringComparison.Ordinal))];
             }
 
@@ -165,9 +166,13 @@ public sealed class RunReportBuilder(string repositoryRoot, ContractInventory in
             {
                 tests.Add(ExpectedTest.Of(reference[..hash], reference[(hash + 1)..], assembly));
             }
+            else if (reference.EndsWith(".cs", StringComparison.Ordinal) && index.Tests(reference) is { Count: > 0 } members)
+            {
+                tests.AddRange(members.Select(member => ExpectedTest.Of(reference, member, assembly)));
+            }
             else if (reference.EndsWith(".cs", StringComparison.Ordinal))
             {
-                tests.AddRange(index.Tests(reference).Select(member => ExpectedTest.Of(reference, member, assembly)));
+                tests.Add(new ExpectedTest(reference, null, null, assembly) { Row = $"\"{Path.GetFileName(reference)}\"" });
             }
             else
             {
@@ -256,9 +261,12 @@ public sealed class RunReportBuilder(string repositoryRoot, ContractInventory in
 
     private sealed record ReadRun(StepRun Run, Profile Profile, bool HasResults, IReadOnlyList<TrxResult> Results, IReadOnlyList<SeedRun> Seeds);
 
-    // Type and Method are null for a reference to a folder or a file other than a .cs file.
+    // Type and Method are null for a case file, which declares no test, and for a reference to a folder or
+    // another file. Row is the quoted argument of the row that runs a case file.
     private sealed record ExpectedTest(string Reference, string? Type, string? Method, string? Assembly)
     {
+        public string? Row { get; init; }
+
         public static ExpectedTest Of(string path, string member, string? assembly)
         {
             var dot = member.LastIndexOf('.');
