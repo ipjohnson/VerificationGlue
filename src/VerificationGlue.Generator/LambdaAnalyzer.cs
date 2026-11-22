@@ -56,7 +56,7 @@ public sealed class LambdaAnalyzer : DiagnosticAnalyzer
         var invocation = (IInvocationOperation)context.Operation;
         if (VerifyCalls.KindOf(invocation.TargetMethod) is not (CallKind.Verify or CallKind.Check) ||
             invocation.Parent is not IExpressionStatementOperation ||
-            invocation.Arguments.Any(argument => argument.ArgumentKind == ArgumentKind.Explicit && argument.Parameter?.Name == VerifyCalls.ExpressionParameter) ||
+            invocation.Arguments.Any(argument => argument.ArgumentKind == ArgumentKind.Explicit && argument.Parameter?.Name is VerifyCalls.ExpressionParameter or VerifyCalls.MessageParameter) ||
             invocation.Arguments.FirstOrDefault(argument => argument.Parameter?.Name == VerifyCalls.ConditionParameter)?.Value is not { } condition ||
             condition.ConstantValue.HasValue ||
             invocation.Syntax.FirstAncestorOrSelf<MethodDeclarationSyntax>() is not { } declaration ||

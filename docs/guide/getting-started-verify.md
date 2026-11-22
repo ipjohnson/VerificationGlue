@@ -30,6 +30,7 @@ Import the methods with `using static VerificationGlue.VerifySyntax;`. The check
 |---|---|
 | `Verify(() => condition)` | Throws a `VerifyException` when `condition` is false. The message lists the value of each part of `condition`. |
 | `Verify(condition)` | Throws a `VerifyException` when `condition` is false. The message gives the source text and the shape of `condition`. |
+| `Verify(condition, "...")` | Adds the message to the failure. The failure still shows the source text of `condition`. |
 | `Verify(condition, $"...")` | Adds the interpolated message to the failure. Its holes run only when `condition` is false. |
 | `Throws<T>(action)` | Returns the exception that `action` throws. Fails when it throws nothing, or throws an exception that is not a `T` or derived from `T`. |
 | `ThrowsAsync<T>(action)` | Awaits `action` and does the same as `Throws<T>`. |

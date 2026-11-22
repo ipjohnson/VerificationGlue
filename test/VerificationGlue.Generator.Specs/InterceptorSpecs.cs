@@ -55,6 +55,11 @@ public class InterceptorSpecs
             public static void MultiLineOperand() => Verify(present == @"y
         z");
             public static void WithMessage() => Verify(order.Total == 40, $"order total {order.Total}");
+            private const string Reason = "the total is wrong";
+            public static void PlainMessage() => Verify(order.Total == 40, "the total is wrong");
+            public static void ConstMessage() => Verify(order.Total == 40, Reason);
+            public static void LocalMessage() { var reason = "the total is wrong"; Verify(order.Total == 40, reason); }
+            public static void CheckPlainMessage() => Check(order.Total == 40, "the total is wrong");
             public static void CheckWithoutScope() => Check(order.Total == 40);
             public static void ThrowsNothing() => Throws<InvalidOperationException>(() => order.ToString());
             public static void ThrowsOther() => Throws<InvalidOperationException>(() => throw new FormatException("bad digit"));
@@ -130,6 +135,10 @@ public class InterceptorSpecs
         ("Qualified", "Verify failed: order.Total == 40\n  expected order.Total to equal 40"),
         ("NamedArguments", "Verify failed: the total\n  expected order.Total to equal 40"),
         ("WithMessage", "Verify failed: order.Total == 40\n  expected order.Total to equal 40\n  order total 30"),
+        ("PlainMessage", "Verify failed: order.Total == 40\n  expected order.Total to equal 40\n  the total is wrong"),
+        ("ConstMessage", "Verify failed: order.Total == 40\n  expected order.Total to equal 40\n  the total is wrong"),
+        ("LocalMessage", "Verify failed: order.Total == 40\n  expected order.Total to equal 40\n  the total is wrong"),
+        ("CheckPlainMessage", "Check failed: order.Total == 40\n  expected order.Total to equal 40\n  the total is wrong"),
         ("CheckWithoutScope", "Check failed: order.Total == 40\n  expected order.Total to equal 40"),
         ("ThrowsNothing", "Throws failed: () => order.ToString()\n  expected order.ToString() to throw InvalidOperationException\n  no exception was thrown"),
         ("ThrowsOther", "Throws failed: () => throw new FormatException(\"bad digit\")\n  expected throw new FormatException(\"bad digit\") to throw InvalidOperationException\n  it threw System.FormatException: bad digit"),

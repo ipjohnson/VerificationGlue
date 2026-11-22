@@ -75,6 +75,45 @@ public class VerifySyntaxSpecs
         Assert.Equal("Verify failed: runs == 1\n  runs is 0, hole 3.50", failure.Message);
     }
 
+    private const string Reason = "the count is wrong";
+
+    [VerifyTest]
+    public void A_plain_string_message_keeps_the_condition_text()
+    {
+        var count = 2;
+        var reason = "the count is wrong";
+
+        var literal = Assert.Throws<VerifyException>(() => Verify(count == 3, "the count is wrong"));
+        var constant = Assert.Throws<VerifyException>(() => Verify(count == 3, Reason));
+        var local = Assert.Throws<VerifyException>(() => Verify(count == 3, reason));
+
+        Assert.Equal("Verify failed: count == 3\n  the count is wrong", literal.Message);
+        Assert.Equal("Verify failed: count == 3\n  the count is wrong", constant.Message);
+        Assert.Equal("Verify failed: count == 3\n  the count is wrong", local.Message);
+    }
+
+    [VerifyTest]
+    public void Check_with_a_plain_string_message_keeps_the_condition_text()
+    {
+        var count = 2;
+        var scope = VerifyScope.Begin();
+
+        Check(count == 3, "the count is wrong");
+
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+        Assert.Equal("1 check failed\n\nCheck failed: count == 3\n  the count is wrong", failure.Message);
+    }
+
+    [VerifyTest]
+    public void A_named_expression_argument_still_replaces_the_condition_text()
+    {
+        var count = 2;
+
+        var failure = Assert.Throws<VerifyException>(() => Verify(count == 3, expression: "the count"));
+
+        Assert.Equal("Verify failed: the count", failure.Message);
+    }
+
     [VerifyTest]
     public void A_message_hole_whose_formatting_throws_shows_a_placeholder()
     {

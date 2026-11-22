@@ -27,8 +27,9 @@ public static class VerifyFailure
     /// <param name="message">The message for the shape of the condition, or null.</param>
     /// <param name="file">The file of the call, or null.</param>
     /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
-    public static VerifyException Static(string? expression, string? message, string? file, int line) =>
-        new(Compose("Verify", expression, message, null, null, file, line));
+    /// <param name="userMessage">The message from the call, or null.</param>
+    public static VerifyException Static(string? expression, string? message, string? file, int line, string? userMessage = null) =>
+        new(Compose("Verify", expression, message, null, userMessage, file, line));
 
     /// <summary>The failure of a <c>Verify</c> call with an interpolated message.</summary>
     /// <param name="expression">The source text of the condition.</param>
@@ -47,8 +48,9 @@ public static class VerifyFailure
     /// <param name="message">The message for the shape of the condition, or null.</param>
     /// <param name="file">The file of the call, or null.</param>
     /// <param name="line">The line of the call. Ignored when <paramref name="file"/> is null.</param>
-    public static void CheckFailed(string? expression, string? message, string? file, int line) =>
-        VerifyScope.Report(new VerifyException(Compose("Check", expression, message, null, null, file, line)));
+    /// <param name="userMessage">The message from the call, or null.</param>
+    public static void CheckFailed(string? expression, string? message, string? file, int line, string? userMessage = null) =>
+        VerifyScope.Report(new VerifyException(Compose("Check", expression, message, null, userMessage, file, line)));
 
     /// <summary>
     /// A tier 2 <c>Verify</c> inside a rewritten copy, where no interceptor can reach the call, such
@@ -65,6 +67,24 @@ public static class VerifyFailure
         if (!condition)
         {
             throw Static(expression, message, file, line);
+        }
+
+        return default;
+    }
+
+    /// <summary>A tier 2 <c>Verify</c> with a string message inside a rewritten copy.</summary>
+    /// <param name="condition">The condition that must hold.</param>
+    /// <param name="userMessage">The message from the call, or null.</param>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    /// <returns>A value whose <see cref="VerifyResult.Because"/> does nothing here.</returns>
+    public static VerifyResult Verify([DoesNotReturnIf(false)] bool condition, string? userMessage, string? expression, string? message, string? file, int line)
+    {
+        if (!condition)
+        {
+            throw Static(expression, message, file, line, userMessage);
         }
 
         return default;
@@ -105,6 +125,21 @@ public static class VerifyFailure
         if (!condition)
         {
             CheckFailed(expression, message, file, line);
+        }
+    }
+
+    /// <summary>A tier 2 <c>Check</c> with a string message inside a rewritten copy.</summary>
+    /// <param name="condition">The condition that should hold.</param>
+    /// <param name="userMessage">The message from the call, or null.</param>
+    /// <param name="expression">The source text of the condition.</param>
+    /// <param name="message">The message for the shape of the condition, or null.</param>
+    /// <param name="file">The file of the call.</param>
+    /// <param name="line">The line of the call.</param>
+    public static void Check(bool condition, string? userMessage, string? expression, string? message, string? file, int line)
+    {
+        if (!condition)
+        {
+            CheckFailed(expression, message, file, line, userMessage);
         }
     }
 
