@@ -230,6 +230,31 @@ public class RewriteSpecs
             [Verify]
             public static void MessageHoles(int x, Counter counter) => Verify(x == 1, $"call {counter.Next()}");
 
+            private const string Reason = "x is wrong";
+
+            [Verify]
+            public static void PlainMessage(int x) => Verify(x == 1, "x is wrong");
+
+            [Verify]
+            public static void ConstMessage(int x) => Verify(x == 1, Reason);
+
+            [Verify]
+            public static void LocalMessage(int x)
+            {
+                var reason = "x is wrong";
+                Verify(x == 1, reason);
+            }
+
+            [Verify]
+            public static void CheckPlainMessage(int x) => Check(x == 1, "x is wrong");
+
+            [Verify]
+            public static void PlainMessageInLambda(int x)
+            {
+                Action check = () => Verify(x == 1, "x is wrong");
+                check();
+            }
+
             [Verify]
             public static void NoisyValue(Noisy noisy) => Verify(noisy.Ready);
 
@@ -565,6 +590,39 @@ public class RewriteSpecs
         Assert.Equal(
             Lines("Verify failed: x == 1", "  x → 2", "  x is 2", $"  at Tests/Rewrite.cs:{LineOf("x == 1, $\"x is {x}\"")}"),
             Fail("WithMessage", 2).Message);
+    }
+
+    [VerifyTest]
+    [Row("PlainMessage", "x == 1, \"x is wrong\"")]
+    [Row("ConstMessage", "x == 1, Reason")]
+    [Row("LocalMessage", "x == 1, reason")]
+    public void A_plain_string_message_is_added(string method, string call)
+    {
+        Assert.Equal(
+            Lines("Verify failed: x == 1", "  x → 2", "  x is wrong", $"  at Tests/Rewrite.cs:{LineOf(call)}"),
+            Fail(method, 2).Message);
+    }
+
+    [VerifyTest]
+    public void A_check_with_a_plain_string_message_adds_it()
+    {
+        var check = Cases.Value.GetMethod("CheckPlainMessage__Verified")!;
+
+        var scope = VerifyScope.Begin();
+        check.Invoke(null, [2]);
+        var failure = Assert.Throws<VerifyException>(scope.Dispose);
+
+        Assert.Equal(
+            Lines("1 check failed", "", "Check failed: x == 1", "  x → 2", "  x is wrong", $"  at Tests/Rewrite.cs:{LineOf("Check(x == 1, \"x is wrong\")")}"),
+            failure.Message);
+    }
+
+    [VerifyTest]
+    public void A_plain_string_message_in_a_lambda_keeps_its_tier_2_message()
+    {
+        Assert.Equal(
+            Lines("Verify failed: x == 1", "  expected x to equal 1", "  x is wrong", $"  at Tests/Rewrite.cs:{LineOf("() => Verify(x == 1, \"x is wrong\")")}"),
+            Fail("PlainMessageInLambda", 2).Message);
     }
 
     [VerifyTest]

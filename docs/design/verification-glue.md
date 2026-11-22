@@ -53,10 +53,10 @@ Verify(await repo.CountAsync() == 3);                    // await works inside V
 
 | Member | Behaviour |
 |---|---|
-| `Verify(bool, [CallerArgumentExpression] string? = null, ...)` | Marked `[DoesNotReturnIf(false)]`, so nullable flow analysis knows the condition after the call. Throws `VerifyException` on failure. |
+| `Verify(bool, string? message = null, [CallerArgumentExpression] string? expression = null)` | Marked `[DoesNotReturnIf(false)]`, so nullable flow analysis knows the condition after the call. Throws `VerifyException` on failure. A plain string as the second argument is the message. The message comes before the expression so that the string never binds to the expression and replaces the condition's text. |
 | `Verify(bool, ref VerifyMessageHandler)` | Interpolated message. `[InterpolatedStringHandlerArgument]` makes the holes run only on failure. Verified in the spike. A hole whose value throws while it is formatted shows `<ToString threw FormatException>`, naming the exception's type, and the `VerifyException` still surfaces (`CD-01`). A hole expression that throws, such as `{Load()}`, runs at the call site as C# evaluates it, so its own exception surfaces in every tier. |
 | `.Because(string)`, `.WithMessage(string)` on a `Verify` call | Add text to the failure message. They work only in methods that tier 3 rewrites, because in tiers 1 and 2 `Verify` throws before the chained call runs. VG0001 reports them anywhere else. |
-| `Check(bool, ...)` | Adds a failure to the current `VerifyScope`. With no scope it throws like `Verify`, so a failure is never lost. |
+| `Check(bool, string? message = null, ...)` | Adds a failure to the current `VerifyScope`. With no scope it throws like `Verify`, so a failure is never lost. |
 | `Throws<T>(Action)`, `ThrowsAsync<T>(Func<Task>)` | Return the exception. A different exception type fails with that exception's type and message. `ThrowsAsync` treats an exception the action throws before it returns a task like one the task throws. A cancelled task throws `TaskCanceledException`, which passes for `T` of `OperationCanceledException` and fails otherwise. |
 | `Approx(double expected, double tolerance)` | A value whose `==` uses the tolerance. The explanation reports the difference. |
 | `Eventually(Func<bool>, TimeSpan)` | Polls until true or timeout. On timeout it fails with the condition's source text. Neither tier captures values inside the lambda, so it reports no values. |
@@ -82,11 +82,11 @@ For each `Verify` or `Check` invocation, the generator emits a method with `[Int
 
 ```csharp
 [InterceptsLocation(1, "...")]
-public static void Verify_15_9(bool condition, string? expression = null)
+public static VerifyResult Verify_15_9(bool condition, string? message = null, string? expression = null)
 {
     if (!condition)
     {
-        throw VerifyFailure.Static("x is not null", "x can not be null", "OrderTests.cs", 15);
+        throw VerifyFailure.Static(expression, "x can not be null", "OrderTests.cs", 15, message);
     }
 }
 ```

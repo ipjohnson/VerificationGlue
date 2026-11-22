@@ -276,7 +276,7 @@ internal sealed class CopyBuilder
             VerifyCalls.RewritableStatement(invocation, body) is { } statement &&
             (statement is not ArrowExpressionClauseSyntax || ReturnsNothing(method)) &&
             VerifyCalls.Argument(invocation, VerifyCalls.ConditionParameter) is { } found &&
-            VerifyCalls.Argument(invocation, VerifyCalls.ExpressionParameter, kind == CallKind.VerifyWithMessage ? 2 : 1) is null &&
+            VerifyCalls.Argument(invocation, VerifyCalls.ExpressionParameter, 2) is null &&
             (kind != CallKind.VerifyWithMessage || VerifyCalls.Argument(invocation, VerifyCalls.MessageParameter, 1) is InterpolatedStringExpressionSyntax))
         {
             condition = found;
@@ -323,7 +323,7 @@ internal sealed class CopyBuilder
             failure.Append(')');
         }
 
-        if (kind == CallKind.VerifyWithMessage && VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) is { } message)
+        if (kind is CallKind.Verify or CallKind.VerifyWithMessage or CallKind.Check && VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) is { } message)
         {
             failure.Append(next).Append("Message(").Append(Render(message.Span)).Append(')');
         }
@@ -421,9 +421,9 @@ internal sealed class CopyBuilder
             default:
             {
                 var condition = VerifyCalls.Argument(call, VerifyCalls.ConditionParameter)!;
-                var withMessage = kind == CallKind.VerifyWithMessage;
-                var expression = VerifyCalls.Argument(call, VerifyCalls.ExpressionParameter, withMessage ? 2 : 1);
-                var userMessage = withMessage ? VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1) : null;
+                var lambda = kind is CallKind.VerifyLambda or CallKind.CheckLambda;
+                var expression = VerifyCalls.Argument(call, VerifyCalls.ExpressionParameter, lambda ? 1 : 2);
+                var userMessage = lambda ? null : VerifyCalls.Argument(call, VerifyCalls.MessageParameter, 1);
                 var shown = kind is CallKind.VerifyLambda or CallKind.CheckLambda && VerifyCalls.LambdaBody(condition) is { } body ? body : condition;
                 var message = Shapes.Condition(shown, _model, _token);
                 return $"{Runtime}.{(VerifyCalls.IsCheck(kind) ? "Check" : "Verify")}({Render(condition.Span)}, " +

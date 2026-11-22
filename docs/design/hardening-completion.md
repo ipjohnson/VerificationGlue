@@ -1,6 +1,6 @@
 # Hardening completion report
 
-This report measures the [hardening exercise](hardening.md) against each of its [completion criteria](hardening.md#completion-criteria). It lists the passing evidence, the exclusions, the unverified areas, the budgets and the campaign limits, and the one open defect.
+This report measures the [hardening exercise](hardening.md) against each of its [completion criteria](hardening.md#completion-criteria). It lists the passing evidence, the exclusions, the unverified areas, the budgets and the campaign limits, and the open defects.
 
 The evidence of record for a commit is the `completion-gate` job of that commit's CI run. Its artifact holds `completion.md` and `completion.json`, with the decision for each inventory entry. [The completion gate](hardening.md#the-completion-gate) describes the job. The figures below come from a replay of every CI step that writes a run report, on the development machine on 2026-11-21, at commit `e04c852` of the step 5 completion branch, which is based on `main` at `c56fc09`. The replay ran on macOS arm64, so its reports were relabelled `os=linux-x64` before the gate read them, apart from the release candidate report.
 
@@ -14,7 +14,7 @@ The evidence of record for a commit is the `completion-gate` job of that commit'
 | Generated failures can be replayed, and resolved failures have deterministic regressions | Each generator prints a replay command, and each defect found has a regression case |
 | Representative packed consumers and the agreed compatibility matrix pass | Passed on Linux x64 with Native AOT, and on macOS arm64 and Windows x64 on the JIT at `259570d` |
 | Targeted mutations are detected or have reviewed explanations for surviving | 6 of 6 detected. None needs an explanation. |
-| No unexplained failures remain within the declared scope | No blocking defect is open. `#112` is open with the user's acceptance. |
+| No unexplained failures remain within the declared scope | No defect is open. `#112`, which the user had accepted as open, is fixed. |
 | Performance budgets and campaign limits are reported with the results | Listed under [Budgets and limits](#budgets-and-limits) |
 
 ## Contracts with executable evidence
@@ -109,11 +109,7 @@ All six [targeted mutations](hardening.md#targeted-mutations-as-built) were dete
 
 Two kinds of defect block completion: a change to normal C# evaluation, and a failure lost in setup or cleanup. No open issue reports either.
 
-| Issue | Defect | Accepted | Owner | Review by | Skipped case |
-|---|---|---|---|---|---|
-| [#112](https://github.com/ipjohnson/VerificationGlue/issues/112) | A plain string as `Verify`'s second argument binds to the condition's text, so the failure shows the message in place of the condition and the message is lost | By the user on 2026-11-21 | `ipjohnson` | 2026-12-31 | `OpenDefectSpecs.A_plain_string_message_keeps_the_condition_text_and_shows_the_message` in `test/VerificationGlue.Tests.Specs` |
-
-The skipped case is in no inventory entry's evidence, so it never counts as passing. It runs on xunit v3, because `[VerifyTest]` has no way to skip a case. Without its `Skip`, it fails with `Verify failed: width is wrong`.
+No defect is open with the user's acceptance. [#112](https://github.com/ipjohnson/VerificationGlue/issues/112) was the one such defect: a plain string as `Verify`'s second argument bound to the condition's text. It is fixed, and `OpenDefectSpecs.A_plain_string_message_keeps_the_condition_text_and_shows_the_message` in `test/VerificationGlue.Tests.Specs` runs without its `Skip` and passes.
 
 The other open issues are outside the declared contracts. `#139` is about the package README logo on nuget.org. `#113`, `#114` and `#115` ask for richer messages that no contract promises.
 

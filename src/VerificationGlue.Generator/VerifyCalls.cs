@@ -42,7 +42,7 @@ internal static class VerifyCalls
         return method.Name switch
         {
             "Verify" when IsLambda(method) => CallKind.VerifyLambda,
-            "Verify" => method.Parameters.Length == 3 ? CallKind.VerifyWithMessage : CallKind.Verify,
+            "Verify" => method.Parameters[1].Type.Name == "VerifyMessageHandler" ? CallKind.VerifyWithMessage : CallKind.Verify,
             "Check" when IsLambda(method) => CallKind.CheckLambda,
             "Check" => CallKind.Check,
             "Throws" => CallKind.Throws,

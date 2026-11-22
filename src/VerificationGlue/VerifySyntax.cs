@@ -17,17 +17,22 @@ namespace VerificationGlue;
 /// </remarks>
 public static class VerifySyntax
 {
-    /// <summary>Throws a <see cref="VerifyException"/> when <paramref name="condition"/> is false.</summary>
+    /// <summary>
+    /// Throws a <see cref="VerifyException"/> when <paramref name="condition"/> is false. The failure
+    /// includes <paramref name="message"/> when it is given.
+    /// </summary>
     /// <param name="condition">The condition that must hold.</param>
+    /// <param name="message">A string added to the failure message, or null.</param>
     /// <param name="expression">The source text of <paramref name="condition"/>. The compiler fills it in.</param>
     /// <returns>A value whose <see cref="VerifyResult.Because"/> adds a reason in tier 3.</returns>
     public static VerifyResult Verify(
         [DoesNotReturnIf(false)] bool condition,
+        string? message = null,
         [CallerArgumentExpression(nameof(condition))] string? expression = null)
     {
         if (!condition)
         {
-            throw VerifyFailure.Static(expression, null, null, 0);
+            throw VerifyFailure.Static(expression, null, null, 0, message);
         }
 
         return default;
@@ -57,17 +62,20 @@ public static class VerifySyntax
     /// <summary>
     /// Records a failure in the current <see cref="VerifyScope"/> when <paramref name="condition"/>
     /// is false, and returns so the caller continues. With no open scope it throws a
-    /// <see cref="VerifyException"/> like <c>Verify</c>.
+    /// <see cref="VerifyException"/> like <c>Verify</c>. The failure includes
+    /// <paramref name="message"/> when it is given.
     /// </summary>
     /// <param name="condition">The condition that should hold.</param>
+    /// <param name="message">A string added to the failure message, or null.</param>
     /// <param name="expression">The source text of <paramref name="condition"/>. The compiler fills it in.</param>
     public static void Check(
         bool condition,
+        string? message = null,
         [CallerArgumentExpression(nameof(condition))] string? expression = null)
     {
         if (!condition)
         {
-            VerifyFailure.CheckFailed(expression, null, null, 0);
+            VerifyFailure.CheckFailed(expression, null, null, 0, message);
         }
     }
 

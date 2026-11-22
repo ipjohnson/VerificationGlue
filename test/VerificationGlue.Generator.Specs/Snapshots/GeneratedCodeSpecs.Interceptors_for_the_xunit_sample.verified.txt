@@ -49,11 +49,11 @@ namespace VerificationGlue.Generated
         }
 
         [global::System.Runtime.CompilerServices.InterceptsLocation(1, "cs5Q5M9TBUg1DJp+v66VKj8EAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_35_53(bool condition, string? expression = null)
+        public static global::VerificationGlue.VerifyResult Verify_35_53(bool condition, string? message = null, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected order.Total to equal 30", "OrderTests.cs", 35);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected order.Total to equal 30", "OrderTests.cs", 35, message);
             }
             return default;
         }
@@ -65,31 +65,31 @@ namespace VerificationGlue.Generated
         }
 
         [global::System.Runtime.CompilerServices.InterceptsLocation(1, "cs5Q5M9TBUg1DJp+v66VKsYHAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_69_9(bool condition, string? expression = null)
+        public static global::VerificationGlue.VerifyResult Verify_69_9(bool condition, string? message = null, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected await Task.FromResult(orders.Length) to equal 1", "OrderTests.cs", 69);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected await Task.FromResult(orders.Length) to equal 1", "OrderTests.cs", 69, message);
             }
             return default;
         }
 
         [global::System.Runtime.CompilerServices.InterceptsLocation(1, "cs5Q5M9TBUg1DJp+v66VKosIAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_73_9(bool condition, string? expression = null)
+        public static global::VerificationGlue.VerifyResult Verify_73_9(bool condition, string? message = null, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected span.Length to equal 1", "OrderTests.cs", 73);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "expected span.Length to equal 1", "OrderTests.cs", 73, message);
             }
             return default;
         }
 
         [global::System.Runtime.CompilerServices.InterceptsLocation(1, "cs5Q5M9TBUg1DJp+v66VKiYJAABPcmRlclRlc3RzLmNz")]
-        public static global::VerificationGlue.VerifyResult Verify_77_9(bool condition, string? expression = null)
+        public static global::VerificationGlue.VerifyResult Verify_77_9(bool condition, string? message = null, string? expression = null)
         {
             if (!condition)
             {
-                throw global::VerificationGlue.VerifyFailure.Static(expression, "first can not be null", "OrderTests.cs", 77);
+                throw global::VerificationGlue.VerifyFailure.Static(expression, "first can not be null", "OrderTests.cs", 77, message);
             }
             return default;
         }

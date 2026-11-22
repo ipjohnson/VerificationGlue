@@ -324,12 +324,16 @@ public sealed class VerifyFailureBuilder
         return this;
     }
 
-    /// <summary>Adds the interpolated message of the call.</summary>
-    /// <param name="message">The formatted message.</param>
+    /// <summary>Adds the message of the call. A null or empty message adds nothing.</summary>
+    /// <param name="message">The message.</param>
     /// <returns>This builder.</returns>
-    public VerifyFailureBuilder Message(string message)
+    public VerifyFailureBuilder Message(string? message)
     {
-        _notes.Add(message);
+        if (!string.IsNullOrEmpty(message))
+        {
+            _notes.Add(message!);
+        }
+
         return this;
     }
 
