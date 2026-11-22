@@ -20,8 +20,8 @@ public sealed record ContractInventory
 
     public required string Baseline { get; init; }
 
-    // True while step 1 builds the inventory. Step 5 sets it to false, and then a supported entry
-    // with a gap fails the check.
+    // True while steps 1 to 4 fill the inventory. Step 5 set it to false, and an entry with a gap now
+    // fails the check.
     public required bool AllowGaps { get; init; }
 
     public required IReadOnlyList<Area> Areas { get; init; }

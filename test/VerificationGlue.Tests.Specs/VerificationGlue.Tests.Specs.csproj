@@ -6,4 +6,8 @@
   <ItemGroup>
     <AssemblyMetadata Include="VerificationGlue.Configuration" Value="$(Configuration)" />
   </ItemGroup>
+  <!-- The runtime alone, for OpenDefectSpecs. Without the generator its checks give tier 1 messages. -->
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue/VerificationGlue.csproj" />
+  </ItemGroup>
 </Project>

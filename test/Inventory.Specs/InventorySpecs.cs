@@ -13,6 +13,15 @@ public class InventorySpecs
     }
 
     [VerifyTest]
+    public void The_checked_in_inventory_allows_no_gaps_and_has_none()
+    {
+        var inventory = ContractInventory.Load(RepositoryRoot.Path);
+
+        Assert.False(inventory.AllowGaps);
+        Assert.Empty(inventory.Scenarios.Where(scenario => scenario.Gap is not null).Select(scenario => scenario.Id));
+    }
+
+    [VerifyTest]
     public void The_gap_list_and_decisions_in_the_design_doc_match_the_inventory()
     {
         var inventory = ContractInventory.Load(RepositoryRoot.Path);

@@ -35,7 +35,7 @@ public class RunReportSpecs
             new Factor { Name = "host", Values = ["a", "b"] },
         ],
         Exclusions = [new Exclusion { Pair = ["os=macos-arm64", "runtime=native-aot"], Reason = "Native AOT runs on linux-x64 only." }],
-        Profiles = [new Profile { Name = "fixture", Project = "test/Inventory.Specs", Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "a" }, Os = ["linux-x64"] }],
+        Profiles = [new Profile { Name = "fixture", Projects = ["test/Inventory.Specs"], Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "a" }, Os = ["linux-x64"] }],
     };
 
     private static readonly string[] FixtureConfiguration = ["os=linux-x64", "runtime=jit", "host=a"];

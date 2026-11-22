@@ -173,9 +173,9 @@ public sealed partial class InventoryValidator(string repositoryRoot)
                 yield return "the gap does not say what is missing";
             }
 
-            if (!allowGaps && scenario.Support == "supported")
+            if (!allowGaps)
             {
-                yield return "a supported entry has a gap, and the inventory no longer allows gaps";
+                yield return "the entry has a gap, and the inventory no longer allows gaps";
             }
         }
         else if (scenario.Evidence.Count == 0)

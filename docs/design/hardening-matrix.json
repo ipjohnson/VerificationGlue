@@ -17,15 +17,127 @@
   "profiles": [
     {
       "name": "hardening-specs",
-      "project": "test/Hardening.Specs",
+      "projects": ["test/Hardening.Specs"],
       "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "3" },
       "os": ["linux-x64"]
     },
     {
       "name": "hardening-lifecycle",
-      "project": "test/Hardening.Lifecycle.Specs",
+      "projects": ["test/Hardening.Lifecycle.Specs"],
       "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "2" },
       "os": ["linux-x64"]
+    },
+    {
+      "name": "specs",
+      "projects": [
+        "test/VerificationGlue.Specs",
+        "test/VerificationGlue.Generator.Specs",
+        "test/VerificationGlue.Mocks.Generator.Specs",
+        "test/VerificationGlue.Tests.Generator.Specs",
+        "test/Contract.Specs",
+        "test/Docs.Specs",
+        "samples/Messages",
+        "test/NSubstituteComparison.Specs",
+        "test/NSubstituteComparison"
+      ],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "1" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "specs-tier3",
+      "projects": ["test/VerificationGlue.Mocks.Specs"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "samples-tests",
+      "projects": ["samples/TestsContainers", "samples/TestsLifecycle"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "VerificationGlue.Tests", "tier": "2" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "xunit",
+      "projects": ["test/VerificationGlue.Tests.Specs", "samples/MigrateFromNSubstitute/After"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "xunit.v3", "tier": "1" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "xunit-tier2",
+      "projects": ["samples/MocksGuide", "samples/MocksInXunit", "samples/MigrateFromXunitAssert/After"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "xunit.v3", "tier": "2" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "xunit-tier3",
+      "projects": ["samples/VerifyInXunit"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "xunit.v3", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "mstest-tier2",
+      "projects": ["samples/MocksInMSTest"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "MSTest", "tier": "2" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "mstest-tier3",
+      "projects": ["samples/VerifyInMSTest"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "MSTest", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "tunit-tier2",
+      "projects": ["samples/MocksInTUnit"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "TUnit", "tier": "2" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "tunit-tier3",
+      "projects": ["samples/VerifyInTUnit"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "TUnit", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "nunit-tier2",
+      "projects": ["samples/MocksInNUnit"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "NUnit", "tier": "2" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "nunit-tier3",
+      "projects": ["samples/VerifyInNUnit"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "NUnit", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "packed-tests",
+      "projects": ["eng/pack-and-consume.sh", "samples/PackageConsumer"],
+      "values": { "runtime": "native-aot", "consumption": "package", "host": "VerificationGlue.Tests", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "packed-verify",
+      "projects": ["samples/VerifyAot"],
+      "values": { "runtime": "native-aot", "consumption": "package", "host": "none", "tier": "3" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "packed-mocks",
+      "projects": ["samples/MocksAot"],
+      "values": { "runtime": "native-aot", "consumption": "package", "host": "none", "tier": "1" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "mock-sweep",
+      "projects": ["test/MockSweep", "test/MockSweep.Packages"],
+      "values": { "runtime": "jit", "consumption": "project-reference", "host": "none", "tier": "1" },
+      "os": ["linux-x64"]
+    },
+    {
+      "name": "release-candidate",
+      "projects": [".github/workflows/release-candidate.yml"],
+      "values": { "runtime": "jit", "consumption": "package", "host": "VerificationGlue.Tests", "tier": "3" },
+      "os": ["macos-arm64", "windows-x64"]
     }
   ]
 }
