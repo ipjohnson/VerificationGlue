@@ -17,7 +17,7 @@ public class MatrixSpecs
             new Exclusion { Pair = ["os=mac", "runtime=aot"], Reason = "r" },
             new Exclusion { Pair = ["runtime=aot", "host=c"], Reason = "r" },
         ],
-        Profiles = [new Profile { Name = "p", Project = "test/Inventory.Specs", Values = new Dictionary<string, string> { ["runtime"] = "aot", ["host"] = "b" }, Os = ["linux"] }],
+        Profiles = [new Profile { Name = "p", Projects = ["test/Inventory.Specs"], Values = new Dictionary<string, string> { ["runtime"] = "aot", ["host"] = "b" }, Os = ["linux"] }],
     };
 
     [VerifyTest]
@@ -26,7 +26,7 @@ public class MatrixSpecs
         var matrix = ConfigurationMatrix.Load(RepositoryRoot.Path);
 
         Assert.Empty(matrix.Validate());
-        Assert.All(matrix.Profiles, profile => Assert.True(Directory.Exists(Path.Combine(RepositoryRoot.Path, profile.Project)), $"{profile.Project} does not exist"));
+        Assert.All(matrix.Profiles.SelectMany(profile => profile.Projects), project => Assert.True(Path.Exists(Path.Combine(RepositoryRoot.Path, project)), $"{project} does not exist"));
     }
 
     [VerifyTest]
@@ -98,18 +98,22 @@ public class MatrixSpecs
         {
             Profiles =
             [
-                new Profile { Name = "p", Project = "x", Values = new Dictionary<string, string> { ["runtime"] = "aot", ["host"] = "c" }, Os = ["linux"] },
-                new Profile { Name = "q", Project = "x", Values = new Dictionary<string, string> { ["runtime"] = "fast", ["os"] = "linux" }, Os = ["bsd"] },
+                new Profile { Name = "p", Projects = ["x"], Values = new Dictionary<string, string> { ["runtime"] = "aot", ["host"] = "c" }, Os = ["linux"] },
+                new Profile { Name = "q", Projects = ["x"], Values = new Dictionary<string, string> { ["runtime"] = "fast", ["os"] = "linux" }, Os = ["bsd"] },
+                new Profile { Name = "r", Projects = [], Values = new Dictionary<string, string> { ["runtime"] = "jit", ["host"] = "a" }, Os = ["linux"] },
             ],
         };
 
         Assert.Equal(
             [
+                "the profile p shares x with another profile",
                 "the profile p on linux has the excluded pair runtime=aot host=c",
+                "the profile q shares x with another profile",
                 "the profile q gives runtime=fast, which the matrix does not list",
                 "the profile q gives no host",
                 "the profile q gives os, which is not a factor it can set",
                 "the profile q runs on bsd, which the matrix does not list",
+                "the profile r names no project",
             ],
             matrix.Validate());
     }

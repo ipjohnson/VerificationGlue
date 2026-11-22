@@ -172,6 +172,16 @@ public sealed record ConfigurationMatrix
                 problems.Add($"the profile {profile.Name} is declared more than once");
             }
 
+            if (profile.Projects.Count == 0)
+            {
+                problems.Add($"the profile {profile.Name} names no project");
+            }
+
+            foreach (var project in profile.Projects.Where(project => Profiles.Any(other => other != profile && other.Projects.Contains(project))).Take(1))
+            {
+                problems.Add($"the profile {profile.Name} shares {project} with another profile");
+            }
+
             foreach (var factor in Factors.Where(factor => factor.Name != OsFactor))
             {
                 if (!profile.Values.TryGetValue(factor.Name, out var value))
@@ -244,13 +254,23 @@ public sealed record Profile
 {
     public required string Name { get; init; }
 
-    // The project of the step, whose tests the inventory's evidence names.
-    public required string Project { get; init; }
+    // The project folders and files whose evidence the profile's steps run. A folder that holds one
+    // project file names the test assembly of that project. A script or a workflow names no assembly.
+    public required IReadOnlyList<string> Projects { get; init; }
 
     public required IReadOnlyDictionary<string, string> Values { get; init; }
 
     // The OS values that CI runs the profile on. The pairwise selection starts with these configurations.
     public required IReadOnlyList<string> Os { get; init; }
+
+    // The entry of Projects that an evidence reference falls under, or null.
+    public string? ProjectOf(string reference)
+    {
+        var path = reference.Split('#')[0];
+        return Projects
+            .Where(project => path == project || path.StartsWith(project + "/", StringComparison.Ordinal))
+            .MaxBy(project => project.Length);
+    }
 }
 
 public readonly record struct SettingPair(string First, string Second)

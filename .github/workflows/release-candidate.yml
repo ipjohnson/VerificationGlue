@@ -2,14 +2,11 @@ name: Release candidate matrix
 
 # The macOS arm64 and Windows x64 rows of the supported matrix in docs/design/hardening.md, which join for
 # release candidates. ci.yml runs Linux x64. The matrix has no Native AOT on these platforms, so the packed
-# consumer runs on the JIT. release.yml calls this workflow before it publishes.
+# consumer runs on the JIT. release.yml calls this workflow before it publishes, and ci.yml calls it on each
+# push and pull request, so its run report counts toward the completion gate.
 on:
   workflow_call:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/release-candidate.yml
-      - eng/pack-and-consume.sh
 
 permissions:
   contents: read
@@ -46,12 +43,15 @@ jobs:
           echo "Release candidate matrix on ${{ matrix.os }}: $(uname -sm), .NET SDK $(dotnet --version)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build
+        id: build
         run: dotnet build VerificationGlue.slnx -c Release
 
       - name: Run specs
+        id: specs
         run: dotnet test --solution VerificationGlue.slnx -c Release --no-build
 
       - name: Run the conformance suites on xunit v3
+        id: conformance
         run: |
           for suite in VerificationGlue.Specs VerificationGlue.Generator.Specs VerificationGlue.Mocks.Specs \
                        VerificationGlue.Mocks.Generator.Specs NSubstituteComparison.Specs; do
@@ -59,6 +59,31 @@ jobs:
           done
 
       - name: Pack, consume and check version mismatch on the JIT
+        id: pack
         env:
           NATIVE_AOT: false
         run: eng/pack-and-consume.sh --no-build
+
+      # The release-candidate profile of docs/design/hardening-matrix.json. The platform passes when every
+      # step above succeeded. The completion gate in ci.yml reads the report.
+      - name: Write the run report
+        if: always()
+        env:
+          OUTCOMES: ${{ steps.build.outcome }} ${{ steps.specs.outcome }} ${{ steps.conformance.outcome }} ${{ steps.pack.outcome }}
+        run: |
+          case " $OUTCOMES " in
+            *" failure "*) outcome=failure ;;
+            " success success success success ") outcome=success ;;
+            *) outcome=cancelled ;;
+          esac
+          dotnet run --project test/Hardening.Reports -c Release -- --output artifacts/evidence \
+            --step platform release-candidate "$outcome" -
+
+      - name: Upload the run report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: run-report-${{ matrix.os }}
+          path: artifacts/evidence/
+          retention-days: 30
+          if-no-files-found: ignore

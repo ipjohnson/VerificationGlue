@@ -4,7 +4,17 @@ using Hardening.Reports;
 
 // Usage: Hardening.Reports --output <folder> --step <name> <profile> <outcome> <folder> [--step ...]
 // Writes run-report.json and coverage.md to the output folder. Exits with 1 when the run is incomplete,
-// when a step or a scenario failed, or when the report or the matrix has a problem.
+// when a step or a scenario failed, or when the report or the matrix has a problem. A step folder of -
+// means the step writes no TRX file.
+//
+// Usage: Hardening.Reports gate --commit <sha> --output <folder> <run-report.json> ...
+// Writes completion.md and completion.json. Exits with 1 when an inventory entry has no passing evidence
+// in the reports made at the commit.
+if (args is ["gate", ..])
+{
+    return Gate(args[1..]);
+}
+
 var output = "artifacts/hardening";
 var steps = new List<StepInput>();
 for (var i = 0; i < args.Length; i++)
@@ -54,6 +64,51 @@ foreach (var failure in coverage.Failures)
 
 Console.WriteLine($"Wrote {Path.Combine(output, RunReport.FileName)} with {report.Scenarios.Count} entries, and {Path.Combine(output, CoverageReport.FileName)}. The run is {(report.Complete ? "complete" : "incomplete")}.");
 return problems.Count == 0 && coverage.Passed ? 0 : 1;
+
+static int Gate(string[] args)
+{
+    string? commit = null;
+    var output = "artifacts/completion";
+    var files = new List<string>();
+    for (var i = 0; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--commit" when i + 1 < args.Length:
+                commit = args[++i];
+                break;
+            case "--output" when i + 1 < args.Length:
+                output = args[++i];
+                break;
+            case var file when !file.StartsWith("--", StringComparison.Ordinal):
+                files.Add(file);
+                break;
+            default:
+                Console.Error.WriteLine($"Unknown or incomplete argument '{args[i]}'. Usage: gate --commit <sha> --output <folder> <run-report.json> ...");
+                return 2;
+        }
+    }
+
+    if (commit is null)
+    {
+        Console.Error.WriteLine("The gate needs --commit, the commit the run checked out.");
+        return 2;
+    }
+
+    var root = RepositoryRoot();
+    var reports = files.Order(StringComparer.Ordinal).Select(file => (Path.GetRelativePath(root, Path.GetFullPath(file)).Replace('\\', '/'), RunReport.Parse(File.ReadAllText(file)))).ToList();
+    var gate = new CompletionGate(ContractInventory.Load(root), ConfigurationMatrix.Load(root), commit).Decide(reports);
+    Directory.CreateDirectory(output);
+    File.WriteAllText(Path.Combine(output, CompletionGate.MarkdownFileName), gate.Markdown());
+    File.WriteAllText(Path.Combine(output, CompletionGate.JsonFileName), gate.Json());
+    foreach (var line in gate.Problems.Concat(gate.Rejected).Concat(gate.Entries.Where(entry => entry.Status != CompletionGate.Verified).Select(entry => $"{entry.Id} is {entry.Status}: {entry.Detail}")))
+    {
+        Console.Error.WriteLine(line);
+    }
+
+    Console.WriteLine($"{gate.Entries.Count(entry => entry.Status == CompletionGate.Verified)} of {gate.Entries.Count} inventory entries have passing evidence at {commit} in {reports.Count} run reports. The gate {(gate.Passed ? "passed" : "failed")}.");
+    return gate.Passed ? 0 : 1;
+}
 
 static string RepositoryRoot()
 {

@@ -1,6 +1,6 @@
 {
   "baseline": "b28d1d6fcc103afd8687b9d860ef16ee77c9a0fd",
-  "allowGaps": true,
+  "allowGaps": false,
   "areas": [
     { "prefix": "VERIFY", "name": "Verify, messages and the assertion analyzers" },
     { "prefix": "CHECK", "name": "Check" },

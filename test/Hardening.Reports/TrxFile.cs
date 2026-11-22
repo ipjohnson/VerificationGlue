@@ -23,7 +23,12 @@ public sealed record TrxFile(string Outcome, IReadOnlyList<TrxResult> Results)
                     method.Attribute("name")!.Value,
                     result.Attribute("testName")!.Value,
                     Normalize(result.Attribute("outcome")?.Value),
-                    result.Element(Trx + "Output")?.Element(Trx + "ErrorInfo")?.Element(Trx + "Message")?.Value);
+                    result.Element(Trx + "Output")?.Element(Trx + "ErrorInfo")?.Element(Trx + "Message")?.Value)
+                {
+                    Assembly = method.Attribute("codeBase")?.Value is { Length: > 0 } codeBase
+                        ? Path.GetFileNameWithoutExtension(codeBase.Replace('\\', '/').Split('/')[^1])
+                        : null,
+                };
             })
             .ToList();
         var outcome = document.Descendants(Trx + "ResultSummary").FirstOrDefault()?.Attribute("outcome")?.Value ?? "Unknown";
@@ -44,6 +49,9 @@ public sealed record TrxFile(string Outcome, IReadOnlyList<TrxResult> Results)
 // message of a result that failed.
 public sealed record TrxResult(string ClassName, string Method, string Name, string Outcome, string? Message = null)
 {
+    // The test assembly that ran the result, such as VerifyInXunit, or null when the file does not say.
+    public string? Assembly { get; init; }
+
     // Whether the result is of Type.Method, where Type may be nested and has no namespace.
     public bool Is(string type, string method) =>
         Method == method && (ClassName == type || ClassName.EndsWith("." + type, StringComparison.Ordinal));

@@ -124,13 +124,15 @@ public class ValidatorSpecs
     }
 
     [VerifyTest]
-    public void A_supported_gap_fails_once_gaps_are_no_longer_allowed()
+    [Row("supported")]
+    [Row("unclassified")]
+    public void Any_gap_fails_once_gaps_are_no_longer_allowed(string support)
     {
-        var gap = Supported with { Evidence = [], Gap = new Gap { Size = "s", Step = 4, Missing = "x" } };
+        var gap = Supported with { Support = support, Evidence = [], Gap = new Gap { Size = "s", Step = 4, Missing = "x" } };
 
         var problems = validator.Validate(Valid with { AllowGaps = false, Scenarios = [gap] });
 
-        Assert.Equal(["VERIFY-001: a supported entry has a gap, and the inventory no longer allows gaps"], problems);
+        Assert.Equal(["VERIFY-001: the entry has a gap, and the inventory no longer allows gaps"], problems);
     }
 
     [VerifyTest]

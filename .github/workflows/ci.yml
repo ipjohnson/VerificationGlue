@@ -25,11 +25,36 @@ jobs:
       - name: Install Native AOT prerequisites
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
+      # VerificationGlueReportTrx gives every test application but the NUnit ones the TRX extension, so the
+      # run report can name the result of each test the inventory cites.
       - name: Build
+        id: build
+        env:
+          VerificationGlueReportTrx: true
         run: dotnet build VerificationGlue.slnx -c Release
 
+      # NUnit3TestAdapter does not start with the TRX extension, so the NUnit projects run in the next step.
       - name: Run specs
-        run: dotnet test --solution VerificationGlue.slnx -c Release --no-build
+        id: specs
+        run: |
+          projects=$(grep -o 'Path="[^"]*\.csproj"' VerificationGlue.slnx | cut -d'"' -f2)
+          nunit=$(grep -l '"NUnit3TestAdapter"' $projects)
+          mkdir -p artifacts/evidence
+          printf '%s\n' $projects | grep -vxF "$nunit" | jq -R . \
+            | jq -s '{solution: {path: "../../VerificationGlue.slnx", projects: .}}' > artifacts/evidence/specs.slnf
+          dotnet test --solution artifacts/evidence/specs.slnf -c Release --no-build \
+            --report-trx --results-directory artifacts/evidence/specs
+
+      - name: Run the NUnit projects
+        id: nunit
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          projects=$(grep -o 'Path="[^"]*\.csproj"' VerificationGlue.slnx | cut -d'"' -f2)
+          status=0
+          for project in $(grep -l '"NUnit3TestAdapter"' $projects); do
+            dotnet test --project "$project" -c Release --no-build || status=1
+          done
+          exit $status
 
       # The .Specs projects run on VerificationGlue.Tests. The conformance suites also run on xunit v3,
       # so a defect in VerificationGlue.Tests cannot hide a defect in VerificationGlue or
@@ -64,7 +89,37 @@ jobs:
       # Also publishes samples/PackageConsumer, a VerificationGlue.Tests project, with Native AOT, runs its
       # tests, and adds their run time to the job summary.
       - name: Pack, consume, run tests under Native AOT and check version mismatch
+        id: pack
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: eng/pack-and-consume.sh --no-build
+
+      # Each --step names a profile of docs/design/hardening-matrix.json. The solution run's TRX files serve
+      # the profiles of its projects, and a step with - writes no TRX file, so its outcome stands for its
+      # profile. The completion gate reads the report.
+      - name: Write the run report
+        if: always()
+        env:
+          OUT: artifacts/evidence
+          SPECS: ${{ steps.specs.outcome || 'missing' }}
+          NUNIT: ${{ steps.nunit.outcome || 'missing' }}
+          PACK: ${{ steps.pack.outcome || 'missing' }}
+        run: |
+          args=()
+          for profile in specs specs-tier3 samples-tests xunit xunit-tier2 xunit-tier3 mstest-tier2 mstest-tier3 tunit-tier2 tunit-tier3; do
+            args+=(--step specs "$profile" "$SPECS" "$OUT/specs")
+          done
+          args+=(--step nunit nunit-tier2 "$NUNIT" - --step nunit nunit-tier3 "$NUNIT" -)
+          args+=(--step pack packed-tests "$PACK" - --step pack packed-verify "$PACK" - --step pack packed-mocks "$PACK" -)
+          dotnet run --project test/Hardening.Reports -c Release -- --output "$OUT" "${args[@]}"
+
+      - name: Upload the run report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: run-report-build
+          path: artifacts/evidence/
+          retention-days: 30
+          if-no-files-found: ignore
 
   # Times cold builds with the generator off, tier 2 alone and tier 3 in this one job, so the
   # ratios compare builds on the same machine. Fails when a configuration is over a limit in
@@ -246,6 +301,7 @@ jobs:
         run: dotnet build test/MockSweep -c Release
 
       - name: Run the sweep
+        id: sweep
         run: >
           dotnet run --project test/MockSweep -c Release --no-build --
           --references test/MockSweep.Packages/obj/sweep-references.txt --output artifacts/mock-sweep
@@ -264,6 +320,74 @@ jobs:
         with:
           name: mock-sweep
           path: artifacts/mock-sweep/
+          if-no-files-found: ignore
+
+      - name: Write the run report
+        if: always()
+        env:
+          SWEEP: ${{ steps.sweep.outcome || 'missing' }}
+        run: dotnet run --project test/Hardening.Reports -c Release -- --output artifacts/evidence --step sweep mock-sweep "$SWEEP" -
+
+      - name: Upload the run report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: run-report-mock-sweep
+          path: artifacts/evidence/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # The macOS arm64 and Windows x64 rows of the supported matrix. Each platform writes a run report.
+  release-candidate:
+    uses: ./.github/workflows/release-candidate.yml
+
+  # The completion gate of docs/design/hardening.md. It reads the run reports of this run's jobs and fails
+  # when an entry of the inventory has no passing evidence at this commit. A report made at another commit
+  # does not count, so an earlier pass never stands in for this one.
+  completion-gate:
+    needs: [build, hardening, mock-sweep, release-candidate]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      # A job that failed before its upload leaves its entries out, and the gate then reports them.
+      - name: Download the run reports
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          pattern: run-report-*
+          path: artifacts/reports
+
+      - name: Download the hardening run report
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: hardening
+          path: artifacts/reports/hardening
+
+      - name: Check that every inventory entry has passing evidence at this commit
+        run: |
+          mapfile -t reports < <(find artifacts/reports -name run-report.json | sort)
+          status=0
+          dotnet run --project test/Hardening.Reports -c Release -- gate --commit "$(git rev-parse HEAD)" \
+            --output artifacts/completion "${reports[@]}" || status=$?
+          if [ -f artifacts/completion/completion.md ]; then
+            cat artifacts/completion/completion.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
+
+      - name: Upload the gate report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: completion-gate
+          path: artifacts/completion/
+          retention-days: 30
           if-no-files-found: ignore
 
   docs:

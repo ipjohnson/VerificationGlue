@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The [scheduled campaign](#the-scheduled-campaign-as-built) runs the generators with larger case counts and the [targeted mutations](#targeted-mutations-as-built) every week, and files each failure as an issue for its triage owner. The completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 is done: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. Each CI job that runs evidence writes a [run report](#run-and-coverage-reports) from the cases it ran. The [scheduled campaign](#the-scheduled-campaign-as-built) runs the generators with larger case counts and the [targeted mutations](#targeted-mutations-as-built) every week, and files each failure as an issue for its triage owner. The inventory no longer allows gaps, and the [completion gate](#the-completion-gate) fails CI when an entry has no passing evidence at the commit. The [completion report](hardening-completion.md) holds the evidence against each completion criterion.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -70,7 +70,7 @@ CI validates the inventory on each pull request. [`test/Inventory.Specs`](../../
 - An unsupported entry names its expected outcome.
 - While `allowGaps` is true, an entry may record an explicit gap in place of evidence. Each gap gives a size and a step.
 - The gap list and the contract decisions in this doc match the inventory.
-- At completion, step 5 sets `allowGaps` to false, and a supported entry with a gap fails the check.
+- Step 5 set `allowGaps` to false, so an entry with a gap fails the check.
 - Verification status and run details are not inventory fields, so an entry that carries them fails to load.
 
 A report separates results at the current commit and configuration from historical passes. A pass at an earlier commit or in another configuration does not count as current evidence.
@@ -301,7 +301,7 @@ Run representative scenarios from packed packages, not only project references. 
 
 #### The release candidate matrix as built
 
-[`release-candidate.yml`](../../.github/workflows/release-candidate.yml) runs on `macos-latest`, which is arm64, and on `windows-latest`, which is x64. Each job builds `VerificationGlue.slnx`, runs the specs and the xunit v3 conformance suites, and runs `eng/pack-and-consume.sh` with `NATIVE_AOT=false`. The [supported matrix](#supported-matrix) has Native AOT on linux-x64 only, so the script skips each Native AOT publish and runs the packed samples on the JIT. `release.yml` calls the workflow, and its release job waits for it. A pull request that changes the workflow or the script also runs it.
+[`release-candidate.yml`](../../.github/workflows/release-candidate.yml) runs on `macos-latest`, which is arm64, and on `windows-latest`, which is x64. Each job builds `VerificationGlue.slnx`, runs the specs and the xunit v3 conformance suites, and runs `eng/pack-and-consume.sh` with `NATIVE_AOT=false`. The [supported matrix](#supported-matrix) has Native AOT on linux-x64 only, so the script skips each Native AOT publish and runs the packed samples on the JIT. `release.yml` calls the workflow, and its release job waits for it. `ci.yml` also calls it on each push to `main` and each pull request, so each platform writes a run report for the [completion gate](#the-completion-gate). The platform passes when its build, specs, conformance suites and script all succeed.
 
 The first run, on draft pull request [#178](https://github.com/ipjohnson/VerificationGlue/pull/178), passed on macOS arm64 and failed 24 of 1,119 specs on Windows x64. Each failure came from the runner's checkout, which turned every LF into CRLF. Raw string literals with expected messages held carriage returns. The snapshot interceptor locations hashed different source bytes. A verbatim literal over two lines held `\r\n`, and the text that `MUT-05` and `MUT-06` replace no longer matched. The failures were fixed, so no issue or skipped case was needed. [`.gitattributes`](../../.gitattributes) now gives every checkout LF line endings, and renormalizing the repository changed no file. The second run, at commit `259570d`, passed on both platforms. Each ran 1,119 specs, the five xunit v3 suites with 606 cases, and `eng/pack-and-consume.sh` to `pack-and-consume: passed`. The images were `macos-26-arm64` and `windows-2025-vs2026`.
 
@@ -326,7 +326,7 @@ Generate a coverage report from executed cases. Report valid combinations covere
 
 ### The interaction cases as built
 
-[`test/Hardening.Specs/Interactions`](../../test/Hardening.Specs/Interactions) holds the cases for `MIX-001`, `MIX-002`, `MIX-004` and `MIX-005`. Each class has `[Trait("Step", "5")]`, and the `hardening` job runs them in their own step with a 30 s budget. That budget is an addition to the approved 5-minute case budget of steps 2 to 4, for the completion gate to settle. The project now runs the VerificationGlue generator with `VerificationGlueRewrite` on, so these cases run as tier 3 copies. The step 2 and step 3 cases never call `Verify`, so the change leaves them as they were. `MIX-003` already had its evidence from step 4.
+[`test/Hardening.Specs/Interactions`](../../test/Hardening.Specs/Interactions) holds the cases for `MIX-001`, `MIX-002`, `MIX-004` and `MIX-005`. Each class has `[Trait("Step", "5")]`, and the `hardening` job runs them in their own step with a 30 s budget. The user kept that budget on top of the approved 5 minutes of steps 2 to 4, so the case budget is 5.5 minutes. The project now runs the VerificationGlue generator with `VerificationGlueRewrite` on, so these cases run as tier 3 copies. The step 2 and step 3 cases never call `Verify`, so the change leaves them as they were. `MIX-003` already had its evidence from step 4.
 
 | Scenario | Cases |
 |---|---|
@@ -342,9 +342,24 @@ The 14 step 5 cases take under 1 s on the development machine. All 95 cases of t
 
 ### Run and coverage reports
 
-Each `hardening` job run writes `run-report.json` and `coverage.md` to its `hardening` artifact, and adds `coverage.md` to the job summary. [`test/Hardening.Reports`](../../test/Hardening.Reports) builds both in the job's last step, which also runs after a failure, a cancellation or a timeout. [`test/Inventory.Specs`](../../test/Inventory.Specs) holds its specs.
+Each CI job that runs evidence writes `run-report.json` and `coverage.md` with [`test/Hardening.Reports`](../../test/Hardening.Reports), in a last step that also runs after a failure, a cancellation or a timeout. [`test/Inventory.Specs`](../../test/Inventory.Specs) holds its specs.
 
-Each case step writes a TRX file. The tool joins the results to the inventory through its evidence. A reference of the form `path#Type.Method` names one test, and a path to a `.cs` file names every test the file declares. Only evidence in the project of a step's profile is part of the run. Each entry of the run report is one Scenario ID in one configuration, with these fields:
+| Job | Artifact | Steps it reports |
+|---|---|---|
+| `hardening` | `hardening` | The step 2 to step 5 cases. The job also adds `coverage.md` to its summary. |
+| `build` | `run-report-build` | The solution's specs and samples, the NUnit projects, and `eng/pack-and-consume.sh` |
+| `mock-sweep` | `run-report-mock-sweep` | The sweep |
+| `release-candidate`, on each platform | `run-report-macos-arm64`, `run-report-windows-x64` | The whole platform job |
+
+A step with TRX files serves the profiles whose projects it ran. The `build` job builds with `VerificationGlueReportTrx=true`, so every test application but the NUnit ones writes a TRX file named after its assembly. NUnit3TestAdapter does not start with the TRX extension, so the NUnit projects run in their own step. A step that writes no TRX file, such as the script, the sweep or the NUnit step, is given as `-`, and its outcome stands for each reference of its profile.
+
+The tool joins the results to the inventory through its evidence:
+
+- A reference of the form `path#Type.Method` names one test. It takes the results of its project's test assembly, so the `CheckAndTierTests` of four samples stay apart. A case that another assembly runs as a row, such as an `NSubstituteComparison` case, takes the row whose argument is `"Type.Method"`.
+- A path to a `.cs` file names every test the file declares. A case file that declares no test, such as a mock shape, takes the row whose argument is its file name.
+- Any other path names a project folder, a script or a workflow. It passes when every step of its profile succeeded.
+
+Only evidence under the projects of a step's profile is part of the run. Each entry of the run report is one Scenario ID in one configuration, with these fields:
 
 | Field | Value |
 |---|---|
@@ -363,7 +378,7 @@ A run is incomplete when a step was cancelled or skipped, wrote no TRX file, or 
 
 #### The configuration matrix
 
-[`hardening-matrix.json`](hardening-matrix.json) holds the factors, the excluded pairs and the profiles. A profile gives the values of a CI step apart from its OS, which the tool reads from the machine.
+[`hardening-matrix.json`](hardening-matrix.json) holds the factors, the excluded pairs and the profiles. A profile names its projects and gives their values apart from the OS, which the tool reads from the machine. A project belongs to one profile, so each reference has one configuration on each OS.
 
 | Factor | Values |
 |---|---|
@@ -373,12 +388,26 @@ A run is incomplete when a step was cancelled or skipped, wrote no TRX file, or 
 | `host` | `none`, `VerificationGlue.Tests`, `xunit.v3`, `NUnit`, `MSTest`, `TUnit` |
 | `tier` | `1`, `2`, `3`, the highest [rewrite tier](../guide/tiers.md) the project turns on |
 
-| Profile | Project | Values |
-|---|---|---|
-| `hardening-specs` | `test/Hardening.Specs`, steps 2, 3 and 5 | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 3 |
-| `hardening-lifecycle` | `test/Hardening.Lifecycle.Specs`, step 4 | `jit`, `project-reference`, `VerificationGlue.Tests` in the fixture, tier 2 |
+| Profile | Projects | Values | OS |
+|---|---|---|---|
+| `hardening-specs` | `test/Hardening.Specs`, steps 2, 3 and 5 | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 3 | linux-x64 |
+| `hardening-lifecycle` | `test/Hardening.Lifecycle.Specs`, step 4 | `jit`, `project-reference`, `VerificationGlue.Tests` in the fixture, tier 2 | linux-x64 |
+| `specs` | The `.Specs` projects on VerificationGlue.Tests without the generator, `test/NSubstituteComparison` and `samples/Messages` | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 1 | linux-x64 |
+| `specs-tier3` | `test/VerificationGlue.Mocks.Specs` | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 3 | linux-x64 |
+| `samples-tests` | `samples/TestsContainers`, `samples/TestsLifecycle` | `jit`, `project-reference`, `VerificationGlue.Tests`, tier 2 | linux-x64 |
+| `xunit` | `test/VerificationGlue.Tests.Specs`, `samples/MigrateFromNSubstitute/After` | `jit`, `project-reference`, `xunit.v3`, tier 1 | linux-x64 |
+| `xunit-tier2` | `samples/MocksGuide`, `samples/MocksInXunit`, `samples/MigrateFromXunitAssert/After` | `jit`, `project-reference`, `xunit.v3`, tier 2 | linux-x64 |
+| `xunit-tier3`, `mstest-tier3`, `tunit-tier3`, `nunit-tier3` | `samples/VerifyIn<Framework>` | `jit`, `project-reference`, the framework, tier 3 | linux-x64 |
+| `mstest-tier2`, `tunit-tier2`, `nunit-tier2` | `samples/MocksIn<Framework>` | `jit`, `project-reference`, the framework, tier 2 | linux-x64 |
+| `packed-tests` | `eng/pack-and-consume.sh`, `samples/PackageConsumer` | `native-aot`, `package`, `VerificationGlue.Tests`, tier 3 | linux-x64 |
+| `packed-verify` | `samples/VerifyAot` | `native-aot`, `package`, `none`, tier 3 | linux-x64 |
+| `packed-mocks` | `samples/MocksAot` | `native-aot`, `package`, `none`, tier 1 | linux-x64 |
+| `mock-sweep` | `test/MockSweep`, `test/MockSweep.Packages` | `jit`, `project-reference`, `none`, tier 1 | linux-x64 |
+| `release-candidate` | `.github/workflows/release-candidate.yml` | `jit`, `package`, `VerificationGlue.Tests`, tier 3 | macos-arm64, windows-x64 |
 
-The pairwise selection starts with each profile on each OS that CI runs it on, which is `linux-x64` for both. It then adds combinations until every valid pair of values is in one. Each added combination starts from the first pair still missing and takes, factor by factor, the allowed value that adds the most missing pairs. The selection has 22 combinations, which hold all 91 valid pairs. The product of the two largest factors makes 18 the least possible. The coverage report lists each combination as covered, failed or unverified. A combination is covered when a finished step ran it and none of that step's tests failed. A combination that no step ran is unverified, so the 20 combinations outside the `hardening` job's profiles stay unverified until another run reports them.
+The script also runs the packed consumers on the JIT, and those runs share the `packed-tests` outcome. The xunit v3 runs of the conformance suites are not in a profile. Their assemblies have the names of the VerificationGlue.Tests runs, so a step cannot keep the two apart, and they stay a check that writes no report.
+
+The pairwise selection starts with each profile on each OS that CI runs it on. It then adds combinations until every valid pair of values is in one. Each added combination starts from the first pair still missing and takes, factor by factor, the allowed value that adds the most missing pairs. The selection has 30 combinations, which hold all 91 valid pairs. The product of the two largest factors makes 18 the least possible. 18 combinations come from the profiles, since `specs-tier3` and `samples-tests` share the configurations of the hardening profiles, and they hold 64 of the 91 pairs. The other 12 come from the pairwise fill, and no CI step runs them. The coverage report lists each combination as covered, failed or unverified. A combination is covered when a finished step ran it and none of that step's tests failed. A combination that no step ran is unverified.
 
 #### Excluded pairs
 
@@ -404,7 +433,26 @@ The coverage report comes from the run report, not from a test count. It has the
 - The excluded pairs with their reasons.
 - The failed steps and entries.
 
-A local run on the development machine, with all four steps passing, gave 21 entries, all passed. The 21 Scenario IDs are the ones with evidence in the two hardening projects. The run's `os=macos-arm64` configurations are outside the selection, so that run covered no combination.
+A coverage report covers the steps of its own job. A combination that one job leaves unverified may be covered in another job's report.
+
+#### The completion gate
+
+The `completion-gate` job of `ci.yml` waits for the `build`, `hardening`, `mock-sweep` and `release-candidate` jobs, and runs after any of them fails. It downloads their run reports and runs:
+
+```sh
+dotnet run --project test/Hardening.Reports -c Release -- gate --commit "$(git rev-parse HEAD)" --output artifacts/completion <run-report.json> ...
+```
+
+The gate decides each inventory entry:
+
+- A report made at another commit does not count, so a pass in an earlier run never verifies an entry. The gate lists such a report and leaves out its entries.
+- An entry is verified when it is `supported` or `unsupported`, the reports at the commit have an entry for it, and each of those entries passed.
+- Each evidence reference must also have run on every OS of its profile. A reference that no profile names is unverified.
+- A failed entry fails. Any other entry is unverified.
+
+The job fails unless every entry is verified. It writes `completion.md`, which goes to the job summary, and `completion.json` with the decision for each entry, to the `completion-gate` artifact. A job that fails before its upload leaves its entries out, so the gate reports them as unverified rather than skipping them. `CompletionGateSpecs` in `test/Inventory.Specs` holds its specs.
+
+The gate is a job of the workflow. It blocks a merge once branch protection on `main` requires its check.
 
 ## Test effectiveness and execution budgets
 
@@ -575,7 +623,7 @@ Each decision settles an observable behavior that no guide or design states. Its
 | SDK | .NET SDK 10.0.403 and later 10.0.4xx patches, from `global.json` | CI and local |
 | Framework | `net10.0` for `VerificationGlue`, `VerificationGlue.Mocks` and `VerificationGlue.Tests`. The generators target `netstandard2.0` and need the Roslyn 4.14 compiler of that SDK. | CI and local |
 | Test hosts | xunit.v3 4.0.3, NUnit 4.6.1, MSTest 4.5.3, TUnit 1.85.0, and Microsoft.Testing.Platform 3.0.0-preview.26566.9 for `VerificationGlue.Tests` | CI |
-| OS and architecture | Linux x64 as the release guarantee. macOS arm64 and Windows x64 join the release candidate matrix in step 5. | Linux x64 in CI. Since step 5, macOS arm64 and Windows x64 in the release candidate matrix. |
+| OS and architecture | Linux x64 as the release guarantee. macOS arm64 and Windows x64 join the release candidate matrix in step 5. | Linux x64 in CI. Since step 5, macOS arm64 and Windows x64 in the release candidate matrix, which CI also runs. |
 | Native AOT | linux-x64 | CI, through `eng/pack-and-consume.sh` |
 
 An earlier .NET version, .NET Framework and an IDE's debugger are outside the matrix. `docs/research/ide-report.md` records the IDE state.
@@ -610,7 +658,7 @@ The two limits from the review do not conflict on today's CI. A separate `harden
 - A separate `hardening` job with `timeout-minutes: 10`.
 - A pull request case budget of 5 minutes inside it, which leaves room for checkout, SDK setup and the build. Step 2 gets 2 minutes, step 3 gets 2 minutes and step 4 gets 1 minute.
 - If `cold-build` becomes shorter than the `hardening` job, the 5-minute limit on the critical path applies instead.
-- Step 5 records the approved limits in configuration.
+- Step 5 records the approved limits in configuration. The `hardening` job in `ci.yml` holds them as `STEP2_BUDGET_SECONDS` to `STEP5_BUDGET_SECONDS`. The user added 30 s for the step 5 cases, which makes the case budget 5.5 minutes.
 
 ### Recommended order for steps 2 to 4
 
@@ -668,4 +716,4 @@ Two kinds of defect block completion: a change to normal C# evaluation, and a fa
 
 A deferred or quarantined case reports as failed or unverified, never as passing. An unverified entry within scope blocks completion unless a recorded scope decision removes it from scope.
 
-The completion report must list exclusions and unverified areas alongside passing evidence. Code coverage can identify unvisited implementation paths, but it does not replace these criteria. Future changes must update the inventory and associated tests as part of changing the contract.
+The completion report must list exclusions and unverified areas alongside passing evidence. [hardening-completion.md](hardening-completion.md) is that report. Code coverage can identify unvisited implementation paths, but it does not replace these criteria. Future changes must update the inventory and associated tests as part of changing the contract.
