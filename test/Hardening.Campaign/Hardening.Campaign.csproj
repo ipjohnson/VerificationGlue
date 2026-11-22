@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Runs the scheduled hardening campaign of .github/workflows/hardening-campaign.yml: the generators of
+    test/Hardening.Specs with the case counts of docs/design/hardening-campaign.json, then the targeted
+    mutations. docs/design/hardening.md, The scheduled campaign as built, describes the run.
+    test/Inventory.Specs holds its specs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Hardening.Reports/Hardening.Reports.csproj" />
+    <ProjectReference Include="../Hardening.Mutations/Hardening.Mutations.csproj" />
+  </ItemGroup>
+</Project>

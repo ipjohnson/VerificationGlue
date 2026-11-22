@@ -2,7 +2,7 @@
 
 Users should be able to combine assertions, mocks, and test setup without changing normal C# evaluation, leaking state between tests, or losing failures during cleanup. This exercise establishes executable evidence for those guarantees across the supported surface of VerificationGlue.
 
-Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The [targeted mutations](#targeted-mutations-as-built) run in the hardening campaign workflow, which starts by hand. The other campaigns and the completion gates described here are proposed work.
+Status: step 1 done, and the user approved its gate on 2026-11-17. Design review drv-60ynneww accepted 11 of its 12 decisions, and this text applies them. The coverage inventory exists at its baseline commit, and the [step 1 gate summary](#step-1-gate-summary) lists what the gate decides. Step 2 is done: the [generated expression harness](#generated-expression-harness) runs in the `hardening` CI job, and no inventory entry has a step 2 gap. Step 3 is done: the [mock sequence harness](#the-mock-sequence-harness-as-built) and the [shape consumers](#the-shape-consumers-as-built) run in the same job, and no inventory entry has a step 3 gap. Step 5 has started: the [interaction cases](#the-interaction-cases-as-built) run in the same job, and no `MIX` entry has a gap. The job writes a [run report and a coverage report](#run-and-coverage-reports) from the cases it ran. The [scheduled campaign](#the-scheduled-campaign-as-built) runs the generators with larger case counts and the [targeted mutations](#targeted-mutations-as-built) every week, and files each failure as an issue for its triage owner. The completion gates described here are proposed work.
 
 Testing every possible C# program is not feasible. The goal is to define the supported contracts, exercise their boundaries and interactions, and retain reproducible evidence. A large test count or high line coverage alone does not establish that coverage.
 
@@ -453,7 +453,7 @@ The tool writes `mutations.json`, `mutations.md` and the output of each command 
 - A mutation is not caught by the case that its missing-assertion explanation names.
 - A mutation that the catalog explains as equivalent is caught.
 
-An explanation records why the suite once let a mutation survive. A missing assertion names the case that was added to catch it. An equivalent mutation changes no behavior that the contract covers, and its reason says why. `MutationSpecs` in `test/Inventory.Specs` runs on every pull request. It checks that each mutation's text is still in its file once, and that the table below matches the catalog. It also checks that the suite of the mutation runs leaves that project out. The mutations run in the `mutations` job of the [hardening campaign workflow](../../.github/workflows/hardening-campaign.yml), not in the pull request run. That workflow starts by hand until the campaign has a triage owner and a failure destination.
+An explanation records why the suite once let a mutation survive. A missing assertion names the case that was added to catch it. An equivalent mutation changes no behavior that the contract covers, and its reason says why. `MutationSpecs` in `test/Inventory.Specs` runs on every pull request. It checks that each mutation's text is still in its file once, and that the table below matches the catalog. It also checks that the suite of the mutation runs leaves that project out. The mutations run in the [scheduled campaign](#the-scheduled-campaign-as-built), not in the pull request run.
 
 | ID | Mutation | Change | Result | Explanation |
 |---|---|---|---|---|
@@ -465,6 +465,41 @@ An explanation records why the suite once let a mutation survive. A missing asse
 | `MUT-06` | Skip a cleanup stage | The runner does not end a test's `VerifyScope`, so the test's `Check` failures are dropped. | Detected by 4 cases, such as `ContainerSpecs.Check_failures_are_reported_with_their_own_test` and `IsolationSpecs.A_later_test_sees_no_failed_checks_pending_mock_state_output_or_context_of_an_earlier_one` | |
 
 The results come from a run on 2026-11-21 at commit `4eca35f`, on a Linux machine with a 4-core Intel Core i5-4570. The run took about 23 minutes. Without a mutation, the suite ran 1,195 cases and passed. That count leaves out the cases of `test/Inventory.Specs`, and none of the failing cases is a `MutationSpecs` case. Every mutation was detected, so no mutation needs an explanation. A case count counts each data row. `MUT-04` and `MUT-06` are caught by the fewest cases. Each of them has one spec written for its rule, in `test/VerificationGlue.Mocks.Specs` and `test/VerificationGlue.Tests.Specs`, and the generated or process-level cases catch it as well.
+
+### The scheduled campaign as built
+
+The [hardening campaign workflow](../../.github/workflows/hardening-campaign.yml) runs every Monday at 04:00 UTC, and it can also be started by hand. Its `campaign` job runs [Hardening.Campaign](../../test/Hardening.Campaign):
+
+```sh
+dotnet run --project test/Hardening.Campaign -c Release -- --output artifacts/campaign
+```
+
+[`hardening-campaign.json`](hardening-campaign.json) holds the campaign's configuration. The tool runs each generator spec of `test/Hardening.Specs` in its own `dotnet test`, with `HARDENING_CASES` set to the run's case count. Then it runs every mutation, as [Targeted mutations as built](#targeted-mutations-as-built) describes. Each run has a time limit:
+
+| Run | Spec | Pull request cases | Campaign cases | Limit |
+|---|---|---|---|---|
+| `expressions` | `A_fixed_seed_run_keeps_plain_CSharp_behavior` | 300 | 3,000 | 30 minutes |
+| `mock-sequences` | `A_fixed_seed_run_of_mock_sequences_matches_the_reference_model` | 2,000 | 100,000 | 15 minutes |
+| `mock-invariants` | `Each_mock_invariant_holds_on_a_fixed_seed_run` | 400 | 20,000 | 15 minutes |
+| `mutations` | `Hardening.Mutations` | none | every mutation | 60 minutes |
+
+The seed is the UTC date of the run, such as `20261123`, so each run uses a new seed. A run started by hand can give its own seed. Locally, `--seed` sets the seed and `--only expressions` runs one run.
+
+The tool stops a run when it reaches its limit. The run then reports the overrun, and its coverage is incomplete. A generator run is also incomplete when it writes no TRX file, or when its seed file shows another seed or fewer cases. The mutation run is also incomplete when it writes no `mutations.json`, or when it runs fewer mutations than the catalog holds. The job's timeout of 150 minutes leaves room for the builds after the 120 minutes of limits.
+
+A local run of the whole campaign on 2026-11-21, with seed `20261121` on the development machine, took 724 s and passed. The `expressions` run took 185 s, each mock run took under 10 s, and the `mutations` run took 507 s, with every mutation detected. The limits leave room for a CI runner several times slower than that machine.
+
+The tool writes `campaign.json`, `campaign.md` and `issues.json` to the `hardening-campaign` artifact, with the output of each run. The artifact is kept for 30 days. `campaign.md` goes to the job summary. When a run did not finish, it starts with "Coverage is incomplete" and each reason.
+
+#### Triage
+
+The triage owner is `ipjohnson`. Each failure goes to an issue labelled `hardening-campaign` and assigned to the owner. The `triage` job files the entries of `issues.json` after each campaign run on `main`. Each failing case, each mutation that does not match the catalog and each incomplete run is one issue. The title names the failure, such as "Hardening campaign: MUT-03 does not match the catalog". When an open issue with the label has the same title, the job comments on that issue instead of opening another. A campaign job that fails without writing `issues.json` gets one issue that links the workflow run.
+
+An issue gives the workflow run, the commit, the seed, the case count, the time against the limit, the environment and the command that replays the whole run. Then it gives what the failing case printed. A generator prints its first three mismatches, each with the replay command of its case, the source or the shrunk sequence, and the expected and actual observations. The files the run wrote for each mismatch follow, with the compiler configuration and the environment. A mutation prints its expected result, its actual result and the command that runs it alone.
+
+The owner replays the failure and adds the shrunk case to `RegressionSpecs` or `MockRegressionSpecs`, as the failure text says. Then the owner fixes the defect and closes the issue. A run that needs more time gets a higher limit or a lower case count in `hardening-campaign.json`.
+
+`CampaignSpecs` in `test/Inventory.Specs` checks that the table above matches the configuration, and that each campaign count is larger than the pull request count. It checks that the workflow reads the owner and the label from the configuration, keeps the artifact for the configured days, and has a timeout above the sum of the limits.
 
 ## Delivery sequence
 

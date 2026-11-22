@@ -4,5 +4,7 @@
     <Using Include="Hardening.Reports" />
     <ProjectReference Include="../Hardening.Mutations/Hardening.Mutations.csproj" />
     <Using Include="Hardening.Mutations" />
+    <ProjectReference Include="../Hardening.Campaign/Hardening.Campaign.csproj" />
+    <Using Include="Hardening.Campaign" />
   </ItemGroup>
 </Project>

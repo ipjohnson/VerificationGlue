@@ -22,7 +22,8 @@ public sealed record TrxFile(string Outcome, IReadOnlyList<TrxResult> Results)
                     method.Attribute("className")!.Value.Replace('+', '.'),
                     method.Attribute("name")!.Value,
                     result.Attribute("testName")!.Value,
-                    Normalize(result.Attribute("outcome")?.Value));
+                    Normalize(result.Attribute("outcome")?.Value),
+                    result.Element(Trx + "Output")?.Element(Trx + "ErrorInfo")?.Element(Trx + "Message")?.Value);
             })
             .ToList();
         var outcome = document.Descendants(Trx + "ResultSummary").FirstOrDefault()?.Attribute("outcome")?.Value ?? "Unknown";
@@ -39,8 +40,9 @@ public sealed record TrxFile(string Outcome, IReadOnlyList<TrxResult> Results)
     };
 }
 
-// ClassName is the full name of the class, with nested types joined by dots.
-public sealed record TrxResult(string ClassName, string Method, string Name, string Outcome)
+// ClassName is the full name of the class, with nested types joined by dots. Message is the failure
+// message of a result that failed.
+public sealed record TrxResult(string ClassName, string Method, string Name, string Outcome, string? Message = null)
 {
     // Whether the result is of Type.Method, where Type may be nested and has no namespace.
     public bool Is(string type, string method) =>
