@@ -416,3 +416,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: eng/check-docs.sh
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: spikes/docs-site/package-lock.json
+
+      # docs-pages.yml builds the same site, but only after a merge to main.
+      - name: Build the docs site
+        working-directory: spikes/docs-site
+        run: |
+          npm ci
+          npm run build

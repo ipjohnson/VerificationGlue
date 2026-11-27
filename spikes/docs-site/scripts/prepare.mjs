@@ -33,13 +33,18 @@ async function visit(dir) {
   }
 }
 await visit(path.join(repo, 'docs'));
-const readme = await readFile(path.join(repo, 'README.md'), 'utf8');
 const snippets = {};
-for (const [key, name] of Object.entries({ Verify: 'verify-in-xunit', Mocks: 'mocks-style-typed', Tests: 'first-verify-tests' })) {
-  const section = readme.split(`<!-- snippet: ${name} -->`)[1]?.split('<!-- endSnippet -->')[0];
-  const code = section?.match(/```cs\n([\s\S]*?)```/)[1];
-  if (!code) throw new Error(`Missing sample ${name}`);
-  snippets[key] = code.trim();
+for (const [key, [file, name]] of Object.entries({
+  Verify: ['samples/VerifyInXunit/OrderTests.cs', 'verify-in-xunit'],
+  Mocks: ['samples/MocksGuide/SetupStyles.cs', 'mocks-style-typed'],
+  Tests: ['samples/TestsGettingStarted/CartTests.cs', 'first-verify-tests'],
+})) {
+  const source = await readFile(path.join(repo, file), 'utf8');
+  const code = source.match(new RegExp(`^[ \\t]*#region ${name}[ \\t]*\\r?\\n([\\s\\S]*?)^[ \\t]*#endregion`, 'm'))?.[1];
+  if (!code) throw new Error(`Missing region ${name} in ${file}`);
+  const lines = code.replace(/\s+$/, '').split(/\r?\n/);
+  const indent = Math.min(...lines.filter((line) => line.trim()).map((line) => line.match(/^ */)[0].length));
+  snippets[key] = lines.map((line) => line.slice(indent)).join('\n').trim();
 }
 await writeFile(path.join(out, 'examples.json'), JSON.stringify(snippets, null, 2));
 const diagnostics = [];
