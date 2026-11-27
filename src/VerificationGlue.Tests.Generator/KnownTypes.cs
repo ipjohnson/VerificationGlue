@@ -19,6 +19,9 @@ internal static class KnownTypes
     public const string DefaultNameFormatter = "global::VerificationGlue.Tests.DefaultNameFormatter";
     public const string MockAttribute = "VerificationGlue.Mocks.MockAttribute";
     public const string FromKeyedServicesAttribute = "Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute";
+    public const string ServiceCollectionNamespace = "VerificationGlue.Tests.DependencyInjection";
+    public const string ServiceCollectionAttribute = "ServiceCollectionAttribute";
+    public const string DependencyModulesRuntime = "DependencyModules.Runtime";
 
     public static readonly ITypeDefinition TestParameter = TypeDefinition.Get("VerificationGlue.Tests", "TestParameter");
     public static readonly ITypeDefinition Mock = TypeDefinition.Get("VerificationGlue.Mocks", "Mock");

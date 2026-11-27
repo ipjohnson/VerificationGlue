@@ -84,7 +84,7 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
                     symbol.ReportDiagnostic(Diagnostic.Create(Diagnostics.SharedContainerWithoutChildOverrides, location, method.Name, shared.Bootstrap, shared.Scope));
                 }
 
-                Check(method.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                Check(method.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken, TestDiscovery.ConstructsUnresolved(method, compilation));
                 foreach (var parameter in method.Parameters)
                 {
                     Check(parameter.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
@@ -98,10 +98,10 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
                     }
                 }
 
-                Check(method.ContainingType.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                Check(method.ContainingType.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken, TestDiscovery.ConstructsUnresolved(method.ContainingType, compilation));
                 if (Interlocked.Exchange(ref assemblyChecked, 1) == 0)
                 {
-                    Check(compilation.Assembly.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken);
+                    Check(compilation.Assembly.GetAttributes(), compilation, reported, symbol.ReportDiagnostic, symbol.CancellationToken, TestDiscovery.ConstructsUnresolved(compilation));
                 }
             }, SymbolKind.Method);
 
@@ -182,14 +182,15 @@ public sealed class TestAnalyzer : DiagnosticAnalyzer
         Compilation compilation,
         ConcurrentDictionary<SyntaxReference, byte> reported,
         System.Action<Diagnostic> report,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool fromSyntax = false)
     {
         foreach (var attribute in attributes)
         {
             if (AttributeMaterializer.IsSkipped(attribute) ||
                 RowReader.IsRow(attribute) ||
                 attribute.ApplicationSyntaxReference is not { } syntax ||
-                AttributeMaterializer.WhyNotMaterialized(attribute, compilation) is not { } reason ||
+                AttributeMaterializer.WhyNotMaterialized(attribute, compilation, fromSyntax) is not { } reason ||
                 !reported.TryAdd(syntax, 0))
             {
                 continue;

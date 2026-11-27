@@ -59,7 +59,8 @@ public sealed class TestGenerator : IIncrementalGenerator
             output.AddSource(TestEmitter.HintName(pair.Left.Class), TestEmitter.Emit(pair.Left, pair.Right)));
 
         var assemblyAttributes = context.CompilationProvider
-            .Select(static (compilation, _) => AttributeMaterializer.Materialize(compilation.Assembly.GetAttributes(), compilation));
+            .Combine(tests.Collect().Select(static (entries, _) => entries.Any(entry => entry.ConstructsUnresolved)))
+            .Select(static (pair, _) => AttributeMaterializer.Materialize(pair.Left.Assembly.GetAttributes(), pair.Left, pair.Right));
 
         context.RegisterSourceOutput(
             assemblyAttributes.Combine(tests.Collect().Select(static (entries, _) => entries.Length > 0)),
