@@ -7,7 +7,7 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/mocking-r
 - `var calc = Mock.Of<ICalculator>();` creates a mock in any test framework, or in no framework at all. It works under Native AOT and trimming with no warnings.
 - Setup and verification read like NSubstitute: `calc.Add(1, 2).Returns(3)`, `Arg.Any<int>()`, `calc.Received().Add(1, 2)`.
 - `calc.Add(0, Arg.Any<int>())` binds the matcher to the second argument. NSubstitute binds it to the first.
-- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance. This ships with `tests.md` Phase 2 and the DependencyModules adapter in `tests.md` Phase 4, not with the first mock release.
+- `[Mock] ICalculator calc` as a test parameter works in `VerificationGlue.Tests` and in DependencyModules, and the system under test receives the same instance. This ships with `tests.md` Phase 2 and the DependencyModules modules of `tests.md` Phase 4, not with the first mock release.
 - A mock is regenerated when its interface changes, whether the interface lives in the same project, another project or a package.
 - A type or member that cannot be mocked is a build error or warning with a location, never a run-time surprise.
 

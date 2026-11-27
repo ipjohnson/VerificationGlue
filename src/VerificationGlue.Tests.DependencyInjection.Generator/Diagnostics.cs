@@ -10,8 +10,8 @@ internal static class Diagnostics
 
     public static readonly DiagnosticDescriptor NoConfigureMethod = new(
         id: "VGD0001",
-        title: "The type in [ServiceCollection<T>] has no Configure method the generator can call",
-        messageFormat: "[ServiceCollection<{0}>] names '{0}', but {1}. The generator accepts a type with 'public static void Configure(IServiceCollection services)' or 'public static void Configure(IServiceCollection services, TestContainerContext context)'.",
+        title: "The type in [ServiceCollection<T>] has no Configure method the generator can call and is not a DependencyModules module",
+        messageFormat: "[ServiceCollection<{0}>] names '{0}', but {1}. The generator accepts a type with 'public static void Configure(IServiceCollection services)' or 'public static void Configure(IServiceCollection services, TestContainerContext context)', or a DependencyModules module with a public parameterless constructor.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,

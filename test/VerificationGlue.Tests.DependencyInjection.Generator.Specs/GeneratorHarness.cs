@@ -39,6 +39,10 @@ internal static class GeneratorHarness
 
     public static string RepositoryRoot { get; } = FindRoot();
 
+    /// <summary>DependencyModules.Runtime, which a test project that uses DependencyModules references.</summary>
+    public static readonly MetadataReference DependencyModulesRuntime =
+        MetadataReference.CreateFromFile(typeof(DependencyModules.Runtime.Interfaces.IDependencyModule).Assembly.Location);
+
     /// <summary>
     /// A compilation of <paramref name="source"/>, the runtime files of VerificationGlue.Tests and of the
     /// package, VerificationGlue, VerificationGlue.Mocks, Microsoft.Extensions.DependencyInjection and
@@ -65,12 +69,12 @@ internal static class GeneratorHarness
     /// <summary>
     /// Runs <see cref="ConfigureGenerator"/> on <paramref name="source"/> and <paramref name="declarations"/>,
     /// which are two files that each start with <see cref="Usings"/>, and returns the run and the
-    /// compilation with the generated file.
+    /// compilation with the generated file. The compilation also references <paramref name="references"/>.
     /// </summary>
-    public static (GeneratorDriverRunResult Run, Compilation Output) Run(string source, string declarations = "")
+    public static (GeneratorDriverRunResult Run, Compilation Output) Run(string source, string declarations = "", params MetadataReference[] references)
     {
         var driver = CSharpGeneratorDriver.Create([new ConfigureGenerator().AsSourceGenerator()], parseOptions: ParseOptions)
-            .RunGeneratorsAndUpdateCompilation(Compilation(Usings + source, declarations), out var output, out _, CancellationToken.None);
+            .RunGeneratorsAndUpdateCompilation(Compilation(Usings + source, declarations, references), out var output, out _, CancellationToken.None);
         return (driver.GetRunResult(), output);
     }
 

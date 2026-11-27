@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Built by eng/pack-and-consume.sh against the packed packages in a local feed. It references
+    VerificationGlue.Tests.DependencyInjection and DependencyModules from nuget.org, declares its own
+    modules, and publishes its tests with Native AOT and warnings as errors.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="VerificationGlue.Tests.DependencyInjection" Version="$(VerificationGlueVersion)" />
+    <PackageReference Include="DependencyModules.Runtime" Version="1.7.0" />
+    <PackageReference Include="DependencyModules.SourceGenerator" Version="1.7.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Rooting the package makes the Native AOT publish analyze all of its code, not only what this sample calls. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="VerificationGlue.Tests.DependencyInjection" />
+  </ItemGroup>
+
+  <Target Name="CheckVerificationGlueVersion" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <Error Condition="'$(VerificationGlueVersion)' == ''" Text="Set VerificationGlueVersion to the version of the packed packages." />
+  </Target>
+</Project>

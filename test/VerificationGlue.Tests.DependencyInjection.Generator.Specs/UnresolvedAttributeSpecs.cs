@@ -15,11 +15,7 @@ namespace VerificationGlue.Tests.DependencyInjection.Generator.Specs;
 /// </summary>
 public class UnresolvedAttributeSpecs
 {
-    private static readonly MetadataReference DependencyModulesRuntime = CSharpCompilation.Create(
-            "DependencyModules.Runtime",
-            references: [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-        .ToMetadataReference();
+    private static readonly MetadataReference DependencyModulesRuntime = GeneratorHarness.DependencyModulesRuntime;
 
     private const string Declarations = """
         namespace Shop

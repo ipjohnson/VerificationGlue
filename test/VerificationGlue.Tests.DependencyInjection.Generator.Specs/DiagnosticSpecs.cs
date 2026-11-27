@@ -7,7 +7,23 @@ public class DiagnosticSpecs
 {
     private const string Accepted =
         "The generator accepts a type with 'public static void Configure(IServiceCollection services)' or " +
-        "'public static void Configure(IServiceCollection services, TestContainerContext context)'.";
+        "'public static void Configure(IServiceCollection services, TestContainerContext context)', or a DependencyModules module with a public parameterless constructor.";
+
+    private const string Module = "public void PopulateServiceCollection(IServiceCollection services) { }";
+
+    [VerifyTest]
+    [Row("public sealed class Sut : DependencyModules.Runtime.Interfaces.IDependencyModule { public Sut(int size) { } " + Module + " }", "it is a DependencyModules module without a public parameterless constructor")]
+    [Row("public sealed class Sut : DependencyModules.Runtime.Interfaces.IDependencyModule { internal Sut() { } " + Module + " }", "it is a DependencyModules module without a public parameterless constructor")]
+    [Row("public abstract class Sut : DependencyModules.Runtime.Interfaces.IDependencyModule { " + Module + " }", "it is a DependencyModules module that is not a class 'new T()' can create")]
+    [Row("[DependencyModules.Runtime.Attributes.DependencyModule] public partial class Sut { public Sut(string name) { } }", "it is a DependencyModules module without a public parameterless constructor")]
+    public void A_module_that_new_T_cannot_create_is_VGD0001(string declaration, string reason)
+    {
+        var (run, _) = GeneratorHarness.Run("[ServiceCollection<Sut>] public partial class OrderTests { }", declaration, GeneratorHarness.DependencyModulesRuntime);
+
+        var diagnostic = Assert.Single(run.Diagnostics);
+        Assert.Equal("VGD0001", diagnostic.Id);
+        Assert.Equal($"[ServiceCollection<Sut>] names 'Sut', but {reason}. {Accepted}", diagnostic.GetMessage());
+    }
 
     [VerifyTest]
     [Row("", "string", "string", "it has no method named Configure")]

@@ -9,6 +9,10 @@
 - Put `[ServiceCollection<ShopServices>]` on the assembly, a `partial` test class or a test method. Each test then builds its own container and disposes it when the test ends.
 - Sources add up. The container calls the `Configure` method of each `[ServiceCollection<T>]` on the assembly, then the class, then the method. A registration from the method comes last and wins.
 - `[ServiceCollection]` without a type gives the tests a container from the sources of the assembly and the class. It adds no services itself.
+- With `DependencyModules.Runtime` and `DependencyModules.SourceGenerator` referenced from the test project, put `[assembly: ServiceCollection]` on the assembly and a module attribute such as `[SutModule]` on the assembly, a class or a method. The container adds that module's services. The module can come from a referenced project or be declared in the test project.
+- Modules are applied from the assembly to the class to the method, so the method's module wins. Every module comes before the `Configure` methods.
+- A module attribute takes the module's constructor arguments and properties, such as `[MailModule("smtp.example.com", 25, Sender = "shop@example.com")]`.
+- `[ServiceCollection<SutModule>]` adds `new SutModule()`. The module needs a public parameterless constructor. The build fails with VGD0001 otherwise.
 - A test takes any registered service as a parameter. `[FromKeyedServices("key")]` on a parameter resolves the keyed service.
 - A `[Mock] IClock clock` parameter replaces the `IClock` registration for that test. With `[FromKeyedServices("key")]` it replaces the registration under that key. The mocks are registered after every source.
 - `[ServiceCollection<ShopServices>(Scope = ContainerScope.Class)]` builds one container for the tests of the class, from the attributes of the class and the assembly. `Scope = ContainerScope.Assembly` builds one from the attributes of the assembly. Each test gets its own service scope.

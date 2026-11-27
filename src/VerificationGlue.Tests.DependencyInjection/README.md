@@ -45,6 +45,8 @@ public sealed class ShopServices
 
 The test project references this package and `VerificationGlue.Tests`. The generator in this package writes the call to `Configure`, so the container calls it with no reflection.
 
+When the test project also references DependencyModules, a module attribute on the assembly, the class or the method adds that module's services. The module can come from a referenced project or from the test project. `[ServiceCollection<SutModule>]` names a module directly. This package does not reference DependencyModules.
+
 ## Docs
 
 - [Give tests a service collection](../../docs/guide/service-collection.md)
