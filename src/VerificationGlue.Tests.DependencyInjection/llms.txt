@@ -1,0 +1,23 @@
+# VerificationGlue.Tests.DependencyInjection
+
+> A Microsoft.Extensions.DependencyInjection container for `VerificationGlue.Tests` tests. The test's parameters come from the container, and `[Mock]` parameters replace the matching registrations. A generator writes the call to each `Configure` method.
+
+## Rules
+
+- Reference `VerificationGlue.Tests` and `VerificationGlue.Tests.DependencyInjection` from the test project. Both packages have the same version. Follow the `llms.txt` of `VerificationGlue.Tests` and `VerificationGlue` for `[VerifyTest]`, `Verify` and `[Mock]`.
+- Write a class with `public static void Configure(IServiceCollection services)` that registers the services. It can take a second parameter of `TestContainerContext`. Do not make it an instance method, and do not give it another return type. The build fails with VGD0001.
+- Put `[ServiceCollection<ShopServices>]` on the assembly, a `partial` test class or a test method. Each test then builds its own container and disposes it when the test ends.
+- Sources add up. The container calls the `Configure` method of each `[ServiceCollection<T>]` on the assembly, then the class, then the method. A registration from the method comes last and wins.
+- `[ServiceCollection]` without a type gives the tests a container from the sources of the assembly and the class. It adds no services itself.
+- A test takes any registered service as a parameter. `[FromKeyedServices("key")]` on a parameter resolves the keyed service.
+- A `[Mock] IClock clock` parameter replaces the `IClock` registration for that test. With `[FromKeyedServices("key")]` it replaces the registration under that key. The mocks are registered after every source.
+- `[ServiceCollection<ShopServices>(Scope = ContainerScope.Class)]` builds one container for the tests of the class, from the attributes of the class and the assembly. `Scope = ContainerScope.Assembly` builds one from the attributes of the assembly. Each test gets its own service scope.
+- Do not put a `[ServiceCollection]` attribute with `Scope = ContainerScope.Class` on a method, or with `Scope = ContainerScope.Assembly` on a class or a method. The build fails with VGD0002.
+- A test of a shared container cannot take a `[Mock]` parameter. The build fails with VGT0008. Use the default scope for tests with mocks.
+- `ServiceProviderContainer` is the `ITestContainer` over a service provider. A hand-written `[Container<T>]` bootstrap can return it, and `ServiceProviderContainer.AddOverrides` registers the test's overrides.
+
+## Docs
+
+- [Give tests a service collection](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/service-collection.md): both attributes, keyed mocks, sources that add up and shared containers.
+- [Containers and scopes](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/guide/containers-and-scopes.md): `[Container<T>]` and how the runner picks a container.
+- [VGD0001](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGD0001.md) and [VGD0002](https://github.com/ipjohnson/VerificationGlue/blob/main/docs/diagnostics/VGD0002.md)

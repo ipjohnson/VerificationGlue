@@ -10,6 +10,8 @@
     <Project Path="src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" />
     <Project Path="src/VerificationGlue.Tests.AspNetCore/VerificationGlue.Tests.AspNetCore.csproj" />
     <Project Path="src/VerificationGlue.Tests.AspNetCore.Generator/VerificationGlue.Tests.AspNetCore.Generator.csproj" />
+    <Project Path="src/VerificationGlue.Tests.DependencyInjection/VerificationGlue.Tests.DependencyInjection.csproj" />
+    <Project Path="src/VerificationGlue.Tests.DependencyInjection.Generator/VerificationGlue.Tests.DependencyInjection.Generator.csproj" />
     <Project Path="src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
     <Project Path="src/VerificationGlue/VerificationGlue.csproj" />
   </Folder>
@@ -35,6 +37,7 @@
     <Project Path="samples/TestsCi/TestsCi.csproj" />
     <Project Path="samples/TestsContainers/TestsContainers.csproj" />
     <Project Path="samples/TestsDataRows/TestsDataRows.csproj" />
+    <Project Path="samples/TestsDependencyInjection/TestsDependencyInjection.csproj" />
     <Project Path="samples/TestsGettingStarted/TestsGettingStarted.csproj" />
     <Project Path="samples/TestsLifecycle/TestsLifecycle.csproj" />
     <Project Path="samples/TestsScheduling/TestsScheduling.csproj" />
@@ -68,6 +71,7 @@
     <Project Path="test/VerificationGlue.Specs/VerificationGlue.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.AspNetCore.Generator.Specs/VerificationGlue.Tests.AspNetCore.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.AspNetCore.Specs/VerificationGlue.Tests.AspNetCore.Specs.csproj" />
+    <Project Path="test/VerificationGlue.Tests.DependencyInjection.Generator.Specs/VerificationGlue.Tests.DependencyInjection.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.Generator.Specs/VerificationGlue.Tests.Generator.Specs.csproj" />
     <Project Path="test/VerificationGlue.Tests.Specs/VerificationGlue.Tests.Specs.csproj" />
   </Folder>

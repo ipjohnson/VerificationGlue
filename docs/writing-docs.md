@@ -27,7 +27,7 @@ The sample must build in CI. Add a new sample project to `VerificationGlue.slnx`
 
 ## Each diagnostic has a page
 
-Every `DiagnosticDescriptor` in the four generator assemblies has a page at `docs/diagnostics/<ID>.md`. Its `HelpLinkUri` points to that page on `main`. The page starts with `# <ID>: <title>` and has these sections:
+Every `DiagnosticDescriptor` in the five generator assemblies has a page at `docs/diagnostics/<ID>.md`. Its `HelpLinkUri` points to that page on `main`. The page starts with `# <ID>: <title>` and has these sections:
 
 - What it means
 - Example that triggers it

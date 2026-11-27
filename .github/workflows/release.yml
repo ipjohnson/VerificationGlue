@@ -1,6 +1,6 @@
 name: Release
 
-# Packs the four packages, checks them with eng/pack-and-consume.sh, and pushes them to nuget.org.
+# Packs the five packages, checks them with eng/pack-and-consume.sh, and pushes them to nuget.org.
 # docs/releasing.md has the steps.
 on:
   push:
@@ -70,8 +70,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p artifacts/release
-          for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore; do
-            cp "artifacts/pack-and-consume/feed/$package.$VERSION.nupkg" artifacts/release/ \
+          for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore VerificationGlue.Tests.DependencyInjection; do
+            cp"artifacts/pack-and-consume/feed/$package.$VERSION.nupkg" artifacts/release/ \
               || { echo "::error::No $package $VERSION package"; exit 1; }
           done
 
@@ -93,7 +93,7 @@ jobs:
           NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore; do
+          for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore VerificationGlue.Tests.DependencyInjection; do
             dotnet nuget push "artifacts/release/$package.$VERSION.nupkg" \
               --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
