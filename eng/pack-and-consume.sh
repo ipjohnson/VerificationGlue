@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Packs the five packages into a local feed and checks them as a user would see them:
 #   1. the package layout, one version for all five, the license, author, icon and tags in each nuspec,
-#      and exact dependencies from VerificationGlue.Tests, VerificationGlue.Tests.AspNetCore and
-#      VerificationGlue.Tests.DependencyInjection;
+#      exact dependencies from VerificationGlue.Tests, VerificationGlue.Tests.AspNetCore and
+#      VerificationGlue.Tests.DependencyInjection, and no dependency on a DependencyModules package;
 #   2. samples/PackageConsumer, a test project that references VerificationGlue.Tests, builds, runs and
 #      publishes under Native AOT with warnings as errors without the global.json runner setting. dotnet test
 #      fails with VGT1001 without the setting and runs the tests with it. The sample turns tier 3 rewriting
@@ -14,7 +14,10 @@
 #   4. samples/MocksAot, which references only VerificationGlue.Mocks, publishes under Native AOT with
 #      warnings as errors and runs. It checks each part of the NSubstitute-style setup and the typed surface.
 #      The JIT build then runs the same checks;
-#   5. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
+#   5. samples/ModulesConsumer, which references VerificationGlue.Tests.DependencyInjection and
+#      DependencyModules and declares its own modules, publishes under Native AOT with warnings as
+#      errors and runs its tests from the published binary. The JIT build then runs them;
+#   6. the PackageConsumer sample with a different VerificationGlue version fails with VGT0007.
 # Extra arguments are passed to dotnet pack, for example -p:VersionSuffix=ci.42 or --no-build.
 # NATIVE_AOT=false skips each Native AOT publish and run, for a platform where the supported matrix in
 # docs/design/hardening.md has no Native AOT. The JIT builds still run.
@@ -105,6 +108,11 @@ unzip -p "$feed/VerificationGlue.Tests.AspNetCore.$version.nupkg" VerificationGl
 expect_dependency VerificationGlue.Tests.AspNetCore Microsoft.AspNetCore.TestHost '[^"]*'
 expect_dependency VerificationGlue.Tests.DependencyInjection VerificationGlue.Tests "\[$version\]"
 expect_dependency VerificationGlue.Tests.DependencyInjection Microsoft.Extensions.DependencyInjection '[^"]*'
+for package in $packages; do
+  if unzip -p "$feed/$package.$version.nupkg" "$package.nuspec" | grep '<dependency id="DependencyModules' > /dev/null; then
+    fail "$package depends on a DependencyModules package"
+  fi
+done
 echo "Layout and dependencies are correct"
 
 # A run gets its own package folder and NuGet.config, so a package cached by an earlier run
@@ -230,6 +238,21 @@ if [ "$native_aot" = true ]; then
 fi
 dotnet build "$mocks/MocksAot.csproj" -c Release -warnaserror -p:VerificationGlueVersion="$version"
 "$mocks/bin/Release/net10.0/MocksAot" || fail "MocksAot found a mock feature that misbehaves on the JIT"
+
+echo "== DependencyModules modules"
+modules="$work/modules-consumer"
+write_sample "$modules" ModulesConsumer
+if [ "$native_aot" = true ]; then
+  dotnet publish "$modules/ModulesConsumer.csproj" -c Release -warnaserror \
+    -p:VerificationGlueVersion="$version" -o "$modules/publish"
+  [ -x "$modules/publish/ModulesConsumer" ] || [ -f "$modules/publish/ModulesConsumer.exe" ] \
+    || fail "the Native AOT publish of ModulesConsumer produced no executable"
+  "$modules/publish/ModulesConsumer" || fail "the ModulesConsumer tests failed under Native AOT"
+  "$modules/publish/ModulesConsumer" --list-tests | grep -q "found 4 test(s)" \
+    || fail "the Native AOT binary of ModulesConsumer did not list 4 tests"
+fi
+dotnet build "$modules/ModulesConsumer.csproj" -c Release -warnaserror -p:VerificationGlueVersion="$version"
+"$modules/bin/Release/net10.0/ModulesConsumer" || fail "the ModulesConsumer tests failed on the JIT"
 
 echo "== Mismatched VerificationGlue version"
 # A separate artifacts path keeps this build from overwriting src/VerificationGlue/bin.

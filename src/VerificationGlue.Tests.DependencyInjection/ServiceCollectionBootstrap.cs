@@ -5,8 +5,9 @@ using VerificationGlue.Tests;
 namespace VerificationGlue.Tests.DependencyInjection;
 
 /// <summary>
-/// Builds the container of <see cref="ServiceCollectionAttribute"/>. It applies the sources of the
-/// scope's attributes from the assembly to the method, then the sources the generator registered, and
+/// Builds the container of <see cref="ServiceCollectionAttribute"/>. It applies the sources the generator
+/// registered, such as the DependencyModules modules of the scope's attributes, then the <c>Configure</c>
+/// method of each <see cref="ServiceCollectionAttribute{T}"/> from the assembly to the method, and
 /// registers the test's overrides last.
 /// </summary>
 public sealed class ServiceCollectionBootstrap : ITestContainerBootstrap
@@ -19,17 +20,17 @@ public sealed class ServiceCollectionBootstrap : ITestContainerBootstrap
     public static ValueTask<ITestContainer> BuildAsync(TestContainerContext context)
     {
         var services = new ServiceCollection();
+        foreach (var source in ServiceCollectionRegistry.Sources())
+        {
+            source(services, context.Attributes);
+        }
+
         foreach (var attribute in context.Attributes)
         {
             if (attribute is IServiceCollectionSource source)
             {
                 source.Configure(services, context);
             }
-        }
-
-        foreach (var source in ServiceCollectionRegistry.Sources())
-        {
-            source(services, context.Attributes);
         }
 
         ServiceProviderContainer.AddOverrides(services, context.Overrides);

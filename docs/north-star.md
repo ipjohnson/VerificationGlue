@@ -44,6 +44,7 @@ Each problem below is one the author has hit while extending xunit, NUnit and MS
 | `VerificationGlue.Mocks` | Source-generated mocks with NSubstitute-style setup. Works in any test framework. | nothing | `docs/design/mocks.md` |
 | `VerificationGlue.Tests` | A test framework on Microsoft.Testing.Platform (MTP): `[VerifyTest]`, per-test DI containers, `[Mock]` parameters, scheduling | `VerificationGlue`, `VerificationGlue.Mocks`, MTP | `docs/design/tests.md` |
 | `VerificationGlue.Tests.AspNetCore` | An ASP.NET Core app as the container of a test: the app starts for each test with its `[Mock]` parameters, and the test takes `HttpClient` and the app's services | `VerificationGlue.Tests`, `Microsoft.AspNetCore.TestHost`, the `Microsoft.AspNetCore.App` framework | `docs/design/aspnet.md` |
+| `VerificationGlue.Tests.DependencyInjection` | A Microsoft.Extensions.DependencyInjection container for a test from `[ServiceCollection]` and `[ServiceCollection<T>]`, with the test's `[Mock]` parameters in it. With DependencyModules referenced, a module attribute on the assembly, the class or the method adds that module's services | `VerificationGlue.Tests`, `Microsoft.Extensions.DependencyInjection` | `docs/design/tests.md`, "DependencyModules modules" |
 
 `VerificationGlue` and `VerificationGlue.Mocks` are useful on their own. A team on xunit can add either one without changing test framework. `VerificationGlue.Tests` is the full experience and brings both with it. `VerificationGlue.Tests.AspNetCore` adds app testing to `VerificationGlue.Tests` and is installed only by a project that tests an app.
 
@@ -54,9 +55,11 @@ flowchart LR
     T --> V["VerificationGlue"]
     T --> M["VerificationGlue.Mocks"]
     T --> P["Microsoft.Testing.Platform"]
-    DM["DependencyModules adapter"] --> T
-    DM --> M
+    D["VerificationGlue.Tests.DependencyInjection"] --> T
+    D --> DI["Microsoft.Extensions.DependencyInjection"]
 ```
+
+No package references DependencyModules. When a test project references DependencyModules, the generator of `VerificationGlue.Tests.DependencyInjection` writes the code that adds its modules into that test project.
 
 Each package carries its own runtime library and its own generator in `analyzers/dotnet/cs`. Generated code calls the runtime directly, so the runtime and the generator in one package always match in version.
 
@@ -193,7 +196,7 @@ The rule behind this: **documentation is built from the product, not written bes
 | Generated code pages | `docs/guide/generated/*.md` | A user debugging or curious what the generator does | Generated from generator snapshot tests |
 | Diagnostics reference | `docs/diagnostics/VG0001.md` and so on | A user with a build error | Hand-written cause and fix, examples checked by the conformance suite |
 | API reference | Generated from XML doc comments | A user looking up a member | XML doc comments in source |
-| Extension guide | `docs/guide/extending.md` | Library authors, for example the DependencyModules adapter | Hand-written, with a sample adapter in `samples/` |
+| Extension guide | `docs/guide/extending.md` | Library authors, for example of a container bootstrap | Hand-written, with a sample adapter in `samples/` |
 | Agent guide | `llms.txt` at the repository root and in each package | AI agents writing code against the packages | Generated from the guides plus a hand-written rules section |
 | Changelog | `CHANGELOG.md` | Users upgrading | One entry per pull request that changes behaviour |
 | Design documents | `docs/design/` | Contributors | Hand-written |
@@ -291,7 +294,7 @@ Work follows the four package design documents. Each one has phases, and each ph
 3. **The CSharpAuthor changes** listed above, alongside the spikes. Each is filed as an issue in `ipjohnson/CSharpAuthor`. None of them blocks generator work. The `VerificationGlue.Tests` generator is the only one whose design names one of them, change 4, and it copies attributes into its own records until that change lands. The cold-build benchmark is rerun on the CSharpAuthor release that has the changes before the budgets are set.
 4. **`VerificationGlue` and `VerificationGlue.Mocks` first releases.** Both are usable from xunit, NUnit, MSTest and TUnit, which gives early users and feedback before the test framework exists. Both release as 0.x.
 5. **`VerificationGlue.Tests` first release.** Tests, containers, `[Mock]` parameters, data rows and scheduling on MTP. It is 1.0.0 of `VerificationGlue`, `VerificationGlue.Mocks` and `VerificationGlue.Tests`, and ships only after MTP 3 is stable.
-6. **The DependencyModules adapter.** It ships from the DependencyModules repository.
+6. **DependencyModules modules.** `VerificationGlue.Tests.DependencyInjection` adds the modules of a test's attributes to its container when the test project references DependencyModules. It ships from this repository, and no package depends on DependencyModules. `tests.md` Phase 4 has the design.
 7. **`VerificationGlue.Tests.AspNetCore` first release.** An app per test with `HttpClient` and `[Mock]` parameters, configuration attributes, and shared apps. It ships with `VerificationGlue.Tests` 1.0.0 when its phases are done by then, and otherwise in a later 1.x minor.
 
 ### Releases
@@ -314,7 +317,7 @@ Some phases need a phase of another package:
 | `tests.md` Phase 1, the calls to `__Verified` | `verification-glue.md` Phase 2, which holds the tier 3 rewrite and `WillRewrite` |
 | `tests.md` Phase 2, `Check` failures per test | `verification-glue.md` Phase 2, which holds `Check` and `VerifyScope` |
 | `tests.md` Phase 2, `[Mock]` parameters | `mocks.md` Phase 1 |
-| `mocks.md`, `[Mock]` parameters in `VerificationGlue.Tests` and in DependencyModules | `tests.md` Phase 2 and Phase 4 |
+| `mocks.md`, `[Mock]` parameters in `VerificationGlue.Tests` and in DependencyModules modules | `tests.md` Phase 2 and Phase 4 |
 | `mocks.md` Phase 1, values for `Verify(calc.Calls()...)` in a `[VerifyTest]` | `verification-glue.md` Phase 2 |
 | `aspnet.md` Phase 1, the app as a container with `[Mock]` parameters | `tests.md` Phase 2, which holds containers, overrides and VGT0008 |
 

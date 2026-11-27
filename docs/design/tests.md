@@ -15,7 +15,7 @@ Status: design. Parent: `docs/north-star.md`. Research: `docs/research/design-re
 ```csharp
 using static VerificationGlue.VerifySyntax;
 
-[assembly: Container<ModuleBootstrap>]
+[assembly: ServiceCollection]
 
 [SutModule]
 public partial class OrderTests
@@ -73,7 +73,7 @@ Placement rules:
 
 - Single-valued attributes resolve method first, then class, then assembly.
 - Multi-valued attributes add up, widest first. DependencyModules uses the same rule today.
-- Generic attributes give the generator the type as a type argument, so it calls the type's static members directly. An adapter can derive its own attribute, for example `ModuleTestAttribute : ContainerAttribute<ModuleBootstrap>`. That compiled in the research spike.
+- Generic attributes give the generator the type as a type argument, so it calls the type's static members directly. An adapter can derive its own attribute, as `ServiceCollectionAttribute : ContainerAttribute<ServiceCollectionBootstrap>` in `VerificationGlue.Tests.DependencyInjection` does.
 
 ## Generated code
 
@@ -95,7 +95,7 @@ file static class OrderTests_Tests
             CreateAttributes: static () => CreateAttributes(), Parameters: s_params,
             Group: ScheduleGroups.Default,
             DisplayName: static ctx => DefaultNameFormatter.Format(ctx),
-            BuildContainer: static ctx => ModuleBootstrap.BuildAsync(ctx),
+            BuildContainer: static ctx => ServiceCollectionBootstrap.BuildAsync(ctx),
             Invoke: static async ctx =>
             {
                 var clock = Mock.Of<IClock>();
@@ -193,39 +193,23 @@ public interface ITestContainer : IAsyncDisposable
 
 The core depends only on `System.IServiceProvider`. A `[Container<T>(Scope = Class)]` builds one container per class and gives each test a child. A `[Container<T>(Scope = Assembly)]` builds one root container per assembly, for resources the whole run shares, and gives each class or test a child. It is created when the first selected test starts and disposed in `CloseTestSessionAsync`.
 
-A child of a shared container, under `Scope = Class` or `Scope = Assembly`, can take per-test overrides only if its bootstrap supports that. `Microsoft.Extensions.DependencyInjection` cannot: `CreateScope()` adds no registrations, so a service resolved through the child keeps the shared container's registrations, not the test's mocks. A bootstrap declares the capability by implementing `ISupportsChildOverrides`. The generator reports VGT0008 when a test with `[Mock]` parameters or other overrides uses a shared container whose bootstrap does not implement it, and the runner checks again before invoking the test. The bootstraps built on MS.DI, including the DependencyModules one, do not declare it.
+A child of a shared container, under `Scope = Class` or `Scope = Assembly`, can take per-test overrides only if its bootstrap supports that. `Microsoft.Extensions.DependencyInjection` cannot: `CreateScope()` adds no registrations, so a service resolved through the child keeps the shared container's registrations, not the test's mocks. A bootstrap declares the capability by implementing `ISupportsChildOverrides`. The generator reports VGT0008 when a test with `[Mock]` parameters or other overrides uses a shared container whose bootstrap does not implement it, and the runner checks again before invoking the test. The bootstraps built on MS.DI, including `ServiceCollectionBootstrap`, do not declare it.
 
-### DependencyModules adapter
+### DependencyModules modules
 
-The adapter ships from the DependencyModules repository as a package that depends on `VerificationGlue.Tests`:
+No adapter package exists. `VerificationGlue.Tests.DependencyInjection` wires DependencyModules when the test project references `DependencyModules.Runtime`, and no VerificationGlue package references DependencyModules. `[SutModule]` in the example is the application's own module, declared as `[DependencyModule] public partial class SutModule`. Under `[ServiceCollection]`, placing it on the assembly, a test class or a method adds that module's registrations to the test's container.
 
-```csharp
-public sealed class ModuleBootstrap : ITestContainerBootstrap
-{
-    public static ValueTask<ITestContainer> BuildAsync(TestContainerContext c)
-    {
-        var services = new ServiceCollection();
-        var modules = c.Attributes.OfType<IDependencyModuleProvider>().Select(p => p.GetModule());
-        DependencyRegistry<object>.LoadModules(services, modules.Reverse().ToArray());
-        foreach (var o in c.Overrides)
-        {
-            if (o.Key is null) services.AddSingleton(o.ServiceType, o.Instance);
-            else services.AddKeyedSingleton(o.ServiceType, o.Key, o.Instance);
-        }
-        return new(new ServiceProviderContainer(services.BuildServiceProvider()));
-    }
-}
-```
+Three parts do this:
 
-`[SutModule]` in the example is the application's own DependencyModules module, declared as `[DependencyModule] public partial class SutModule`. Placing it on a test class loads that module's registrations into the test's container.
+- The Tests generator writes each attribute it cannot resolve from its syntax when `DependencyModules.Runtime` is referenced and a `ServiceCollectionAttribute` applies to the test. A module declared in the test project gets its `{Name}Attribute` class from the DependencyModules generator, which no other generator can see, so this is how such an attribute reaches `TestContainerContext.Attributes`. The rule is under "Generated code".
+- The generator of `VerificationGlue.Tests.DependencyInjection` writes a source into the test project and registers it with `ServiceCollectionRegistry.AddSource`. The source names the DependencyModules types, so the package does not. It reads the attributes and adds each `IDependencyModuleProvider` through `GetModule()`, each `IDependencyModule`, and `new T()` for each `[ServiceCollection<T>]` whose `T` is a module. `T` is a module when it implements `IDependencyModule` or is a class marked `[DependencyModule]`. It passes them all to one `AddModules` call, which removes duplicate modules and their dependencies. The module's own generated attribute maps its constructor arguments and properties in `GetModule()`.
+- `ServiceCollectionBootstrap` calls the registered sources first, then the `Configure` method of each `[ServiceCollection<T>]`, and registers the overrides last.
 
-A module declared in the test project itself gets its `{Name}Attribute` class from the DependencyModules generator, which this generator cannot see. VGT0006 reports it with that reason, and the adapter never loads it. Modules must come from referenced projects, and the adapter docs say so. Overrides are registered under their service key when they have one, so a keyed `[Mock]` reaches a service that injects that key.
+Modules are applied from the assembly to the class to the method, as `DependencyModules.xUnit` applies them. `DependencyRegistry.GetAllModules` inserts each module at index 0, so the source reads the attributes from the method back to the assembly, as `ModuleTestCase.SetupModules` reverses its list. A `Configure` method comes after every module, so a test can replace a module's registration with `[ServiceCollection<T>]`. Overrides are registered under their service key when they have one, so a keyed `[Mock]` reaches a service that injects that key.
 
-DependencyModules work this needs:
+A test project that does not reference DependencyModules gets no module source, and its generated code names no DependencyModules type. `samples/TestsDependencyModules` and `samples/ModulesShop` test both a referenced module and one declared in the test project. `samples/ModulesConsumer` publishes with Native AOT in `eng/pack-and-consume.sh`.
 
-- Variants of `ITestMethodContext` and `ITestParameterValueProvider` that take `TestParameter` and the attribute list instead of `MethodInfo` and `ParameterInfo`.
-- `[TestExport]` ported onto the override list.
-- `IMockSupportAttribute` for `VerificationGlue.Mocks`, so existing `DependencyModules.xUnit` tests can also use AOT mocks. Its package adds `DependencyModules.Testing.Attributes.MockAttribute` to the `VerificationGlueMockAttribute` MSBuild item from `buildTransitive`, so the mock generator generates mocks for DependencyModules' `[Mock]` parameters.
+DependencyModules.Testing is not wired. Its attributes, such as `[TestExport]`, environments, startup and `[Shared]`, are ipjohnson/VerificationGlue#195. Its `[Mock]` is ipjohnson/VerificationGlue#196.
 
 ## Parameters
 
@@ -333,7 +317,7 @@ This package owns these pages. The rules for producing and checking them are in 
 
 - README and `docs/guide/getting-started-tests.md`, including the `global.json` line and the IDE setup for Visual Studio, Rider and VS Code.
 - Guides: "Containers and scopes", "Parameters and where they come from", "Data rows", "Scheduling groups and resources", "Running under Native AOT", "CI setup with TRX and retries".
-- `docs/guide/extending.md`, covering every extension interface, with the DependencyModules adapter as the worked example.
+- `docs/guide/extending.md`, covering every extension interface.
 - Migration guides from xunit, NUnit and `DependencyModules.xUnit`, as paired samples that both compile. The xunit guide ships with the first release. The `DependencyModules.xUnit` guide ships with Phase 4. The NUnit guide follows the first release.
 - `docs/diagnostics/VGT0001.md` to `VGT0008.md` and `VGT1001.md`.
 - A generated-code page showing a test class's registration file.
@@ -403,15 +387,16 @@ Needs: Phase 2. Nothing new from the other packages.
 
 ### Phase 4: DependencyModules
 
-When done, a DependencyModules user moves a test from `[ModuleTest]` on xunit to `[VerifyTest]` by changing the attribute and the package.
+When done, a DependencyModules user moves a test from `[ModuleTest]` on xunit to `[VerifyTest]` under `[ServiceCollection]` by changing the attribute and the package.
 
-Needs: Phase 2, `mocks.md` Phase 1, and the DependencyModules work listed under "DependencyModules adapter", which is done in the DependencyModules repository.
+Needs: Phase 2 and `mocks.md` Phase 1. "DependencyModules modules" under "Containers" describes the design. No package in the DependencyModules repository is needed.
 
-- [ ] The adapter package in the DependencyModules repository.
-- [ ] Reflection-free variants of the DependencyModules test interfaces.
-- [ ] `[TestExport]` and `IMockSupportAttribute`.
-- [ ] A paired sample in which a keyed `[Mock]` reaches the system under test.
-- [ ] Pages: the migration guide from `DependencyModules.xUnit`, and the adapter as the worked example in `docs/guide/extending.md`.
+- [x] `VerificationGlue.Tests.DependencyInjection` with `[ServiceCollection]` and `[ServiceCollection<T>]`.
+- [x] The Tests generator writes an attribute that another generator produces from its syntax, so a module declared in the test project reaches the container.
+- [x] A module attribute on the assembly, a class or a method adds the module's services, from a referenced project and from the test project. `[ServiceCollection<T>]` names a module, and a `[Mock]` parameter reaches the module's services. `samples/TestsDependencyModules` runs each case, and `samples/ModulesConsumer` runs them under Native AOT.
+- [x] Pages: `docs/guide/service-collection.md` and `docs/diagnostics/VGD0001.md`.
+- [ ] DependencyModules.Testing attributes such as `[TestExport]` (ipjohnson/VerificationGlue#195), and its `[Mock]` (ipjohnson/VerificationGlue#196).
+- [ ] The migration guide from `DependencyModules.xUnit`.
 
 ## Risks and open questions
 

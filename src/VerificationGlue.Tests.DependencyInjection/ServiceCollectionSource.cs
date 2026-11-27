@@ -28,14 +28,18 @@ public static class ServiceCollectionRegistry
 {
     private static readonly List<Action<IServiceCollection, IReadOnlyList<Attribute>>> s_sources = [];
 
-    /// <summary>Registers the call to <c>T.Configure</c>. Generated code calls this.</summary>
+    /// <summary>
+    /// Registers the call to <c>T.Configure</c>. For a DependencyModules module <c>T</c>, generated code
+    /// registers a call that adds nothing, because its source adds <c>new T()</c> with the other modules.
+    /// Generated code calls this.
+    /// </summary>
     /// <param name="configure">Calls <c>T.Configure</c> with the collection and, when it takes one, the context.</param>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static void Register<T>(Action<IServiceCollection, TestContainerContext> configure) =>
         ServiceCollectionSource<T>.Configure = configure;
 
     /// <summary>
-    /// Registers a source that every container of the package calls after the <c>Configure</c> methods,
+    /// Registers a source that every container of the package calls before the <c>Configure</c> methods,
     /// with the collection and the attributes of the container's scope. Generated code calls this.
     /// </summary>
     /// <param name="source">Adds services for the attributes it knows.</param>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The DependencyModules tests in docs/guide/service-collection.md. dotnet test on the solution runs them
+    on the MTP 3 preview. The imports and the references to src add what the VerificationGlue.Tests and
+    VerificationGlue.Tests.DependencyInjection packages add; samples/Directory.Build.props adds the
+    VerificationGlue part.
+  -->
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.props" />
+
+  <PropertyGroup>
+    <UseVerificationGlueMocks>true</UseVerificationGlueMocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/VerificationGlue.Tests/VerificationGlue.Tests.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.Generator/VerificationGlue.Tests.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.DependencyInjection/VerificationGlue.Tests.DependencyInjection.csproj" />
+    <ProjectReference Include="../../src/VerificationGlue.Tests.DependencyInjection.Generator/VerificationGlue.Tests.DependencyInjection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- begin-snippet: reference-dependency-modules -->
+  <ItemGroup>
+    <ProjectReference Include="../ModulesShop/ModulesShop.csproj" />
+    <PackageReference Include="DependencyModules.Runtime" />
+    <PackageReference Include="DependencyModules.SourceGenerator" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- end-snippet -->
+
+  <Import Project="../../src/VerificationGlue.Tests/build/VerificationGlue.Tests.targets" />
+</Project>

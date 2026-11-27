@@ -2,6 +2,9 @@
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="CSharpAuthor" Version="2.0.0" />
+    <!-- Only the samples reference DependencyModules. No VerificationGlue package does. -->
+    <PackageVersion Include="DependencyModules.Runtime" Version="1.7.0" />
+    <PackageVersion Include="DependencyModules.SourceGenerator" Version="1.7.0" />
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />

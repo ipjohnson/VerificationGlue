@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The DependencyModules modules that samples/TestsDependencyModules and docs/guide/service-collection.md test. -->
+  <ItemGroup>
+    <PackageReference Include="DependencyModules.Runtime" />
+    <PackageReference Include="DependencyModules.SourceGenerator" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
