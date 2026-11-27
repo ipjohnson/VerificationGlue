@@ -1,4 +1,4 @@
-![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup.png)
+![VerificationGlue](https://raw.githubusercontent.com/ipjohnson/VerificationGlue/main/assets/logo/lockup-card.png)
 
 # VerificationGlue.Mocks
 
