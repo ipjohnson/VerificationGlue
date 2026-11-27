@@ -1,9 +1,4 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/lockup-dark.svg">
-    <img src="assets/logo/lockup.svg" alt="VerificationGlue" width="286" height="64">
-  </picture>
-</h1>
+<h1><img src="assets/logo/lockup-card.svg" alt="VerificationGlue" width="368" height="110"></h1>
 
 [![CI](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ipjohnson/VerificationGlue/actions/workflows/ci.yml)
 
