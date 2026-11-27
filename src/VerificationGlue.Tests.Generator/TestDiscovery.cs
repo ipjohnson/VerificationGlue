@@ -134,6 +134,83 @@ internal static class TestDiscovery
             : null;
     }
 
+    /// <summary>
+    /// True when the attributes of <paramref name="method"/> are written from syntax when their class is
+    /// unresolved: <c>DependencyModules.Runtime</c> is referenced and a <c>ServiceCollectionAttribute</c>
+    /// applies to the test from the method, its class or the assembly.
+    /// </summary>
+    public static bool ConstructsUnresolved(IMethodSymbol method, Compilation compilation) =>
+        ReferencesDependencyModules(compilation) &&
+        (HasServiceCollection(method.GetAttributes()) || HasServiceCollection(method.ContainingType.GetAttributes()) || HasServiceCollection(compilation.Assembly.GetAttributes()));
+
+    /// <summary>
+    /// The same rule for the attributes of <paramref name="type"/>, which all of its tests share: true
+    /// when it holds for any of its <c>[VerifyTest]</c> methods.
+    /// </summary>
+    public static bool ConstructsUnresolved(INamedTypeSymbol type, Compilation compilation) =>
+        ReferencesDependencyModules(compilation) &&
+        (HasServiceCollection(type.GetAttributes()) || HasServiceCollection(compilation.Assembly.GetAttributes()) ||
+            type.GetMembers().OfType<IMethodSymbol>().Any(method =>
+                HasServiceCollection(method.GetAttributes()) && method.GetAttributes().Any(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.VerifyTestAttribute)));
+
+    /// <summary>
+    /// The same rule for the assembly's attributes, which every test shares: true when it holds for any
+    /// runnable <c>[VerifyTest]</c> method of the compilation.
+    /// </summary>
+    public static bool ConstructsUnresolved(Compilation compilation)
+    {
+        if (!ReferencesDependencyModules(compilation))
+        {
+            return false;
+        }
+
+        if (HasServiceCollection(compilation.Assembly.GetAttributes()))
+        {
+            return true;
+        }
+
+        var types = new Stack<INamespaceOrTypeSymbol>();
+        types.Push(compilation.Assembly.GlobalNamespace);
+        while (types.Count > 0)
+        {
+            foreach (var member in types.Pop().GetMembers())
+            {
+                if (member is INamespaceOrTypeSymbol container)
+                {
+                    types.Push(container);
+                }
+
+                if (member is IMethodSymbol method &&
+                    method.GetAttributes().Any(attribute => attribute.AttributeClass?.ToDisplayString() == KnownTypes.VerifyTestAttribute) &&
+                    WhyNotRunnable(method) is null &&
+                    ConstructsUnresolved(method, compilation))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ReferencesDependencyModules(Compilation compilation) =>
+        compilation.ReferencedAssemblyNames.Any(identity => identity.Name == KnownTypes.DependencyModulesRuntime);
+
+    /// <summary>True when one of <paramref name="attributes"/> is, or derives from, <c>ServiceCollectionAttribute</c> or <c>ServiceCollectionAttribute&lt;T&gt;</c>.</summary>
+    private static bool HasServiceCollection(ImmutableArray<AttributeData> attributes) =>
+        attributes.Any(attribute =>
+        {
+            for (var type = attribute.AttributeClass; type is not null; type = type.BaseType)
+            {
+                if (type.Name == KnownTypes.ServiceCollectionAttribute && type.ContainingNamespace?.ToDisplayString() == KnownTypes.ServiceCollectionNamespace)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+
     private static AttributeData? FindContainer(IEnumerable<AttributeData> attributes) =>
         attributes.LastOrDefault(attribute => Bootstrap(attribute.AttributeClass) is not null);
 
@@ -218,7 +295,9 @@ internal static class TestDiscovery
             NestedName(type, '+'),
             constructor is not null,
             constructor?.Parameters.Select(parameter => Parameter(parameter, compilation, names)).ToArray() ?? [],
-            AttributeMaterializer.Materialize(type.GetAttributes(), compilation));
+            AttributeMaterializer.Materialize(type.GetAttributes(), compilation, ConstructsUnresolved(type, compilation)));
+
+        var fromSyntax = ConstructsUnresolved(method, compilation);
 
         var testMethod = new TestMethodModel(
             method.Name,
@@ -230,7 +309,7 @@ internal static class TestDiscovery
             method.ReturnsVoid ? "System.Void" : TypeName(method.ReturnType),
             parameters,
             VerifyRewriteRules.WillRewrite(method),
-            AttributeMaterializer.Materialize(method.GetAttributes().Where(attribute => !RowReader.IsRow(attribute)).ToImmutableArray(), compilation),
+            AttributeMaterializer.Materialize(method.GetAttributes().Where(attribute => !RowReader.IsRow(attribute)).ToImmutableArray(), compilation, fromSyntax),
             rows.Count > 0,
             rows.Where(row => row.Row is not null).Select(row => row.Row!).ToArray(),
             nameFormatter,
@@ -241,7 +320,7 @@ internal static class TestDiscovery
             Traits(method),
             names.Aliases);
 
-        return new TestEntry(testClass, testMethod);
+        return new TestEntry(testClass, testMethod, fromSyntax);
     }
 
     /// <summary>

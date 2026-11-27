@@ -41,9 +41,10 @@ internal static class GeneratorHarness
 
     /// <summary>
     /// A compilation of <paramref name="source"/>, the runtime files of VerificationGlue.Tests and of the
-    /// package, VerificationGlue, VerificationGlue.Mocks and Microsoft.Extensions.DependencyInjection.
+    /// package, VerificationGlue, VerificationGlue.Mocks, Microsoft.Extensions.DependencyInjection and
+    /// <paramref name="references"/>.
     /// </summary>
-    public static CSharpCompilation Compilation(string source, string declarations = "") =>
+    public static CSharpCompilation Compilation(string source, string declarations = "", params MetadataReference[] references) =>
         CSharpCompilation.Create(
             "SpecsInput",
             new[] { ("/repo/Tests/OrderTests.cs", source), ("/repo/Tests/Services.cs", Usings + declarations) }
@@ -57,6 +58,7 @@ internal static class GeneratorHarness
                 MetadataReference.CreateFromFile(typeof(VerificationGlue.Mocks.Mock).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(IServiceCollection).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(ServiceProvider).Assembly.Location),
+                .. references,
             ],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 

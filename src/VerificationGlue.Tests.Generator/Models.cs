@@ -95,8 +95,11 @@ internal sealed record TestClassModel(
     EquatableArray<ParameterModel> ConstructorParameters,
     EquatableArray<AttributeModel> Attributes);
 
-/// <summary>A test method with its class, before the methods are grouped by class.</summary>
-internal sealed record TestEntry(TestClassModel Class, TestMethodModel Method);
+/// <summary>
+/// A test method with its class, before the methods are grouped by class. <see cref="ConstructsUnresolved"/>
+/// is true when the assembly's unresolved attributes are written from syntax for this test.
+/// </summary>
+internal sealed record TestEntry(TestClassModel Class, TestMethodModel Method, bool ConstructsUnresolved);
 
 /// <summary>A class and its test methods, in source order. One registration file each.</summary>
 internal sealed record TestClassFile(TestClassModel Class, EquatableArray<TestMethodModel> Methods);

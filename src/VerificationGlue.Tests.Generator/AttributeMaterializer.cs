@@ -4,10 +4,12 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using CSharpAuthor;
 using CSharpAuthor.Collections;
 using CSharpAuthor.Roslyn;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace VerificationGlue.Tests.Generator;
 
@@ -16,15 +18,17 @@ namespace VerificationGlue.Tests.Generator;
 /// expression, so extension points find attributes without reflection. Attributes from <c>System</c>
 /// namespaces are left out. An attribute the generated file cannot write is left out too, and
 /// <see cref="TestAnalyzer"/> reports it as VGT0006 with the reason from <see cref="WhyNotMaterialized"/>.
+/// With <c>fromSyntax</c>, an attribute whose class another generator writes is written from its syntax
+/// instead, when a type named as the attribute is found at the usage.
 /// </summary>
 internal static class AttributeMaterializer
 {
-    public static EquatableArray<AttributeModel> Materialize(ImmutableArray<AttributeData> attributes, Compilation compilation)
+    public static EquatableArray<AttributeModel> Materialize(ImmutableArray<AttributeData> attributes, Compilation compilation, bool fromSyntax = false)
     {
         var models = new List<AttributeModel>();
         foreach (var attribute in attributes)
         {
-            if (!IsSkipped(attribute) && TryCreate(attribute, compilation, out var model, out _))
+            if (!IsSkipped(attribute) && TryCreate(attribute, compilation, fromSyntax, out var model, out _))
             {
                 models.Add(model!);
             }
@@ -51,17 +55,25 @@ internal static class AttributeMaterializer
     }
 
     /// <summary>Why the generated file cannot create <paramref name="attribute"/>, or null when it can.</summary>
-    public static string? WhyNotMaterialized(AttributeData attribute, Compilation compilation)
+    public static string? WhyNotMaterialized(AttributeData attribute, Compilation compilation, bool fromSyntax = false)
     {
-        TryCreate(attribute, compilation, out _, out var reason);
+        TryCreate(attribute, compilation, fromSyntax, out _, out var reason);
         return reason;
     }
 
-    private static bool TryCreate(AttributeData attribute, Compilation compilation, out AttributeModel? model, out string? reason)
+    private static bool TryCreate(AttributeData attribute, Compilation compilation, bool fromSyntax, out AttributeModel? model, out string? reason)
     {
         model = null;
         if (attribute.AttributeClass is not { } type || type.TypeKind == TypeKind.Error)
         {
+            if (fromSyntax &&
+                attribute.ApplicationSyntaxReference?.GetSyntax() is AttributeSyntax syntax &&
+                compilation.GetSemanticModel(syntax.SyntaxTree) is var semanticModel &&
+                UnresolvedType(syntax, semanticModel) is { } generated)
+            {
+                return TryCreateFromSyntax(syntax, generated, semanticModel, compilation, out model, out reason);
+            }
+
             reason = "its type cannot be resolved. Another source generator may produce it, and this generator cannot see that output";
             return false;
         }
@@ -111,6 +123,152 @@ internal static class AttributeMaterializer
         model = new AttributeModel(type.GetTypeDefinition(), arguments.ToArray(), named.ToArray());
         reason = null;
         return true;
+    }
+
+    /// <summary>
+    /// The class that another generator writes for an unresolved <c>[X]</c> or <c>[XAttribute]</c>:
+    /// <c>XAttribute</c> in the namespace of the one type named <c>X</c> at the usage. Null when there is
+    /// no such type or the name is generic or alias qualified.
+    /// </summary>
+    private static ITypeDefinition? UnresolvedType(AttributeSyntax syntax, SemanticModel semanticModel)
+    {
+        var (qualifier, simple) = syntax.Name switch
+        {
+            IdentifierNameSyntax identifier => ((NameSyntax?)null, identifier.Identifier.ValueText),
+            QualifiedNameSyntax { Right: IdentifierNameSyntax right } qualified => (qualified.Left, right.Identifier.ValueText),
+            _ => (null, ""),
+        };
+
+        const string suffix = "Attribute";
+        var name = simple.Length > suffix.Length && simple.EndsWith(suffix, StringComparison.Ordinal) ? simple.Substring(0, simple.Length - suffix.Length) : simple;
+        if (name.Length == 0)
+        {
+            return null;
+        }
+
+        INamespaceOrTypeSymbol? container = null;
+        if (qualifier is not null && (container = semanticModel.GetSymbolInfo(qualifier).Symbol as INamespaceOrTypeSymbol) is null)
+        {
+            return null;
+        }
+
+        var types = semanticModel.LookupNamespacesAndTypes(syntax.SpanStart, container, name)
+            .OfType<INamedTypeSymbol>()
+            .Where(type => type.TypeKind != TypeKind.Error)
+            .ToList();
+        if (types.Count != 1)
+        {
+            return null;
+        }
+
+        var ns = types[0].ContainingNamespace;
+        return TypeDefinition.Get(ns.IsGlobalNamespace ? "" : ns.ToDisplayString(), name + suffix);
+    }
+
+    private static bool TryCreateFromSyntax(AttributeSyntax syntax, ITypeDefinition type, SemanticModel semanticModel, Compilation compilation, out AttributeModel? model, out string? reason)
+    {
+        model = null;
+        var arguments = new List<string>();
+        var named = new List<NamedArgumentModel>();
+        foreach (var argument in syntax.ArgumentList?.Arguments ?? default)
+        {
+            if (WriteExpression(argument.Expression, semanticModel, compilation) is not { } text)
+            {
+                reason = "an argument cannot be written as C#";
+                return false;
+            }
+
+            if (argument.NameEquals is { } property)
+            {
+                named.Add(new NamedArgumentModel(property.Name.Identifier.ValueText, text));
+            }
+            else
+            {
+                arguments.Add(argument.NameColon is { } parameter ? parameter.Name.Identifier.ValueText + ": " + text : text);
+            }
+        }
+
+        model = new AttributeModel(type, arguments.ToArray(), named.ToArray());
+        reason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// An attribute argument read from syntax and written as C#: a constant, an enum member, <c>nameof</c>,
+    /// <c>typeof</c>, or an array of them. Null for anything else.
+    /// </summary>
+    private static string? WriteExpression(ExpressionSyntax expression, SemanticModel semanticModel, Compilation compilation)
+    {
+        switch (expression)
+        {
+            case TypeOfExpressionSyntax typeOf:
+                if (semanticModel.GetTypeInfo(typeOf.Type).Type is not { } target)
+                {
+                    return null;
+                }
+
+                if (typeOf.Type is GenericNameSyntax { IsUnboundGenericName: true } && target is INamedTypeSymbol { IsGenericType: true } generic)
+                {
+                    target = generic.ConstructUnboundGenericType();
+                }
+
+                return CanName(target, compilation) ? $"typeof({TypeOfName(target)})" : null;
+
+            case ArrayCreationExpressionSyntax { Initializer: { } initializer }:
+                return semanticModel.GetTypeInfo(expression).Type is IArrayTypeSymbol array ? WriteArray(array.ElementType, initializer.Expressions, semanticModel, compilation) : null;
+
+            case ImplicitArrayCreationExpressionSyntax implicitArray:
+                return semanticModel.GetTypeInfo(expression).Type is IArrayTypeSymbol implicitType ? WriteArray(implicitType.ElementType, implicitArray.Initializer.Expressions, semanticModel, compilation) : null;
+
+            case CollectionExpressionSyntax collection:
+                var items = collection.Elements.Select(element => element is ExpressionElementSyntax item ? item.Expression : null).ToList();
+                var types = items.Select(item => item is null ? null : semanticModel.GetTypeInfo(item).Type).Distinct(SymbolEqualityComparer.Default).ToList();
+                return items.Count > 0 && items.All(item => item is not null) && types.Count == 1 && types[0] is ITypeSymbol element
+                    ? WriteArray(element, items!, semanticModel, compilation)
+                    : null;
+        }
+
+        var constant = semanticModel.GetConstantValue(expression);
+        if (!constant.HasValue)
+        {
+            return null;
+        }
+
+        var type = semanticModel.GetTypeInfo(expression).Type;
+        if (constant.Value is not { } value)
+        {
+            return type is null ? "null" : CanName(type, compilation) || type.SpecialType != SpecialType.None ? $"({Name(type)})null" : null;
+        }
+
+        if (type is null)
+        {
+            return null;
+        }
+
+        return type.TypeKind == TypeKind.Enum
+            ? CanName(type, compilation) ? $"({Name(type)})({Convert.ToString(value, CultureInfo.InvariantCulture)})" : null
+            : Primitive(value, type.SpecialType);
+    }
+
+    private static string? WriteArray(ITypeSymbol element, IEnumerable<ExpressionSyntax> items, SemanticModel semanticModel, Compilation compilation)
+    {
+        if (element.SpecialType == SpecialType.None && !CanName(element, compilation))
+        {
+            return null;
+        }
+
+        var texts = new List<string>();
+        foreach (var item in items)
+        {
+            if (WriteExpression(item, semanticModel, compilation) is not { } text)
+            {
+                return null;
+            }
+
+            texts.Add(text);
+        }
+
+        return $"new {Name(element)}[] {{ {string.Join(", ", texts)} }}";
     }
 
     private static bool IsAccessible(ITypeSymbol type, Compilation compilation)
