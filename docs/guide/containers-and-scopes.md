@@ -28,6 +28,8 @@ public sealed class ShopBootstrap : ITestContainerBootstrap
 
 `ServiceProviderContainer` adapts a service provider to `ITestContainer`. [Extending VerificationGlue.Tests](extending.md#containers) shows it.
 
+The `VerificationGlue.Tests.DependencyInjection` package writes this bootstrap for you. `[ServiceCollection<T>]` builds the container from a static `Configure` method on `T`. [Give tests a service collection](service-collection.md) shows it.
+
 ## Replace a service with a mock
 
 Mark a parameter `[Mock]`, and the runner creates it with `Mock.Of<T>()`. It registers the mock as an override before it builds the container, so the system under test receives the same instance as the parameter:
@@ -165,7 +167,7 @@ A test with `[Mock]` parameters under a shared container whose bootstrap does no
 
 ## Where the attribute goes
 
-`[Container<T>]` can go on the assembly, a class or a method. The runner uses the narrowest one: the method's, then the class's, then the assembly's. An adapter can derive its own attribute, such as `ModuleTestAttribute : ContainerAttribute<ModuleBootstrap>`.
+`[Container<T>]` can go on the assembly, a class or a method. The runner uses the narrowest one: the method's, then the class's, then the assembly's. An adapter can derive its own attribute, as `ServiceCollectionAttribute<T> : ContainerAttribute<ServiceCollectionBootstrap<T>>` does.
 
 ## Who disposes what
 

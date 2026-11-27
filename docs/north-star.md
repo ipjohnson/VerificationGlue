@@ -20,7 +20,7 @@ Value capture requires an eligible method in a `partial` containing-type chain. 
 
 Unavailable values are identified rather than re-evaluated. The [full call-site matrix](design/verification-glue.md#host-and-call-site-capabilities) also covers helpers called from rewritten bodies.
 
-The four packages ship from this repository with one version number.
+The five packages ship from this repository with one version number.
 
 ## The problems
 
@@ -79,7 +79,7 @@ The props that `VerificationGlue` and `VerificationGlue.Mocks` need ship in `bui
 - Tier 3 stays opt-in until breakpoint binding and stepping pass in every advertised IDE and a separately user-approved total added cold-build budget passes at 100,000 calls. Report the matched generator-off baseline ratio too. Missing budget approval is not a pass; documented Hot Reload limitations alone do not block the gate.
 - Phase 0 evidence pins the .NET 10 SDK, MTP 3, IDE and IDE-plugin versions and covers discovery, UID-filtered runs, navigation/debugging and warning-free Native AOT execution. Record the combined results and supported limitations in `docs/research/ide-report.md` before making release promises; the MTP 2.5.3 spike is historical evidence only.
 - Each MTP major version gets a VerificationGlue major version. The previous major stays on a release branch that receives fixes.
-- The four packages keep one version number. A major caused by MTP does not break the public surface of `VerificationGlue` or `VerificationGlue.Mocks`. CI checks this through `PublicAPI.Shipped.txt`: such a major removes no entry from those two packages' files.
+- The five packages keep one version number. A major caused by MTP does not break the public surface of `VerificationGlue` or `VerificationGlue.Mocks`. CI checks this through `PublicAPI.Shipped.txt`: such a major removes no entry from those two packages' files.
 - This repository's `.Specs` projects run on `VerificationGlue.Tests`, and its conformance suites also run on xunit v3. See "Repository layout".
 - `Verify(cond)` throws at once. `Check(cond)` records a failure and lets the test continue. The test then fails at the end with every recorded failure listed.
 - `.WithMessage` and `.Because` outside a `[Verify]` method are build errors.
@@ -95,7 +95,7 @@ The props that `VerificationGlue` and `VerificationGlue.Mocks` need ship in `bui
 
 ## Code generation with CSharpAuthor
 
-All four generators build their output with CSharpAuthor 2.x. CSharpAuthor ships as source, so it compiles into each generator assembly and adds no package dependency. Each generator project references it with `PrivateAssets=all`, `IncludeAssets=build` and `PackageCSharpAuthorIncludeRoslyn=true`. The Roslyn bridge turns an `ITypeSymbol` into an `ITypeDefinition` and reads attributes.
+All five generators build their output with CSharpAuthor 2.x. CSharpAuthor ships as source, so it compiles into each generator assembly and adds no package dependency. Each generator project references it with `PrivateAssets=all`, `IncludeAssets=build` and `PackageCSharpAuthorIncludeRoslyn=true`. The Roslyn bridge turns an `ITypeSymbol` into an `ITypeDefinition` and reads attributes.
 
 The rules below decide what may be cached, where, and for how long. They were taken from reading the CSharpAuthor source at tag 2.0.0. Claims marked [I] are inference and are checked by the generator benchmark.
 

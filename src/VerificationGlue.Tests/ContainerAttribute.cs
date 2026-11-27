@@ -41,7 +41,7 @@ public abstract class ContainerAttribute : Attribute
 
 /// <summary>
 /// Builds the container of these tests with <typeparamref name="T"/>. An adapter can derive its own
-/// attribute from this one, such as <c>ModuleTestAttribute : ContainerAttribute&lt;ModuleBootstrap&gt;</c>.
+/// attribute from this one, as <c>ServiceCollectionAttribute : ContainerAttribute&lt;ServiceCollectionBootstrap&gt;</c> does.
 /// </summary>
 /// <typeparam name="T">The bootstrap.</typeparam>
 public class ContainerAttribute<T> : ContainerAttribute

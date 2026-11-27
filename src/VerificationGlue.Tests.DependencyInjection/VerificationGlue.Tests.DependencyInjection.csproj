@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Gives VerificationGlue.Tests tests a Microsoft.Extensions.DependencyInjection container, with the test's mocks in it.</Description>
+    <PackageTags>testing dependency-injection servicecollection aot</PackageTags>
+    <!-- Microsoft.Testing.Platform comes in through VerificationGlue.Tests. This library is not a test application. -->
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../VerificationGlue.Tests.DependencyInjection.Generator/VerificationGlue.Tests.DependencyInjection.Generator.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" PackAsAnalyzer="true" />
+    <ProjectReference Include="../VerificationGlue.Tests/VerificationGlue.Tests.csproj" PrivateAssets="none" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="llms.txt" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

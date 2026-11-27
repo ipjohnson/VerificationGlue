@@ -1,6 +1,6 @@
 # Releasing
 
-`.github/workflows/release.yml` publishes `VerificationGlue`, `VerificationGlue.Mocks`, `VerificationGlue.Tests` and `VerificationGlue.Tests.AspNetCore` to nuget.org. All four have one version. It is `VersionPrefix` in `Directory.Build.props` with a prerelease label, such as `0.1.0-preview.1`. Each package is a preview, because `VerificationGlue.Tests` depends on the Microsoft.Testing.Platform 3 previews and a stable package cannot depend on a preview.
+`.github/workflows/release.yml` publishes `VerificationGlue`, `VerificationGlue.Mocks`, `VerificationGlue.Tests`, `VerificationGlue.Tests.AspNetCore` and `VerificationGlue.Tests.DependencyInjection` to nuget.org. All five have one version. It is `VersionPrefix` in `Directory.Build.props` with a prerelease label, such as `0.1.0-preview.1`. Each package is a preview, because `VerificationGlue.Tests` depends on the Microsoft.Testing.Platform 3 previews and a stable package cannot depend on a preview.
 
 ## Once per repository
 
@@ -26,7 +26,7 @@ A new policy is active for 7 days. The first successful push makes it permanent.
    git push origin v0.4.0-preview.1
    ```
 
-The workflow fails when the tag's version prefix differs from `VersionPrefix`. It first runs the release candidate matrix in `.github/workflows/release-candidate.yml`, which builds the solution, runs the specs and runs `eng/pack-and-consume.sh` on the JIT on macOS arm64 and Windows x64. It then runs `eng/pack-and-consume.sh` on Linux x64 with the label as `VersionSuffix`, and pushes the four packages to nuget.org only if the matrix and the script pass. It then creates a GitHub prerelease for the tag, with the packages attached.
+The workflow fails when the tag's version prefix differs from `VersionPrefix`. It first runs the release candidate matrix in `.github/workflows/release-candidate.yml`, which builds the solution, runs the specs and runs `eng/pack-and-consume.sh` on the JIT on macOS arm64 and Windows x64. It then runs `eng/pack-and-consume.sh` on Linux x64 with the label as `VersionSuffix`, and pushes the five packages to nuget.org only if the matrix and the script pass. It then creates a GitHub prerelease for the tag, with the packages attached.
 
 To release without a tag, run the workflow from the Actions tab and enter the label, such as `preview.2`. The workflow then creates the tag with the GitHub release.
 

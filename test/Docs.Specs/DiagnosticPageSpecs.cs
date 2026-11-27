@@ -13,6 +13,7 @@ public class DiagnosticPageSpecs
         "VerificationGlue.Mocks.Generator",
         "VerificationGlue.Tests.Generator",
         "VerificationGlue.Tests.AspNetCore.Generator",
+        "VerificationGlue.Tests.DependencyInjection.Generator",
     ];
 
     private static readonly string[] PageSections =
