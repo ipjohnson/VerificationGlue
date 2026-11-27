@@ -71,7 +71,7 @@ jobs:
         run: |
           mkdir -p artifacts/release
           for package in VerificationGlue VerificationGlue.Mocks VerificationGlue.Tests VerificationGlue.Tests.AspNetCore VerificationGlue.Tests.DependencyInjection; do
-            cp"artifacts/pack-and-consume/feed/$package.$VERSION.nupkg" artifacts/release/ \
+            cp "artifacts/pack-and-consume/feed/$package.$VERSION.nupkg" artifacts/release/ \
               || { echo "::error::No $package $VERSION package"; exit 1; }
           done
 
